@@ -179,8 +179,8 @@
       ? 'Inbox checked ' + when(s.at) + ' · page loaded ' + when(d.now)
       : 'No inbox data yet · page loaded ' + when(d.now);
     const b = document.getElementById('banner');
-    if (!s) { b.className = 'banner warn'; b.textContent = 'The WOAH Inbox hasn\'t sent any data yet. It updates once an hour.'; }
-    else if (Date.now() - s.at > 3 * 3600000) { b.className = 'banner warn'; b.textContent = 'The WOAH Inbox last checked in ' + when(s.at) + '. If that\'s more than a few hours ago, it may have stopped running.'; }
+    if (!s) { b.className = 'banner warn'; b.textContent = 'The WOAH Inbox hasn\'t sent any data yet. It updates every 15 minutes.'; }
+    else if (Date.now() - s.at > 60 * 60000) { b.className = 'banner warn'; b.textContent = 'The WOAH Inbox last checked in ' + when(s.at) + '. It normally updates every 15 minutes, so it may have stopped running.'; }
     else { b.className = 'banner'; b.textContent = ''; }
     renderSwitch('inbox'); renderSwitch('planner');
     renderStats(); renderTabs(); renderPanel();
@@ -268,7 +268,7 @@
   }
 
   if (PW) { showApp(true); load(); } else showApp(false);
-  setInterval(() => { if (PW) load(); }, 10 * 60 * 1000);
+  setInterval(() => { if (PW) load(); }, 5 * 60 * 1000);
 </script>
 </body>
 </html>
