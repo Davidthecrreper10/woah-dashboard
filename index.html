@@ -65,6 +65,8 @@
   .banner.warn { background: var(--warn-soft); color: var(--warn); display: block; }
   .banner.bad { background: var(--bad-soft); color: var(--bad); display: block; }
   .scroll { overflow-x: auto; }
+  td a.mine { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 6px; white-space: nowrap; }
+  td a.mine:hover { color: var(--brand); }
   @media (max-width: 640px) { .hide-sm { display: none; } }
   #login { max-width: 360px; margin: 12vh auto 0; text-align: center; }
   #login input { font: inherit; width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); margin: 14px 0 10px; }
@@ -109,7 +111,10 @@
     <div class="tabs" id="tabs"></div>
     <div id="panel" class="scroll"></div>
   </div>
-  <div class="sub" style="margin-top:14px;text-align:center"><a href="#" onclick="logout();return false" style="color:var(--muted)">Log out on this computer</a></div>
+  <div class="sub" style="margin-top:14px;text-align:center">
+    Your email for "find in my email": <input id="myEmail" type="email" placeholder="you@student.greenschool.org" onchange="saveMyEmail()" style="font:inherit;font-size:12px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);width:240px">
+    &nbsp;·&nbsp; <a href="#" onclick="logout();return false" style="color:var(--muted)">Log out on this computer</a>
+  </div>
   </div>
 </div>
 
@@ -141,6 +146,11 @@
       document.getElementById('loginErr').textContent = /wrong password/.test(err.message) ? 'Wrong password, try again.' : err.message;
     });
   }
+  function saveMyEmail() {
+    const v = document.getElementById('myEmail').value.trim();
+    try { v ? localStorage.setItem('woahMyEmail', v) : localStorage.removeItem('woahMyEmail'); } catch (e) {}
+    if (DATA) renderPanel();
+  }
   function logout() { try { localStorage.removeItem('woahDashPw'); } catch (e) {} PW = ''; showApp(false); }
   let DATA = null, TAB = 'us';
   const SW = {
@@ -157,7 +167,20 @@
   function when(t) { return new Date(t).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
   const NAMES = { 'dominique.jason@greenschool.org': 'Dom', 'marianakoenders@yahoo.com': 'Mariana' };
   // Always open the exact thread in the WOAH inbox (Gmail keeps the thread when switching to that account)
-  function fixLink(l) { const m = String(l || '').match(/#all\/([0-9a-f]+)/i); return m ? 'https:/'+'/mail.goo'+'gle.com/mail/?authuser=woahfestival@greenschool.org#all/' + m[1] : l; }
+  function fixLink(l) { const m = String(l || '').match(/#all\/([0-9a-f]+)/i); return m ? 'https://mail.google.com/mail/?authuser=woahfestival@greenschool.org#all/' + m[1] : l; }
+  // "find in my email": searches the clicker's OWN Gmail - the original email (if they were on it) or Chris's forward/reminder about it
+  function mineLink(x) {
+    const id = (String(x.link || '').match(/#all\/([0-9a-f]+)/i) || [])[1] || '';
+    const subj = String(x.subject || '').replace(/^\s*((re|fwd?|aw)\s*:\s*)+/i, '').replace(/"/g, '').trim();
+    const parts = [];
+    if (id) parts.push(id);
+    if (x.sender && subj) parts.push('(from:' + x.sender + ' subject:"' + subj + '")');
+    else if (subj) parts.push('subject:"' + subj + '"');
+    const q = parts.length > 1 ? '{' + parts.join(' ') + '}' : (parts[0] || '');
+    let me = ''; try { me = localStorage.getItem('woahMyEmail') || ''; } catch (e) {}
+    return 'https://mail.google.com/mail/' + (me ? '?authuser=' + encodeURIComponent(me) : '') + '#search/' + encodeURIComponent(q);
+  }
+  function links(x) { return `<a href="${esc(fixLink(x.link))}" title="Open in the WOAH inbox">${esc(x.subject)}</a> <a class="mine" href="${esc(mineLink(x))}" title="Search your own Gmail for this email or Chris's forward/reminder about it">find in my email</a>`; }
   function first(e) { e = String(e).toLowerCase(); return NAMES[e] || e.split('@')[0].split('.')[0].replace(/^\w/, c => c.toUpperCase()); }
 
   function load() {
@@ -246,17 +269,17 @@
     const empty = t => `<div class="empty">${t}</div>`;
     if (TAB === 'us') {
       p.innerHTML = l.us.length ? `<table><tr><th>Email</th><th>From</th><th>Owner</th><th>Waiting</th><th class="hide-sm">Reminders</th></tr>` +
-        l.us.map(x => `<tr><td><a href="${esc(fixLink(x.link))}">${esc(x.subject)}</a>${x.cc ? '<span class="tag">their inbox</span>' : ''}</td>
+        l.us.map(x => `<tr><td>${links(x)}${x.cc ? '<span class="tag">their inbox</span>' : ''}</td>
           <td>${esc(x.from)}</td><td>${esc(x.owners)}</td><td class="${ageClass(x.since, 3, 5)}">${ago(x.since)}</td><td class="hide-sm">${x.reminders}/3</td></tr>`).join('') + '</table>'
         : empty('Nothing waiting on us. Nice.');
     } else if (TAB === 'them') {
       p.innerHTML = l.them.length ? `<table><tr><th>Email</th><th>Waiting on</th><th>Owner</th><th>Sent</th><th class="hide-sm">Nudges</th></tr>` +
-        l.them.map(x => `<tr><td><a href="${esc(fixLink(x.link))}">${esc(x.subject)}</a></td><td>${esc(x.who)}</td><td>${esc(x.owners)}</td>
+        l.them.map(x => `<tr><td>${links(x)}</td><td>${esc(x.who)}</td><td>${esc(x.owners)}</td>
           <td class="${ageClass(x.since, 7, 12)}">${x.since ? ago(x.since) + ' ago' : ''}</td><td class="hide-sm">${x.nudges}/2</td></tr>`).join('') + '</table>'
         : empty('No unanswered emails from us right now.');
     } else if (TAB === 'promised') {
       p.innerHTML = l.promised.length ? `<p class="sub" style="margin:0 0 8px">Conversations where our last email promised something ("we'll get back to you"…).</p><table><tr><th>Conversation</th><th>Last from</th><th>Last email</th></tr>` +
-        l.promised.map(x => `<tr><td><a href="${esc(fixLink(x.link))}">${esc(x.subject)}</a></td><td>${esc(x.from)}</td><td class="${ageClass(x.last, 3, 7)}">${ago(x.last)} ago</td></tr>`).join('') + '</table>'
+        l.promised.map(x => `<tr><td>${links(x)}</td><td>${esc(x.from)}</td><td class="${ageClass(x.last, 3, 7)}">${ago(x.last)} ago</td></tr>`).join('') + '</table>'
         : empty('No open promises.');
     } else {
       if (!l.planner.length) { p.innerHTML = empty('Nothing overdue or due in the next 2 weeks.'); return; }
@@ -269,6 +292,7 @@
     }
   }
 
+  try { document.getElementById('myEmail').value = localStorage.getItem('woahMyEmail') || ''; } catch (e) {}
   if (PW) { showApp(true); load(); } else showApp(false);
   setInterval(() => { if (PW) load(); }, 5 * 60 * 1000);
 </script>
