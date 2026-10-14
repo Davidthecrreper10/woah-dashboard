@@ -163,6 +163,7 @@
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
   function days(t) { return Math.max(0, Math.floor((Date.now() - t) / 86400000)); }
   function ago(t) { const d = days(t); return d === 0 ? 'today' : d === 1 ? '1 day' : d + ' days'; }
+  function agoText(t) { return days(t) === 0 ? 'today' : ago(t) + ' ago'; }
   function ageClass(t, warn, bad) { const d = days(t); return d >= bad ? 'age-bad' : d >= warn ? 'age-warn' : ''; }
   function when(t) { return new Date(t).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
   const NAMES = { 'dominique.jason@greenschool.org': 'Dom', 'marianakoenders@yahoo.com': 'Mariana' };
@@ -241,7 +242,7 @@
 
   function lists() {
     const s = DATA.snap || { open: [], waiting: [], promised: [] };
-    return { us: s.open || [], them: s.waiting || [], promised: s.promised || [], planner: DATA.deadlines || [] };
+    return { us: s.open || [], them: s.waiting || [], promised: s.promised || [], done: s.done || [], planner: DATA.deadlines || [] };
   }
 
   function renderStats() {
@@ -259,7 +260,7 @@
 
   function renderTabs() {
     const l = lists();
-    const tabs = [['us', 'Waiting on us', l.us.length], ['them', 'Waiting on them', l.them.length], ['promised', 'FOLLOW UP', l.promised.length], ['planner', 'Planner', l.planner.length]];
+    const tabs = [['us', 'Waiting on us', l.us.length], ['them', 'Waiting on them', l.them.length], ['promised', 'FOLLOW UP', l.promised.length], ['done', 'Handled', l.done.length], ['planner', 'Planner', l.planner.length]];
     document.getElementById('tabs').innerHTML = tabs.map(([k, n, c]) =>
       `<button class="${TAB === k ? 'active' : ''}" onclick="TAB='${k}';renderTabs();renderPanel()">${n}<span class="count">${c}</span></button>`).join('');
   }
@@ -275,12 +276,17 @@
     } else if (TAB === 'them') {
       p.innerHTML = l.them.length ? `<table><tr><th>Email</th><th>Waiting on</th><th>Owner</th><th>Sent</th><th class="hide-sm">Nudges</th></tr>` +
         l.them.map(x => `<tr><td>${links(x)}</td><td>${esc(x.who)}</td><td>${esc(x.owners)}</td>
-          <td class="${ageClass(x.since, 7, 12)}">${x.since ? ago(x.since) + ' ago' : ''}</td><td class="hide-sm">${x.nudges}/2</td></tr>`).join('') + '</table>'
+          <td class="${ageClass(x.since, 7, 12)}">${x.since ? agoText(x.since) : ''}</td><td class="hide-sm">${x.nudges}/2</td></tr>`).join('') + '</table>'
         : empty('No unanswered emails from us right now.');
     } else if (TAB === 'promised') {
       p.innerHTML = l.promised.length ? `<p class="sub" style="margin:0 0 8px">Conversations where our last email promised something ("we'll get back to you"…).</p><table><tr><th>Conversation</th><th>Last from</th><th>Last email</th></tr>` +
-        l.promised.map(x => `<tr><td>${links(x)}</td><td>${esc(x.from)}</td><td class="${ageClass(x.last, 3, 7)}">${ago(x.last)} ago</td></tr>`).join('') + '</table>'
+        l.promised.map(x => `<tr><td>${links(x)}</td><td>${esc(x.from)}</td><td class="${ageClass(x.last, 3, 7)}">${agoText(x.last)}</td></tr>`).join('') + '</table>'
         : empty('No open promises.');
+    } else if (TAB === 'done') {
+      p.innerHTML = l.done.length ? `<p class="sub" style="margin:0 0 8px">Replied to or dismissed in the last 7 days.</p><table><tr><th>Email</th><th>From</th><th>Handled by</th><th>How</th><th class="hide-sm">When</th></tr>` +
+        l.done.map(x => `<tr><td>${links(x)}</td><td>${esc(x.from)}</td><td>${esc(x.by || '—')}</td>
+          <td><span class="tag" style="margin:0">${esc(x.how)}</span></td><td class="hide-sm sub">${x.when ? agoText(x.when) : ''}</td></tr>`).join('') + '</table>'
+        : empty('Nothing handled in the last 7 days yet. Replies and dismissals show up here.');
     } else {
       if (!l.planner.length) { p.innerHTML = empty('Nothing overdue or due in the next 2 weeks.'); return; }
       const by = {};
