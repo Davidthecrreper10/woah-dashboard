@@ -156,6 +156,8 @@
   function ageClass(t, warn, bad) { const d = days(t); return d >= bad ? 'age-bad' : d >= warn ? 'age-warn' : ''; }
   function when(t) { return new Date(t).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
   const NAMES = { 'dominique.jason@greenschool.org': 'Dom', 'marianakoenders@yahoo.com': 'Mariana' };
+  // Always open the exact thread in the WOAH inbox (Gmail keeps the thread when switching to that account)
+  function fixLink(l) { const m = String(l || '').match(/#all\/([0-9a-f]+)/i); return m ? 'https:/'+'/mail.goo'+'gle.com/mail/?authuser=woahfestival@greenschool.org#all/' + m[1] : l; }
   function first(e) { e = String(e).toLowerCase(); return NAMES[e] || e.split('@')[0].split('.')[0].replace(/^\w/, c => c.toUpperCase()); }
 
   function load() {
@@ -244,17 +246,17 @@
     const empty = t => `<div class="empty">${t}</div>`;
     if (TAB === 'us') {
       p.innerHTML = l.us.length ? `<table><tr><th>Email</th><th>From</th><th>Owner</th><th>Waiting</th><th class="hide-sm">Reminders</th></tr>` +
-        l.us.map(x => `<tr><td><a href="${esc(x.link)}">${esc(x.subject)}</a>${x.cc ? '<span class="tag">their inbox</span>' : ''}</td>
+        l.us.map(x => `<tr><td><a href="${esc(fixLink(x.link))}">${esc(x.subject)}</a>${x.cc ? '<span class="tag">their inbox</span>' : ''}</td>
           <td>${esc(x.from)}</td><td>${esc(x.owners)}</td><td class="${ageClass(x.since, 3, 5)}">${ago(x.since)}</td><td class="hide-sm">${x.reminders}/3</td></tr>`).join('') + '</table>'
         : empty('Nothing waiting on us. Nice.');
     } else if (TAB === 'them') {
       p.innerHTML = l.them.length ? `<table><tr><th>Email</th><th>Waiting on</th><th>Owner</th><th>Sent</th><th class="hide-sm">Nudges</th></tr>` +
-        l.them.map(x => `<tr><td><a href="${esc(x.link)}">${esc(x.subject)}</a></td><td>${esc(x.who)}</td><td>${esc(x.owners)}</td>
+        l.them.map(x => `<tr><td><a href="${esc(fixLink(x.link))}">${esc(x.subject)}</a></td><td>${esc(x.who)}</td><td>${esc(x.owners)}</td>
           <td class="${ageClass(x.since, 7, 12)}">${x.since ? ago(x.since) + ' ago' : ''}</td><td class="hide-sm">${x.nudges}/2</td></tr>`).join('') + '</table>'
         : empty('No unanswered emails from us right now.');
     } else if (TAB === 'promised') {
       p.innerHTML = l.promised.length ? `<p class="sub" style="margin:0 0 8px">Conversations where our last email promised something ("we'll get back to you"…).</p><table><tr><th>Conversation</th><th>Last from</th><th>Last email</th></tr>` +
-        l.promised.map(x => `<tr><td><a href="${esc(x.link)}">${esc(x.subject)}</a></td><td>${esc(x.from)}</td><td class="${ageClass(x.last, 3, 7)}">${ago(x.last)} ago</td></tr>`).join('') + '</table>'
+        l.promised.map(x => `<tr><td><a href="${esc(fixLink(x.link))}">${esc(x.subject)}</a></td><td>${esc(x.from)}</td><td class="${ageClass(x.last, 3, 7)}">${ago(x.last)} ago</td></tr>`).join('') + '</table>'
         : empty('No open promises.');
     } else {
       if (!l.planner.length) { p.innerHTML = empty('Nothing overdue or due in the next 2 weeks.'); return; }
