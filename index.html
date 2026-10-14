@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WOAH Dashboard</title>
+<base target="_blank">
+<style>
+  :root {
+    --bg: #f4f7f8; --card: #ffffff; --ink: #14262e; --muted: #5d7079; --line: #e3eaed;
+    --brand: #0f7c8a; --brand-soft: #e2f3f5; --warn: #b85c00; --warn-soft: #fff1e0;
+    --bad: #b3261e; --bad-soft: #fde8e6; --ok: #1e7d46; --ok-soft: #e3f4ea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e171b; --card: #152228; --ink: #e5eef1; --muted: #93a7b0; --line: #23353d;
+      --brand: #4fc3d1; --brand-soft: #143238; --warn: #f0a24b; --warn-soft: #33260f;
+      --bad: #f28b82; --bad-soft: #3a1c1a; --ok: #6fd39a; --ok-soft: #12301f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 48px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+  h1 span { color: var(--brand); }
+  .sub { color: var(--muted); font-size: 13px; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); padding: 7px 12px; }
+  button:hover { border-color: var(--brand); }
+  button:disabled { opacity: .5; cursor: default; }
+  .grid { display: grid; gap: 14px; }
+  .switches { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-bottom: 14px; }
+  .stats { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .sw-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .sw-name { font-weight: 600; font-size: 15px; }
+  .pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
+  .pill.on { background: var(--ok-soft); color: var(--ok); }
+  .pill.break { background: var(--warn-soft); color: var(--warn); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-top: 12px; }
+  .seg button { border: 0; border-radius: 0; padding: 8px 18px; background: transparent; }
+  .seg button.active.on { background: var(--ok); color: #fff; }
+  .seg button.active.break { background: var(--warn); color: #fff; }
+  .sw-note { color: var(--muted); font-size: 13px; margin-top: 10px; }
+  .confirm { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--warn-soft); font-size: 13px; display: none; }
+  .confirm button { margin: 8px 6px 0 0; }
+  .stat .n { font-size: 28px; font-weight: 700; line-height: 1.1; }
+  .stat .l { color: var(--muted); font-size: 13px; }
+  .stat.bad .n { color: var(--bad); } .stat.warn .n { color: var(--warn); } .stat.brand .n { color: var(--brand); }
+  .tabs { display: flex; gap: 6px; margin: 4px 0 12px; flex-wrap: wrap; }
+  .tabs button.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .count { opacity: .75; margin-left: 4px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; padding: 8px; border-bottom: 1px solid var(--line); }
+  td { padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td a { color: var(--brand); text-decoration: none; font-weight: 500; }
+  td a:hover { text-decoration: underline; }
+  .age-bad { color: var(--bad); font-weight: 600; } .age-warn { color: var(--warn); font-weight: 600; }
+  .tag { font-size: 11px; padding: 2px 7px; border-radius: 6px; background: var(--brand-soft); color: var(--brand); margin-left: 6px; white-space: nowrap; }
+  .owner-h { font-weight: 600; margin: 14px 0 4px; }
+  .owner-h:first-child { margin-top: 0; }
+  .empty { color: var(--muted); padding: 18px 4px; }
+  .banner { padding: 10px 14px; border-radius: 10px; margin-bottom: 14px; font-size: 13px; display: none; }
+  .banner.warn { background: var(--warn-soft); color: var(--warn); display: block; }
+  .banner.bad { background: var(--bad-soft); color: var(--bad); display: block; }
+  .scroll { overflow-x: auto; }
+  @media (max-width: 640px) { .hide-sm { display: none; } }
+  #login { max-width: 360px; margin: 12vh auto 0; text-align: center; }
+  #login input { font: inherit; width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); margin: 14px 0 10px; }
+  #login button { width: 100%; padding: 10px; background: var(--brand); color: #fff; border-color: var(--brand); }
+  #login .err { color: var(--bad); font-size: 13px; min-height: 18px; margin-top: 8px; }
+  #app { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="login" class="card">
+    <h1><span>WOAH</span> Dashboard</h1>
+    <div class="sub">Enter the dashboard password</div>
+    <form onsubmit="event.preventDefault(); tryLogin();">
+      <input id="pw" type="password" autocomplete="current-password" placeholder="Password">
+      <button type="submit">Open</button>
+    </form>
+    <div class="err" id="loginErr"></div>
+  </div>
+  <div id="app">
+  <header>
+    <div>
+      <h1><span>WOAH</span> Dashboard</h1>
+      <div class="sub" id="updated">Loading…</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button id="plannerBtn" onclick="openPlanner()">Open Planner</button>
+      <button id="refresh" onclick="load()">Refresh</button>
+    </div>
+  </header>
+
+  <div class="banner" id="banner"></div>
+
+  <div class="grid switches">
+    <div class="card" id="sw-inbox"></div>
+    <div class="card" id="sw-planner"></div>
+  </div>
+
+  <div class="grid stats" id="stats"></div>
+
+  <div class="card">
+    <div class="tabs" id="tabs"></div>
+    <div id="panel" class="scroll"></div>
+  </div>
+  <div class="sub" style="margin-top:14px;text-align:center"><a href="#" onclick="logout();return false" style="color:var(--muted)">Log out on this computer</a></div>
+  </div>
+</div>
+
+<script>
+  // Chris's script (the "back end"). The password is checked there, not here.
+  const API = 'https://script.google.com/macros/s/AKfycbzAV1IE_Y6-IlgkQh3MGRTc6aspuaZSu00y5QXu_8R8e1nTgch3XUhUyFR2wdqgZICg/exec';
+  let PW = '';
+  try { PW = localStorage.getItem('woahDashPw') || ''; } catch (e) {}
+
+  // Plain-text POST without any Google cookies, so it works whatever accounts the browser is signed into.
+  function call(body) {
+    return fetch(API, { method: 'POST', credentials: 'omit', redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ password: PW }, body)) })
+      .then(r => r.json())
+      .then(res => { if (!res.ok) throw new Error(res.error || 'Something went wrong'); return res.data; });
+  }
+  function showApp(on) {
+    document.getElementById('login').style.display = on ? 'none' : 'block';
+    document.getElementById('app').style.display = on ? 'block' : 'none';
+  }
+  function tryLogin() {
+    PW = document.getElementById('pw').value;
+    document.getElementById('loginErr').textContent = 'Checking…';
+    call({ action: 'data' }).then(d => {
+      try { localStorage.setItem('woahDashPw', PW); } catch (e) {}
+      document.getElementById('loginErr').textContent = '';
+      showApp(true); render(d);
+    }).catch(err => {
+      document.getElementById('loginErr').textContent = /wrong password/.test(err.message) ? 'Wrong password, try again.' : err.message;
+    });
+  }
+  function logout() { try { localStorage.removeItem('woahDashPw'); } catch (e) {} PW = ''; showApp(false); }
+  let DATA = null, TAB = 'us';
+  const SW = {
+    inbox: { name: 'WOAH inbox', on: 'Forwards, reminders and follow-ups go to the team as normal.',
+             brk: 'Nothing goes to students. Forwards, reminders and follow-ups go to the break contacts. Outside people still get the auto-reply.' },
+    planner: { name: 'Planner reminders', on: 'Daily planner reminders go to each owner as normal.',
+               brk: 'No planner reminders to students. The break contacts get one daily summary instead.' },
+  };
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  function days(t) { return Math.max(0, Math.floor((Date.now() - t) / 86400000)); }
+  function ago(t) { const d = days(t); return d === 0 ? 'today' : d === 1 ? '1 day' : d + ' days'; }
+  function ageClass(t, warn, bad) { const d = days(t); return d >= bad ? 'age-bad' : d >= warn ? 'age-warn' : ''; }
+  function when(t) { return new Date(t).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+  const NAMES = { 'dominique.jason@greenschool.org': 'Dom', 'marianakoenders@yahoo.com': 'Mariana' };
+  function first(e) { e = String(e).toLowerCase(); return NAMES[e] || e.split('@')[0].split('.')[0].replace(/^\w/, c => c.toUpperCase()); }
+
+  function load() {
+    document.getElementById('refresh').disabled = true;
+    call({ action: 'data' }).then(render).catch(err => {
+      if (/wrong password/.test(err.message)) { logout(); return; }
+      fail(err);
+    });
+  }
+  function fail(err) {
+    document.getElementById('refresh').disabled = false;
+    const b = document.getElementById('banner'); b.className = 'banner bad'; b.textContent = 'Something went wrong: ' + (err && err.message || err);
+  }
+  function openPlanner() { if (DATA) window.open(DATA.plannerUrl, '_blank'); }
+
+  function render(d) {
+    DATA = d;
+    document.getElementById('refresh').disabled = false;
+    const s = d.snap;
+    document.getElementById('updated').textContent = s
+      ? 'Inbox checked ' + when(s.at) + ' · page loaded ' + when(d.now)
+      : 'No inbox data yet · page loaded ' + when(d.now);
+    const b = document.getElementById('banner');
+    if (!s) { b.className = 'banner warn'; b.textContent = 'The WOAH Inbox hasn\'t sent any data yet. It updates once an hour.'; }
+    else if (Date.now() - s.at > 3 * 3600000) { b.className = 'banner warn'; b.textContent = 'The WOAH Inbox last checked in ' + when(s.at) + '. If that\'s more than a few hours ago, it may have stopped running.'; }
+    else { b.className = 'banner'; b.textContent = ''; }
+    renderSwitch('inbox'); renderSwitch('planner');
+    renderStats(); renderTabs(); renderPanel();
+  }
+
+  function renderSwitch(which) {
+    const c = DATA.control, v = c[which], info = SW[which], isOn = v === 'ON';
+    const contacts = (c.contacts || []).map(first).join(', ') || 'none set';
+    document.getElementById('sw-' + which).innerHTML = `
+      <div class="sw-top"><div class="sw-name">${info.name}</div><span class="pill ${isOn ? 'on' : 'break'}">${isOn ? 'ON' : 'BREAK'}</span></div>
+      <div class="seg">
+        <button class="${isOn ? 'active on' : ''}" onclick="ask('${which}','ON')">On</button>
+        <button class="${!isOn ? 'active break' : ''}" onclick="ask('${which}','BREAK')">Break</button>
+      </div>
+      <div class="sw-note">${isOn ? info.on : info.brk + '<br><b>Break contacts:</b> ' + esc(contacts)}</div>
+      ${c.lastChanged && c.lastChanged.indexOf(info.name) > -1 ? '<div class="sw-note">Last changed ' + esc(c.lastChanged.split(' — ')[0]) + '</div>' : ''}
+      <div class="confirm" id="cf-${which}"></div>`;
+  }
+
+  function ask(which, value) {
+    if (DATA.control[which] === value) return;
+    const box = document.getElementById('cf-' + which);
+    const msg = value === 'BREAK'
+      ? 'Switch ' + SW[which].name + ' to <b>Break</b>? Students will stop getting emails; the break contacts get them instead.'
+      : 'Switch ' + SW[which].name + ' back <b>On</b>? Emails will go to students again from the next check.';
+    box.innerHTML = msg + '<br><button onclick="flip(\'' + which + '\',\'' + value + '\')">Yes, switch</button><button onclick="this.parentNode.style.display=\'none\'">Cancel</button>';
+    box.style.display = 'block';
+  }
+  function flip(which, value) {
+    const box = document.getElementById('cf-' + which); box.innerHTML = 'Switching…';
+    call({ action: 'set', which, value }).then(render).catch(fail);
+  }
+
+  function lists() {
+    const s = DATA.snap || { open: [], waiting: [], promised: [] };
+    return { us: s.open || [], them: s.waiting || [], promised: s.promised || [], planner: DATA.deadlines || [] };
+  }
+
+  function renderStats() {
+    const l = lists();
+    const overdue = l.planner.filter(x => x.overdue).length;
+    const old = l.us.filter(x => days(x.since) >= 3).length;
+    const tiles = [
+      { n: l.us.length, l: 'Waiting on us' + (old ? ' · ' + old + ' over 3 days' : ''), c: old ? 'bad' : 'brand' },
+      { n: l.them.length, l: 'Waiting on them', c: 'warn' },
+      { n: l.promised.length, l: 'FOLLOW UP (we promised)', c: 'warn' },
+      { n: overdue, l: 'Overdue planner items', c: overdue ? 'bad' : 'brand' },
+    ];
+    document.getElementById('stats').innerHTML = tiles.map(t => `<div class="card stat ${t.c}"><div class="n">${t.n}</div><div class="l">${t.l}</div></div>`).join('');
+  }
+
+  function renderTabs() {
+    const l = lists();
+    const tabs = [['us', 'Waiting on us', l.us.length], ['them', 'Waiting on them', l.them.length], ['promised', 'FOLLOW UP', l.promised.length], ['planner', 'Planner', l.planner.length]];
+    document.getElementById('tabs').innerHTML = tabs.map(([k, n, c]) =>
+      `<button class="${TAB === k ? 'active' : ''}" onclick="TAB='${k}';renderTabs();renderPanel()">${n}<span class="count">${c}</span></button>`).join('');
+  }
+
+  function renderPanel() {
+    const l = lists(), p = document.getElementById('panel');
+    const empty = t => `<div class="empty">${t}</div>`;
+    if (TAB === 'us') {
+      p.innerHTML = l.us.length ? `<table><tr><th>Email</th><th>From</th><th>Owner</th><th>Waiting</th><th class="hide-sm">Reminders</th></tr>` +
+        l.us.map(x => `<tr><td><a href="${esc(x.link)}">${esc(x.subject)}</a>${x.cc ? '<span class="tag">their inbox</span>' : ''}</td>
+          <td>${esc(x.from)}</td><td>${esc(x.owners)}</td><td class="${ageClass(x.since, 3, 5)}">${ago(x.since)}</td><td class="hide-sm">${x.reminders}/3</td></tr>`).join('') + '</table>'
+        : empty('Nothing waiting on us. Nice.');
+    } else if (TAB === 'them') {
+      p.innerHTML = l.them.length ? `<table><tr><th>Email</th><th>Waiting on</th><th>Owner</th><th>Sent</th><th class="hide-sm">Nudges</th></tr>` +
+        l.them.map(x => `<tr><td><a href="${esc(x.link)}">${esc(x.subject)}</a></td><td>${esc(x.who)}</td><td>${esc(x.owners)}</td>
+          <td class="${ageClass(x.since, 7, 12)}">${x.since ? ago(x.since) + ' ago' : ''}</td><td class="hide-sm">${x.nudges}/2</td></tr>`).join('') + '</table>'
+        : empty('No unanswered emails from us right now.');
+    } else if (TAB === 'promised') {
+      p.innerHTML = l.promised.length ? `<p class="sub" style="margin:0 0 8px">Conversations where our last email promised something ("we'll get back to you"…).</p><table><tr><th>Conversation</th><th>Last from</th><th>Last email</th></tr>` +
+        l.promised.map(x => `<tr><td><a href="${esc(x.link)}">${esc(x.subject)}</a></td><td>${esc(x.from)}</td><td class="${ageClass(x.last, 3, 7)}">${ago(x.last)} ago</td></tr>`).join('') + '</table>'
+        : empty('No open promises.');
+    } else {
+      if (!l.planner.length) { p.innerHTML = empty('Nothing overdue or due in the next 2 weeks.'); return; }
+      const by = {};
+      l.planner.forEach(x => { x.owner.split(/[,;&\/\n]| and /).map(s => s.trim()).filter(Boolean).forEach(o => (by[o] = by[o] || []).push(x)); });
+      const owners = Object.keys(by).sort((a, b) => by[b].filter(x => x.overdue).length - by[a].filter(x => x.overdue).length || a.localeCompare(b));
+      p.innerHTML = owners.map(o => `<div class="owner-h">${esc(o)} <span class="sub">· ${by[o].length} item${by[o].length > 1 ? 's' : ''}</span></div>
+        <table>${by[o].map(x => `<tr><td>${esc(x.item)}</td><td class="hide-sm sub">${esc(x.planner)}</td>
+          <td class="${x.overdue ? 'age-bad' : ''}" style="white-space:nowrap">${esc(x.dueText)}${x.overdue ? ' · overdue' : ''}</td><td class="sub">${esc(x.status)}</td></tr>`).join('')}</table>`).join('');
+    }
+  }
+
+  if (PW) { showApp(true); load(); } else showApp(false);
+  setInterval(() => { if (PW) load(); }, 10 * 60 * 1000);
+</script>
+</body>
+</html>
