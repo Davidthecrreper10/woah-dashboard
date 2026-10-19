@@ -1,14 +1,16 @@
-// Shared by every WOAH page: login with a personal access code, talking to Chris's script, small helpers.
-// The code is checked by the script (not here), and it decides what each person may see.
+// Shared by every WOAH page: login (password + your email, remembered on this device), talking to Chris's script, small helpers.
+// The password is checked by the script (not here): the full password opens everything, the handler password only the Email handlers page.
+// The email must be in the Planner's Team tab, so taking someone off the Team tab logs them out.
 const API = 'https://script.google.com/macros/s/AKfycbzAV1IE_Y6-IlgkQh3MGRTc6aspuaZSu00y5QXu_8R8e1nTgch3XUhUyFR2wdqgZICg/exec';
-const RANK = { handler: 1, full: 2, admin: 3 };
-let KEY = '', ME = null, PAGE = { need: 'handler', onData: () => {} };
-try { KEY = localStorage.getItem('woahKey') || localStorage.getItem('woahDashPw') || ''; } catch (e) {}
+const RANK = { handler: 1, full: 2 };
+let KEY = '', EMAIL = '', ME = null, PAGE = { need: 'handler', onData: () => {} };
+try { KEY = localStorage.getItem('woahKey') || localStorage.getItem('woahDashPw') || ''; EMAIL = localStorage.getItem('woahEmail') || localStorage.getItem('woahMyEmail') || ''; } catch (e) {}
+if (!EMAIL) KEY = '';   // old logins without an email: ask once
 
 // Plain-text POST without any Google cookies, so it works whatever accounts the browser is signed into.
 function call(body) {
   return fetch(API, { method: 'POST', credentials: 'omit', redirect: 'follow',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ key: KEY }, body)) })
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ key: KEY, email: EMAIL }, body)) })
     .then(r => r.json())
     .then(res => {
       if (!res.ok) { const e = new Error(res.error || 'Something went wrong'); e.auth = !!res.auth; throw e; }
@@ -26,7 +28,7 @@ function gate(me) {
   if (w) w.innerHTML = `Logged in as <b>${esc(me.name)}</b> · <a href="#" onclick="logout();return false">Log out</a>`;
   const nav = document.getElementById('nav');
   if (nav) {
-    const pages = [['./', 'Dashboard', 'full'], ['handlers.html', 'Email handlers', 'handler'], ['gaps.html', 'Gaps', 'full'], ['access.html', 'Access', 'admin']]
+    const pages = [['./', 'Dashboard', 'full'], ['handlers.html', 'Email handlers', 'handler'], ['gaps.html', 'Gaps', 'full']]
       .filter(p => RANK[me.role] >= RANK[p[2]]);
     nav.innerHTML = pages.length > 1 ? pages.map(([href, label]) => `<a href="${href}" target="_self" class="${(location.pathname.endsWith(href) || (href === './' && /\/(index\.html)?$/.test(location.pathname))) ? 'here' : ''}">${label}</a>`).join('') : '';
   }
@@ -39,19 +41,21 @@ function showApp(on) {
 function loginBox(title) {
   document.getElementById('login').innerHTML = `
     <h1><span>WOAH</span> ${esc(title)}</h1>
-    <div class="sub">Enter your WOAH access code (ask David if you don't have one)</div>
+    <div class="sub">Log in once on this device</div>
     <form onsubmit="event.preventDefault(); tryLogin();">
-      <input id="pw" type="password" autocomplete="current-password" placeholder="woah-xxxx-xxxx-xxxx">
+      <input id="pw" type="password" autocomplete="current-password" placeholder="WOAH password">
+      <input id="em" type="email" autocomplete="email" placeholder="Your email (as in the WOAH Team list)" value="${esc(EMAIL)}" style="margin-top:0">
       <button type="submit">Open</button>
     </form>
     <div class="err" id="loginErr"></div>`;
 }
 function tryLogin() {
   KEY = document.getElementById('pw').value.trim();
-  try { localStorage.setItem('woahKey', KEY); } catch (e) {}   // kept so the next page opens straight away; removed again if the code is wrong
+  EMAIL = document.getElementById('em').value.trim().toLowerCase();
+  try { localStorage.setItem('woahKey', KEY); localStorage.setItem('woahEmail', EMAIL); } catch (e) {}   // remembered so every page opens straight away; the password is removed again if it's wrong
   document.getElementById('loginErr').textContent = 'Checking…';
   call({ action: PAGE.action || 'data' }).then(d => {
-    try { localStorage.setItem('woahKey', KEY); localStorage.removeItem('woahDashPw'); } catch (e) {}
+    try { localStorage.setItem('woahKey', KEY); localStorage.removeItem('woahDashPw'); localStorage.removeItem('woahMyEmail'); } catch (e) {}
     document.getElementById('loginErr').textContent = '';
     showApp(true); PAGE.onData(d);
   }).catch(err => { const e = document.getElementById('loginErr'); if (e) e.textContent = err.message; });
