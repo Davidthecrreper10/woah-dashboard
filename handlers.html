@@ -38,20 +38,19 @@
 <script src="common.js"></script>
 <script>
   let DATA = null, TAB = 'us';
-  try { TAB = localStorage.getItem('woahHandlerTab') || 'us'; } catch (e) {}
+  try { TAB = localStorage.getItem('woahHandlerTab') === 'them' ? 'them' : 'us'; } catch (e) {}
   function lists() { const s = DATA.snap || {}; return { us: s.open || [], them: s.waiting || [] }; }
   function setTab(t) { TAB = t; try { localStorage.setItem('woahHandlerTab', t); } catch (e) {} renderTabs(); renderPanel(); }
   function renderTabs() {
     const me = myEmail(), l = lists();
     const mineUs = l.us.filter(x => !(x.snoozeUntil > Date.now()) && ((x.to || []).includes(me) || x.claimedBy === me)).length;
     const mineThem = l.them.filter(x => (x.to || []).includes(me)).length;
-    const tabs = [['us', 'To answer', mineUs ? mineUs + ' yours' : ''], ['them', 'Waiting on them', mineThem ? mineThem + ' yours' : ''],
-      ['stats', ME && ME.role === 'full' ? 'Class stats' : 'My stats', '']];
+    const tabs = [['us', 'To answer', mineUs ? mineUs + ' yours' : ''], ['them', 'Waiting on them', mineThem ? mineThem + ' yours' : '']];
     document.getElementById('tabs').innerHTML = tabs.map(([k, n, c]) => `<button class="${TAB === k ? 'active' : ''}" onclick="setTab('${k}')">${n}${c ? `<span class="count">· ${c}</span>` : ''}</button>`).join('');
   }
   function renderPanel() {
     const p = document.getElementById('panel');
-    if (TAB === 'them') renderThem(p); else if (TAB === 'stats') renderStats(p); else renderHandle(p);
+    if (TAB === 'them') renderThem(p); else renderHandle(p);
   }
   function mineToggle() {
     return `<div class="seg small" style="margin:0"><button class="${MINE_ONLY ? '' : 'active'}" onclick="setMine(false)">Everyone</button><button class="${MINE_ONLY ? 'active' : ''}" onclick="setMine(true)">Mine only</button></div>`;
@@ -72,30 +71,6 @@
     p.innerHTML = h;
   }
 
-  // ---------- Stats: per student, from the current Team tab (students only see their own) ----------
-  function hoursText(h) { return h == null ? '—' : h < 24 ? h + ' h' : Math.round(h / 24 * 10) / 10 + ' days'; }
-  function renderStats(p) {
-    const st = DATA.people;
-    if (!st || !st.list) { p.innerHTML = '<div class="empty">No stats yet. They appear after the WOAH inbox next updates (within 15 minutes).</div>'; return; }
-    const note = `<div class="sub" style="margin-bottom:10px">Last ${st.days} days · updated ${agoText(st.at)}. "Handled" = replied (in Gmail or through Chris) or marked done.</div>`;
-    const recent = r => r.length ? '<table>' + r.map(x => `<tr><td>${links(x)}</td><td class="hide-sm sub">${esc(x.from)}</td><td><span class="tag" style="margin:0">${esc(x.how)}</span></td><td class="sub" style="white-space:nowrap">${agoText(x.when)}</td></tr>`).join('') + '</table>' : '<div class="empty" style="padding:8px 0">Nothing handled yet.</div>';
-    if (!(ME && ME.role === 'full')) {
-      const o = st.list[0];
-      if (!o) { p.innerHTML = '<div class="empty">Your email isn\'t in the Team tab.</div>'; return; }
-      const tiles = [[o.handled, 'Emails handled', 'brand'], [hoursText(o.avgHours), 'Average reply time', ''], [o.open, 'Still waiting on you', o.open ? 'warn' : ''], [o.ignored, 'Ignored after 3 reminders', o.ignored ? 'bad' : '']];
-      p.innerHTML = note + `<div class="grid stats">${tiles.map(([n, l, c]) => `<div class="card stat ${c}"><div class="n">${esc(n)}</div><div class="l">${l}</div></div>`).join('')}</div>
-        <div class="gh">Your recent emails</div>${recent(o.recent)}
-        <div class="sub" style="margin-top:8px">Also: ${o.assigned} sent to you · ${o.viaChris} replied through Chris · ${o.markedDone} marked done · ${o.claimed} claimed now · ${o.passedOn} passed on</div>`;
-      return;
-    }
-    const rows = st.list.slice().sort((a, b) => b.handled - a.handled || a.name.localeCompare(b.name));
-    p.innerHTML = note + `<table><tr><th>Student</th><th>Handled</th><th>Avg reply</th><th>Still to answer</th><th class="hide-sm">Ignored</th><th class="hide-sm">Sent to them</th><th></th></tr>` +
-      rows.map((o, i) => `<tr><td><b>${esc(o.name)}</b></td><td>${o.handled}</td><td>${hoursText(o.avgHours)}</td>
-        <td class="${o.open ? 'age-warn' : ''}">${o.open}</td><td class="hide-sm ${o.ignored ? 'age-bad' : ''}">${o.ignored}</td><td class="hide-sm">${o.assigned}</td>
-        <td style="text-align:right">${o.recent.length ? `<button onclick="var r=document.getElementById('rs${i}');r.style.display=r.style.display==='none'?'table-row':'none'">Replies</button>` : ''}</td></tr>
-        <tr id="rs${i}" style="display:none"><td colspan="7">${recent(o.recent)}</td></tr>`).join('') + '</table>' +
-      '<div class="sub" style="margin-top:8px">Students only see their own row on their page. Names follow the Team tab, so new people appear automatically and people who leave drop off.</div>';
-  }
   function render(d) {
     DATA = d;
     const s = d.snap;
