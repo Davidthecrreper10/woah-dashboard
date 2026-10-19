@@ -106,7 +106,7 @@
 
   function renderTabs() {
     const l = lists();
-    const tabs = [['us', 'Waiting on us', l.us.length], ['them', 'Waiting on them', l.them.length], ['promised', 'FOLLOW UP', l.promised.length], ['done', 'Handled', l.done.length], ['planner', 'Planner', l.planner.length]];
+    const tabs = [['us', 'Waiting on us', l.us.length], ['them', 'Waiting on them', l.them.length], ['promised', 'FOLLOW UP', l.promised.length], ['done', 'Handled', l.done.length], ['planner', 'Planner', l.planner.length], ['stats', 'Student stats', '']];
     document.getElementById('tabs').innerHTML = tabs.map(([k, n, c]) =>
       `<button class="${TAB === k ? 'active' : ''}" onclick="TAB='${k}';renderTabs();renderPanel()">${n}<span class="count">${c}</span></button>`).join('');
   }
@@ -133,6 +133,8 @@
         l.done.map(x => `<tr><td>${links(x)}</td><td>${esc(x.from)}</td><td>${esc(x.by || '—')}</td>
           <td><span class="tag" style="margin:0">${esc(x.how)}</span></td><td class="hide-sm sub">${x.when ? agoText(x.when) : ''}</td></tr>`).join('') + '</table>'
         : empty('Nothing handled in the last 7 days yet. Replies and dismissals show up here.');
+    } else if (TAB === 'stats') {
+      renderStudentStats(p);
     } else {
       if (!l.planner.length) { p.innerHTML = empty('Nothing overdue or due in the next 2 weeks.'); return; }
       const by = {};
@@ -144,6 +146,21 @@
     }
   }
 
+  // ---------- Student stats (full password only): per student, names from the current Team tab ----------
+  function hoursText(h) { return h == null ? '—' : h < 24 ? h + ' h' : Math.round(h / 24 * 10) / 10 + ' days'; }
+  function renderStudentStats(p) {
+    const st = DATA.people;
+    if (!st || !st.list) { p.innerHTML = '<div class="empty">No stats yet. They appear after the WOAH inbox next updates (within 15 minutes).</div>'; return; }
+    const recent = r => r.length ? '<table>' + r.map(x => `<tr><td>${links(x)}</td><td class="hide-sm sub">${esc(x.from)}</td><td><span class="tag" style="margin:0">${esc(x.how)}</span></td><td class="sub" style="white-space:nowrap">${agoText(x.when)}</td></tr>`).join('') + '</table>' : '';
+    const rows = st.list.slice().sort((a, b) => b.handled - a.handled || b.assigned - a.assigned || a.name.localeCompare(b.name));
+    p.innerHTML = `<p class="sub" style="margin:0 0 8px">Last ${st.days} days · updated ${agoText(st.at)}. Handled = replied (in Gmail or through Chris) or marked done. Only people with the full password can see this.</p>` +
+      `<table><tr><th>Student</th><th>Handled</th><th>Avg reply</th><th>Still to answer</th><th class="hide-sm">Ignored</th><th class="hide-sm">Sent to them</th><th></th></tr>` +
+      rows.map((o, n) => `<tr><td><b>${esc(o.name)}</b></td><td>${o.handled}</td><td>${hoursText(o.avgHours)}</td>
+        <td class="${o.open ? 'age-warn' : ''}">${o.open}</td><td class="hide-sm ${o.ignored ? 'age-bad' : ''}">${o.ignored}</td><td class="hide-sm">${o.assigned}</td>
+        <td style="text-align:right">${o.recent.length ? `<button onclick="var r=document.getElementById('rs${n}');r.style.display=r.style.display==='none'?'table-row':'none'">Replies</button>` : ''}</td></tr>
+        <tr id="rs${n}" style="display:none"><td colspan="7">${recent(o.recent)}</td></tr>`).join('') + '</table>' +
+      '<div class="sub" style="margin-top:8px">Names follow the Team tab, so new people appear automatically and people who leave drop off.</div>';
+  }
 
   start({ title: 'Dashboard', need: 'full', action: 'data', every: 5, onData: render });
 </script>
