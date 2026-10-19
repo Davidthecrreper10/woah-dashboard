@@ -63,6 +63,7 @@
   @media (max-width: 640px) { .hide-sm { display: none; } }
   #login { max-width: 360px; margin: 12vh auto 0; text-align: center; }
   #login input { font: inherit; width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); margin: 14px 0 10px; }
+  #login input + input { margin-top: 0; }
   #login button { width: 100%; padding: 10px; background: var(--brand); color: #fff; border-color: var(--brand); }
   #login .err { color: var(--bad); font-size: 13px; min-height: 18px; margin-top: 8px; }
   #app { display: none; }
