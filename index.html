@@ -85,6 +85,18 @@
   .roles { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
   .roles .card { padding: 12px 14px; } .roles ul { margin: 6px 0; padding-left: 18px; font-size: 13px; }
   .gh { font-weight: 600; margin: 18px 0 8px; }
+  .hitem { border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+  .hitem.u-bad { border-left-color: var(--bad); } .hitem.u-warn { border-left-color: var(--warn); }
+  .hitem .top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .hitem .top a { color: var(--brand); text-decoration: none; font-weight: 600; } .hitem .top a.mine { font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 6px; }
+  .hitem .meta { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .hact { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .hact button, .hact select { font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .hact button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .pend { font-size: 12px; color: var(--warn); margin-top: 6px; }
+  .htools { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .seg.small button { padding: 5px 12px; font-size: 13px; }
+  .seg.small button.active { background: var(--brand); color: #fff; }
 </style>
 </head>
 <body>
@@ -124,7 +136,7 @@
     <div id="panel" class="scroll"></div>
   </div>
   <div class="sub" style="margin-top:14px;text-align:center">
-    Your email for "find in my email": <input id="myEmail" type="email" placeholder="you@student.greenschool.org" onchange="saveMyEmail()" style="font:inherit;font-size:12px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);width:240px">
+    Your email (for the handler buttons and "find in my email"): <input id="myEmail" type="email" placeholder="you@student.greenschool.org" onchange="saveMyEmail()" style="font:inherit;font-size:12px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);width:240px">
     &nbsp;·&nbsp; <a href="#" onclick="logout();return false" style="color:var(--muted)">Log out on this computer</a>
   </div>
   </div>
@@ -272,7 +284,7 @@
 
   function renderTabs() {
     const l = lists();
-    const tabs = [['us', 'Waiting on us', l.us.length], ['them', 'Waiting on them', l.them.length], ['promised', 'FOLLOW UP', l.promised.length], ['done', 'Handled', l.done.length], ['planner', 'Planner', l.planner.length], ['gaps', 'Gaps', GAPS ? GAPS.gaps.length : '']];
+    const tabs = [['us', 'Waiting on us', l.us.length], ['handle', 'Email handlers', l.us.filter(x => !(x.snoozeUntil > Date.now())).length], ['them', 'Waiting on them', l.them.length], ['promised', 'FOLLOW UP', l.promised.length], ['done', 'Handled', l.done.length], ['planner', 'Planner', l.planner.length], ['gaps', 'Gaps', GAPS ? GAPS.gaps.length : '']];
     document.getElementById('tabs').innerHTML = tabs.map(([k, n, c]) =>
       `<button class="${TAB === k ? 'active' : ''}" onclick="TAB='${k}';renderTabs();renderPanel()">${n}<span class="count">${c}</span></button>`).join('');
   }
@@ -299,6 +311,8 @@
         l.done.map(x => `<tr><td>${links(x)}</td><td>${esc(x.from)}</td><td>${esc(x.by || '—')}</td>
           <td><span class="tag" style="margin:0">${esc(x.how)}</span></td><td class="hide-sm sub">${x.when ? agoText(x.when) : ''}</td></tr>`).join('') + '</table>'
         : empty('Nothing handled in the last 7 days yet. Replies and dismissals show up here.');
+    } else if (TAB === 'handle') {
+      renderHandle(p);
     } else if (TAB === 'gaps') {
       renderGaps(p);
     } else {
@@ -310,6 +324,71 @@
         <table>${by[o].map(x => `<tr><td>${esc(x.item)}</td><td class="hide-sm sub">${esc(x.planner)}</td>
           <td class="${x.overdue ? 'age-bad' : ''}" style="white-space:nowrap">${esc(x.dueText)}${x.overdue ? ' · overdue' : ''}</td><td class="sub">${esc(x.status)}</td></tr>`).join('')}</table>`).join('');
     }
+  }
+
+  // ---------- Email handlers: one queue with Claim / Reassign / Snooze / Done ----------
+  // Clicks become requests that Chris (the WOAH inbox) carries out on its next check, within about 5 minutes.
+  const ADMIN = 'david.mantzios@student.greenschool.org';
+  let MINE_ONLY = false; try { MINE_ONLY = localStorage.getItem('woahMineOnly') === '1'; } catch (e) {}
+  const OPS = { claim: 'Claim', unclaim: 'Unclaim', snooze: 'Snooze', unsnooze: 'Wake up', done: 'Mark done', reassign: 'Reassign' };
+  function myEmail() { try { return (localStorage.getItem('woahMyEmail') || '').trim().toLowerCase(); } catch (e) { return ''; } }
+  function setMine(on) { MINE_ONLY = on; try { localStorage.setItem('woahMineOnly', on ? '1' : '0'); } catch (e) {} renderPanel(); }
+  function teamName(e) { const p = (DATA.team || []).find(t => t.email === String(e).toLowerCase()); return p ? p.name.split(' ')[0] : first(e); }
+  function urgency(x) { return days(x.since) + (x.reminders || 0) * 2; }
+
+  function renderHandle(p) {
+    const me = myEmail(), now = Date.now();
+    const mine = x => (x.to || []).includes(me) || x.claimedBy === me;
+    let items = lists().us.filter(x => x.id);
+    if (MINE_ONLY && me) items = items.filter(mine);
+    const snoozed = items.filter(x => x.snoozeUntil > now);
+    const active = items.filter(x => !(x.snoozeUntil > now));
+    const noOwner = active.filter(x => !x.claimedBy && (x.to || []).length === 1 && x.to[0] === ADMIN);
+    const queue = active.filter(x => !noOwner.includes(x)).sort((a, b) => urgency(b) - urgency(a));
+    let h = `<div class="htools"><div class="sub">Most urgent first. Buttons are done by Chris within about 5 minutes.</div>
+      <div class="seg small" style="margin:0"><button class="${MINE_ONLY ? '' : 'active'}" onclick="setMine(false)">Everyone</button><button class="${MINE_ONLY ? 'active' : ''}" onclick="setMine(true)">Mine only</button></div></div>`;
+    if (!me) h += `<div class="banner warn" style="display:block">Put your email in <b>Your email</b> at the bottom of the page to use the buttons and "Mine only".</div>`;
+    const section = (title, list, note) => list.length ? `<div class="gh">${title} <span class="sub">· ${list.length}</span></div>${note ? `<div class="sub" style="margin:-4px 0 8px">${note}</div>` : ''}` + list.map(x => item(x, me)).join('') : '';
+    h += section('No owner', noOwner, 'No topic fitted, so these only went to David. Claim one or pass it to the right person.');
+    h += section('Queue', queue);
+    h += section('Snoozed', snoozed, 'No reminders until the date shown.');
+    if (!items.length) h += `<div class="empty">${MINE_ONLY ? 'Nothing waiting on you.' : 'Nothing waiting. Nice.'}</div>`;
+    p.innerHTML = h;
+  }
+
+  function item(x, me) {
+    const d = days(x.since), u = urgency(x);
+    const pend = (DATA.pending || []).filter(a => a.id === x.id);
+    const claimedMe = x.claimedBy && x.claimedBy === me;
+    const sn = x.snoozeUntil > Date.now();
+    const team = (DATA.team || []).filter(t => !(x.to || []).includes(t.email));
+    return `<div class="hitem ${u >= 7 ? 'u-bad' : u >= 3 ? 'u-warn' : ''}">
+      <div class="top"><div>${links(x)}${x.cc ? '<span class="tag">their inbox</span>' : ''}${x.claimedBy ? `<span class="tag">${claimedMe ? 'You claimed this' : esc(x.claimedName || teamName(x.claimedBy)) + ' is on it'}</span>` : ''}</div>
+        <div class="${ageClass(x.since, 3, 5)}" style="white-space:nowrap">${d === 0 ? 'today' : d + (d === 1 ? ' day' : ' days')}</div></div>
+      <div class="meta">From ${esc(x.from)} · sent to ${esc(x.owners || '—')}${x.topic ? ' · ' + esc(x.topic) : ''} · reminders ${x.reminders || 0}/3${sn ? ' · snoozed until ' + esc(new Date(x.snoozeUntil).toLocaleDateString([], { day: 'numeric', month: 'short' })) : ''}</div>
+      ${pend.map(a => `<div class="pend">Waiting for Chris: ${esc(OPS[a.op] || a.op)}${a.op === 'reassign' ? ' to ' + esc(teamName(a.value)) : a.op === 'snooze' ? ' ' + esc(a.value) + ' days' : ''} (by ${esc(teamName(a.by))})</div>`).join('')}
+      <div class="hact">
+        ${claimedMe ? `<button onclick="act('${x.id}','unclaim')">Unclaim</button>` : (x.claimedBy || pend.some(a => a.op === 'claim')) ? '' : `<button class="primary" onclick="act('${x.id}','claim')">Claim</button>`}
+        <select onchange="if(this.value){act('${x.id}','reassign',this.value);this.value=''}"><option value="">Reassign to…</option>${team.map(t => `<option value="${esc(t.email)}">${esc(t.name)}</option>`).join('')}</select>
+        ${sn ? `<button onclick="act('${x.id}','unsnooze')">Wake up</button>`
+             : `<select onchange="if(this.value){act('${x.id}','snooze',this.value);this.value=''}"><option value="">Snooze…</option><option value="1">1 day</option><option value="3">3 days</option><option value="7">1 week</option></select>`}
+        <button onclick="act('${x.id}','done')">Mark done</button>
+      </div>
+      <div class="confirm" id="hc-${x.id}"></div></div>`;
+  }
+
+  function act(id, op, value) {
+    const me = myEmail();
+    if (!me) { const i = document.getElementById('myEmail'); i.scrollIntoView({ behavior: 'smooth' }); i.focus(); return; }
+    const box = document.getElementById('hc-' + id);
+    const go = `doAct('${id}','${op}','${esc(value || '')}')`;
+    if (op === 'reassign') { box.innerHTML = `Pass this email to <b>${esc(teamName(value))}</b>? Chris will forward it to them and they get the reminders from now on.<br><button onclick="${go}">Yes, pass it on</button><button onclick="this.parentNode.style.display='none'">Cancel</button>`; box.style.display = 'block'; return; }
+    if (op === 'done') { box.innerHTML = `Mark as done? Use this if it was answered some other way (phone, WhatsApp, in person) or needs no reply. Reminders stop.<br><button onclick="${go}">Yes, it's done</button><button onclick="this.parentNode.style.display='none'">Cancel</button>`; box.style.display = 'block'; return; }
+    doAct(id, op, value);
+  }
+  function doAct(id, op, value) {
+    const box = document.getElementById('hc-' + id); if (box) { box.innerHTML = 'Sending…'; box.style.display = 'block'; }
+    call({ action: 'inbox', op, id, value: value || '', by: myEmail() }).then(render).catch(err => { if (box) box.innerHTML = esc(err.message); else fail(err); });
   }
 
   // ---------- Gaps: weak spots + jobs to fill (worked out by Chris, refreshed once a day) ----------
