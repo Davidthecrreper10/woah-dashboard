@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WOAH Email Handlers</title>
+<base target="_blank">
+<style>
+  :root {
+    --bg: #f4f7f8; --card: #ffffff; --ink: #14262e; --muted: #5d7079; --line: #e3eaed;
+    --brand: #0f7c8a; --brand-soft: #e2f3f5; --warn: #b85c00; --warn-soft: #fff1e0;
+    --bad: #b3261e; --bad-soft: #fde8e6; --ok: #1e7d46; --ok-soft: #e3f4ea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e171b; --card: #152228; --ink: #e5eef1; --muted: #93a7b0; --line: #23353d;
+      --brand: #4fc3d1; --brand-soft: #143238; --warn: #f0a24b; --warn-soft: #33260f;
+      --bad: #f28b82; --bad-soft: #3a1c1a; --ok: #6fd39a; --ok-soft: #12301f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 48px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+  h1 span { color: var(--brand); }
+  .sub { color: var(--muted); font-size: 13px; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); padding: 7px 12px; }
+  button:hover { border-color: var(--brand); }
+  button:disabled { opacity: .5; cursor: default; }
+  .grid { display: grid; gap: 14px; }
+  .switches { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-bottom: 14px; }
+  .stats { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .sw-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .sw-name { font-weight: 600; font-size: 15px; }
+  .pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
+  .pill.on { background: var(--ok-soft); color: var(--ok); }
+  .pill.break { background: var(--warn-soft); color: var(--warn); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-top: 12px; }
+  .seg button { border: 0; border-radius: 0; padding: 8px 18px; background: transparent; }
+  .seg button.active.on { background: var(--ok); color: #fff; }
+  .seg button.active.break { background: var(--warn); color: #fff; }
+  .sw-note { color: var(--muted); font-size: 13px; margin-top: 10px; }
+  .confirm { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--warn-soft); font-size: 13px; display: none; }
+  .confirm button { margin: 8px 6px 0 0; }
+  .stat .n { font-size: 28px; font-weight: 700; line-height: 1.1; }
+  .stat .l { color: var(--muted); font-size: 13px; }
+  .stat.bad .n { color: var(--bad); } .stat.warn .n { color: var(--warn); } .stat.brand .n { color: var(--brand); }
+  .tabs { display: flex; gap: 6px; margin: 4px 0 12px; flex-wrap: wrap; }
+  .tabs button.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .count { opacity: .75; margin-left: 4px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; padding: 8px; border-bottom: 1px solid var(--line); }
+  td { padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td a { color: var(--brand); text-decoration: none; font-weight: 500; }
+  td a:hover { text-decoration: underline; }
+  .age-bad { color: var(--bad); font-weight: 600; } .age-warn { color: var(--warn); font-weight: 600; }
+  .tag { font-size: 11px; padding: 2px 7px; border-radius: 6px; background: var(--brand-soft); color: var(--brand); margin-left: 6px; white-space: nowrap; }
+  .owner-h { font-weight: 600; margin: 14px 0 4px; }
+  .owner-h:first-child { margin-top: 0; }
+  .empty { color: var(--muted); padding: 18px 4px; }
+  .banner { padding: 10px 14px; border-radius: 10px; margin-bottom: 14px; font-size: 13px; display: none; }
+  .banner.warn { background: var(--warn-soft); color: var(--warn); display: block; }
+  .banner.bad { background: var(--bad-soft); color: var(--bad); display: block; }
+  .scroll { overflow-x: auto; }
+  td a.mine { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 6px; white-space: nowrap; }
+  td a.mine:hover { color: var(--brand); }
+  @media (max-width: 640px) { .hide-sm { display: none; } }
+  #login { max-width: 360px; margin: 12vh auto 0; text-align: center; }
+  #login input { font: inherit; width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); margin: 14px 0 10px; }
+  #login button { width: 100%; padding: 10px; background: var(--brand); color: #fff; border-color: var(--brand); }
+  #login .err { color: var(--bad); font-size: 13px; min-height: 18px; margin-top: 8px; }
+  #app { display: none; }
+  .gap { border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+  .gap.high { border-left-color: var(--bad); } .gap.medium { border-left-color: var(--warn); } .gap.low { border-left-color: var(--brand); }
+  .gap h3 { margin: 0 0 6px; font-size: 15px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .sev { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; }
+  .sev.high { background: var(--bad-soft); color: var(--bad); } .sev.medium { background: var(--warn-soft); color: var(--warn); } .sev.low { background: var(--brand-soft); color: var(--brand); }
+  .gap ul { margin: 4px 0 6px; padding-left: 18px; color: var(--muted); font-size: 13px; }
+  .gap .fix { font-size: 13px; } .gap .role { font-size: 13px; margin-top: 4px; }
+  .gaps-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 12px; }
+  .gaps-sum { font-size: 14px; max-width: 760px; }
+  .roles { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .roles .card { padding: 12px 14px; } .roles ul { margin: 6px 0; padding-left: 18px; font-size: 13px; }
+  .gh { font-weight: 600; margin: 18px 0 8px; }
+  .hitem { border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+  .hitem.u-bad { border-left-color: var(--bad); } .hitem.u-warn { border-left-color: var(--warn); }
+  .hitem .top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .hitem .top a { color: var(--brand); text-decoration: none; font-weight: 600; } .hitem .top a.mine { font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 6px; }
+  .hitem .meta { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .hact { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .hact button, .hact select { font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .hact button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .pend { font-size: 12px; color: var(--warn); margin-top: 6px; }
+  .htools { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .seg.small button { padding: 5px 12px; font-size: 13px; }
+  .seg.small button.active { background: var(--brand); color: #fff; }
+</style>
+<style>
+  .me-box { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .me-box input { font: inherit; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); width: 280px; max-width: 100%; }
+  .me-box.missing { background: var(--warn-soft); padding: 10px 12px; border-radius: 10px; }
+  .how { font-size: 13px; color: var(--muted); } .how b { color: var(--ink); }
+  header a { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="login" class="card">
+    <h1><span>WOAH</span> Email Handlers</h1>
+    <div class="sub">Enter the dashboard password</div>
+    <form onsubmit="event.preventDefault(); tryLogin();">
+      <input id="pw" type="password" autocomplete="current-password" placeholder="Password">
+      <button type="submit">Open</button>
+    </form>
+    <div class="err" id="loginErr"></div>
+  </div>
+  <div id="app">
+  <header>
+    <div>
+      <h1><span>WOAH</span> Email Handlers</h1>
+      <div class="sub" id="updated">Loading…</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <a href="./" target="_self">Full dashboard</a>
+      <button id="refresh" onclick="load()">Refresh</button>
+    </div>
+  </header>
+  <div class="banner" id="banner"></div>
+  <div class="me-box" id="meBox">
+    <span>Your email (as in the Team tab):</span>
+    <input id="myEmail" type="email" placeholder="you@student.greenschool.org" onchange="saveMyEmail()">
+  </div>
+  <div class="card">
+    <div id="panel"></div>
+  </div>
+  <div class="card how" style="margin-top:14px">
+    <b>Claim</b> = "I'm on it": everyone sees it and only you get the reminders. &nbsp;
+    <b>Reassign</b> = Chris forwards it to that person and they get the reminders. &nbsp;
+    <b>Snooze</b> = no reminders for a while. &nbsp;
+    <b>Mark done</b> = answered some other way (phone, WhatsApp, in person) or needs no reply.
+    To actually reply, open the email and hit Reply on Chris's forward in your own inbox, as usual.
+  </div>
+  <div class="sub" style="margin-top:14px;text-align:center"><a href="#" onclick="logout();return false" style="color:var(--muted)">Log out on this computer</a></div>
+  </div>
+</div>
+
+<script>
+  // Same back end and password as the WOAH Dashboard (index.html). This page only shows the email queue.
+  const API = 'https://script.google.com/macros/s/AKfycbzAV1IE_Y6-IlgkQh3MGRTc6aspuaZSu00y5QXu_8R8e1nTgch3XUhUyFR2wdqgZICg/exec';
+  let PW = '';
+  try { PW = localStorage.getItem('woahDashPw') || ''; } catch (e) {}
+  let DATA = null;
+
+  function call(body) {
+    return fetch(API, { method: 'POST', credentials: 'omit', redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ password: PW }, body)) })
+      .then(r => r.json())
+      .then(res => { if (!res.ok) throw new Error(res.error || 'Something went wrong'); return res.data; });
+  }
+  function showApp(on) {
+    document.getElementById('login').style.display = on ? 'none' : 'block';
+    document.getElementById('app').style.display = on ? 'block' : 'none';
+  }
+  function tryLogin() {
+    PW = document.getElementById('pw').value;
+    document.getElementById('loginErr').textContent = 'Checking…';
+    call({ action: 'data' }).then(d => {
+      try { localStorage.setItem('woahDashPw', PW); } catch (e) {}
+      document.getElementById('loginErr').textContent = '';
+      showApp(true); render(d);
+    }).catch(err => {
+      document.getElementById('loginErr').textContent = /wrong password/.test(err.message) ? 'Wrong password, try again.' : err.message;
+    });
+  }
+  function logout() { try { localStorage.removeItem('woahDashPw'); } catch (e) {} PW = ''; showApp(false); }
+  function saveMyEmail() {
+    const v = document.getElementById('myEmail').value.trim();
+    try { v ? localStorage.setItem('woahMyEmail', v) : localStorage.removeItem('woahMyEmail'); } catch (e) {}
+    if (DATA) render(DATA);
+  }
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  function days(t) { return Math.max(0, Math.floor((Date.now() - t) / 86400000)); }
+  function ago(t) { const d = days(t); return d === 0 ? 'today' : d === 1 ? '1 day' : d + ' days'; }
+  function agoText(t) { return days(t) === 0 ? 'today' : ago(t) + ' ago'; }
+  function ageClass(t, warn, bad) { const d = days(t); return d >= bad ? 'age-bad' : d >= warn ? 'age-warn' : ''; }
+  function when(t) { return new Date(t).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+  const NAMES = { 'dominique.jason@greenschool.org': 'Dom', 'marianakoenders@yahoo.com': 'Mariana' };
+  // Always open the exact thread in the WOAH inbox (Gmail keeps the thread when switching to that account)
+  function fixLink(l) { const m = String(l || '').match(/#all\/([0-9a-f]+)/i); return m ? 'https://mail.google.com/mail/?authuser=woahfestival@greenschool.org#all/' + m[1] : l; }
+  // "find in my email": searches the clicker's OWN Gmail - the original email (if they were on it) or Chris's forward/reminder about it
+  function mineLink(x) {
+    const id = (String(x.link || '').match(/#all\/([0-9a-f]+)/i) || [])[1] || '';
+    const subj = String(x.subject || '').replace(/^\s*((re|fwd?|aw)\s*:\s*)+/i, '').replace(/"/g, '').trim();
+    const parts = [];
+    if (id) parts.push(id);
+    if (x.sender && subj) parts.push('(from:' + x.sender + ' subject:"' + subj + '")');
+    else if (subj) parts.push('subject:"' + subj + '"');
+    const q = parts.length > 1 ? '{' + parts.join(' ') + '}' : (parts[0] || '');
+    let me = ''; try { me = localStorage.getItem('woahMyEmail') || ''; } catch (e) {}
+    return 'https://mail.google.com/mail/' + (me ? '?authuser=' + encodeURIComponent(me) : '') + '#search/' + encodeURIComponent(q);
+  }
+  function links(x) { return `<a href="${esc(fixLink(x.link))}" title="Open in the WOAH inbox">${esc(x.subject)}</a> <a class="mine" href="${esc(mineLink(x))}" title="Search your own Gmail for this email or Chris's forward/reminder about it">find in my email</a>`; }
+  function first(e) { e = String(e).toLowerCase(); return NAMES[e] || e.split('@')[0].split('.')[0].replace(/^\w/, c => c.toUpperCase()); }
+
+  function lists() { const s = DATA.snap || {}; return { us: s.open || [] }; }
+  function renderPanel() { renderHandle(document.getElementById('panel')); }
+
+  function load() {
+    document.getElementById('refresh').disabled = true;
+    call({ action: 'data' }).then(render).catch(err => {
+      if (/wrong password/.test(err.message)) { logout(); return; }
+      fail(err);
+    });
+  }
+  function fail(err) {
+    document.getElementById('refresh').disabled = false;
+    const b = document.getElementById('banner'); b.className = 'banner bad'; b.textContent = 'Something went wrong: ' + (err && err.message || err);
+  }
+  function render(d) {
+    DATA = d;
+    document.getElementById('refresh').disabled = false;
+    const s = d.snap;
+    document.getElementById('updated').textContent = s ? 'Inbox checked ' + when(s.at) + ' · page loaded ' + when(d.now) : 'No inbox data yet';
+    const b = document.getElementById('banner');
+    if (d.control && d.control.inbox === 'BREAK') { b.className = 'banner warn'; b.textContent = 'The WOAH inbox is on BREAK: forwards and reminders go to the break contacts, not the team.'; }
+    else if (s && Date.now() - s.at > 60 * 60000) { b.className = 'banner warn'; b.textContent = 'The WOAH Inbox last checked in ' + when(s.at) + '. It may have stopped running.'; }
+    else { b.className = 'banner'; b.textContent = ''; }
+    document.getElementById('meBox').className = 'me-box' + (myEmail() ? '' : ' missing');
+    renderPanel();
+  }
+
+  // ---------- Email handlers: one queue with Claim / Reassign / Snooze / Done ----------
+  // Clicks become requests that Chris (the WOAH inbox) carries out on its next check, within about 5 minutes.
+  const ADMIN = 'david.mantzios@student.greenschool.org';
+  let MINE_ONLY = false; try { MINE_ONLY = localStorage.getItem('woahMineOnly') === '1'; } catch (e) {}
+  const OPS = { claim: 'Claim', unclaim: 'Unclaim', snooze: 'Snooze', unsnooze: 'Wake up', done: 'Mark done', reassign: 'Reassign' };
+  function myEmail() { try { return (localStorage.getItem('woahMyEmail') || '').trim().toLowerCase(); } catch (e) { return ''; } }
+  function setMine(on) { MINE_ONLY = on; try { localStorage.setItem('woahMineOnly', on ? '1' : '0'); } catch (e) {} renderPanel(); }
+  function teamName(e) { const p = (DATA.team || []).find(t => t.email === String(e).toLowerCase()); return p ? p.name.split(' ')[0] : first(e); }
+  function urgency(x) { return days(x.since) + (x.reminders || 0) * 2; }
+
+  function renderHandle(p) {
+    const me = myEmail(), now = Date.now();
+    const mine = x => (x.to || []).includes(me) || x.claimedBy === me;
+    let items = lists().us.filter(x => x.id);
+    if (MINE_ONLY && me) items = items.filter(mine);
+    const snoozed = items.filter(x => x.snoozeUntil > now);
+    const active = items.filter(x => !(x.snoozeUntil > now));
+    const noOwner = active.filter(x => !x.claimedBy && (x.to || []).length === 1 && x.to[0] === ADMIN);
+    const queue = active.filter(x => !noOwner.includes(x)).sort((a, b) => urgency(b) - urgency(a));
+    let h = `<div class="htools"><div class="sub">Most urgent first. Buttons are done by Chris within about 5 minutes.</div>
+      <div class="seg small" style="margin:0"><button class="${MINE_ONLY ? '' : 'active'}" onclick="setMine(false)">Everyone</button><button class="${MINE_ONLY ? 'active' : ''}" onclick="setMine(true)">Mine only</button></div></div>`;
+    if (!me) h += `<div class="banner warn" style="display:block">Put your email in the box above to use the buttons and "Mine only".</div>`;
+    const section = (title, list, note) => list.length ? `<div class="gh">${title} <span class="sub">· ${list.length}</span></div>${note ? `<div class="sub" style="margin:-4px 0 8px">${note}</div>` : ''}` + list.map(x => item(x, me)).join('') : '';
+    h += section('No owner', noOwner, 'No topic fitted, so these only went to David. Claim one or pass it to the right person.');
+    h += section('Queue', queue);
+    h += section('Snoozed', snoozed, 'No reminders until the date shown.');
+    if (!items.length) h += `<div class="empty">${MINE_ONLY ? 'Nothing waiting on you.' : 'Nothing waiting. Nice.'}</div>`;
+    p.innerHTML = h;
+  }
+
+  function item(x, me) {
+    const d = days(x.since), u = urgency(x);
+    const pend = (DATA.pending || []).filter(a => a.id === x.id);
+    const claimedMe = x.claimedBy && x.claimedBy === me;
+    const sn = x.snoozeUntil > Date.now();
+    const team = (DATA.team || []).filter(t => !(x.to || []).includes(t.email));
+    return `<div class="hitem ${u >= 7 ? 'u-bad' : u >= 3 ? 'u-warn' : ''}">
+      <div class="top"><div>${links(x)}${x.cc ? '<span class="tag">their inbox</span>' : ''}${x.claimedBy ? `<span class="tag">${claimedMe ? 'You claimed this' : esc(x.claimedName || teamName(x.claimedBy)) + ' is on it'}</span>` : ''}</div>
+        <div class="${ageClass(x.since, 3, 5)}" style="white-space:nowrap">${d === 0 ? 'today' : d + (d === 1 ? ' day' : ' days')}</div></div>
+      <div class="meta">From ${esc(x.from)} · sent to ${esc(x.owners || '—')}${x.topic ? ' · ' + esc(x.topic) : ''} · reminders ${x.reminders || 0}/3${sn ? ' · snoozed until ' + esc(new Date(x.snoozeUntil).toLocaleDateString([], { day: 'numeric', month: 'short' })) : ''}</div>
+      ${pend.map(a => `<div class="pend">Waiting for Chris: ${esc(OPS[a.op] || a.op)}${a.op === 'reassign' ? ' to ' + esc(teamName(a.value)) : a.op === 'snooze' ? ' ' + esc(a.value) + ' days' : ''} (by ${esc(teamName(a.by))})</div>`).join('')}
+      <div class="hact">
+        ${claimedMe ? `<button onclick="act('${x.id}','unclaim')">Unclaim</button>` : (x.claimedBy || pend.some(a => a.op === 'claim')) ? '' : `<button class="primary" onclick="act('${x.id}','claim')">Claim</button>`}
+        <select onchange="if(this.value){act('${x.id}','reassign',this.value);this.value=''}"><option value="">Reassign to…</option>${team.map(t => `<option value="${esc(t.email)}">${esc(t.name)}</option>`).join('')}</select>
+        ${sn ? `<button onclick="act('${x.id}','unsnooze')">Wake up</button>`
+             : `<select onchange="if(this.value){act('${x.id}','snooze',this.value);this.value=''}"><option value="">Snooze…</option><option value="1">1 day</option><option value="3">3 days</option><option value="7">1 week</option></select>`}
+        <button onclick="act('${x.id}','done')">Mark done</button>
+      </div>
+      <div class="confirm" id="hc-${x.id}"></div></div>`;
+  }
+
+  function act(id, op, value) {
+    const me = myEmail();
+    if (!me) { const i = document.getElementById('myEmail'); i.scrollIntoView({ behavior: 'smooth' }); i.focus(); return; }
+    const box = document.getElementById('hc-' + id);
+    const go = `doAct('${id}','${op}','${esc(value || '')}')`;
+    if (op === 'reassign') { box.innerHTML = `Pass this email to <b>${esc(teamName(value))}</b>? Chris will forward it to them and they get the reminders from now on.<br><button onclick="${go}">Yes, pass it on</button><button onclick="this.parentNode.style.display='none'">Cancel</button>`; box.style.display = 'block'; return; }
+    if (op === 'done') { box.innerHTML = `Mark as done? Use this if it was answered some other way (phone, WhatsApp, in person) or needs no reply. Reminders stop.<br><button onclick="${go}">Yes, it's done</button><button onclick="this.parentNode.style.display='none'">Cancel</button>`; box.style.display = 'block'; return; }
+    doAct(id, op, value);
+  }
+  function doAct(id, op, value) {
+    const box = document.getElementById('hc-' + id); if (box) { box.innerHTML = 'Sending…'; box.style.display = 'block'; }
+    call({ action: 'inbox', op, id, value: value || '', by: myEmail() }).then(render).catch(err => { if (box) box.innerHTML = esc(err.message); else fail(err); });
+  }
+
+
+  try { document.getElementById('myEmail').value = localStorage.getItem('woahMyEmail') || ''; } catch (e) {}
+  if (PW) { showApp(true); load(); } else showApp(false);
+  setInterval(() => { if (PW) load(); }, 2 * 60 * 1000);
+</script>
+</body>
+</html>
