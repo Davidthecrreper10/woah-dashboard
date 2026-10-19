@@ -102,3 +102,4 @@
   .form-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .form-row select, .form-row input { font: inherit; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
   .pill.role-admin { background: var(--bad-soft); color: var(--bad); } .pill.role-full { background: var(--brand-soft); color: var(--brand); } .pill.role-handler { background: var(--ok-soft); color: var(--ok); }
+  .flagbox { margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); font-size: 13px; }
