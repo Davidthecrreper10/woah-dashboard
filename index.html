@@ -5,178 +5,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WOAH Dashboard</title>
 <base target="_blank">
-<style>
-  :root {
-    --bg: #f4f7f8; --card: #ffffff; --ink: #14262e; --muted: #5d7079; --line: #e3eaed;
-    --brand: #0f7c8a; --brand-soft: #e2f3f5; --warn: #b85c00; --warn-soft: #fff1e0;
-    --bad: #b3261e; --bad-soft: #fde8e6; --ok: #1e7d46; --ok-soft: #e3f4ea;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0e171b; --card: #152228; --ink: #e5eef1; --muted: #93a7b0; --line: #23353d;
-      --brand: #4fc3d1; --brand-soft: #143238; --warn: #f0a24b; --warn-soft: #33260f;
-      --bad: #f28b82; --bad-soft: #3a1c1a; --ok: #6fd39a; --ok-soft: #12301f;
-    }
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 48px; }
-  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
-  h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
-  h1 span { color: var(--brand); }
-  .sub { color: var(--muted); font-size: 13px; }
-  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); padding: 7px 12px; }
-  button:hover { border-color: var(--brand); }
-  button:disabled { opacity: .5; cursor: default; }
-  .grid { display: grid; gap: 14px; }
-  .switches { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-bottom: 14px; }
-  .stats { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 14px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
-  .sw-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-  .sw-name { font-weight: 600; font-size: 15px; }
-  .pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
-  .pill.on { background: var(--ok-soft); color: var(--ok); }
-  .pill.break { background: var(--warn-soft); color: var(--warn); }
-  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-top: 12px; }
-  .seg button { border: 0; border-radius: 0; padding: 8px 18px; background: transparent; }
-  .seg button.active.on { background: var(--ok); color: #fff; }
-  .seg button.active.break { background: var(--warn); color: #fff; }
-  .sw-note { color: var(--muted); font-size: 13px; margin-top: 10px; }
-  .confirm { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--warn-soft); font-size: 13px; display: none; }
-  .confirm button { margin: 8px 6px 0 0; }
-  .stat .n { font-size: 28px; font-weight: 700; line-height: 1.1; }
-  .stat .l { color: var(--muted); font-size: 13px; }
-  .stat.bad .n { color: var(--bad); } .stat.warn .n { color: var(--warn); } .stat.brand .n { color: var(--brand); }
-  .tabs { display: flex; gap: 6px; margin: 4px 0 12px; flex-wrap: wrap; }
-  .tabs button.active { background: var(--brand); color: #fff; border-color: var(--brand); }
-  .count { opacity: .75; margin-left: 4px; }
-  table { width: 100%; border-collapse: collapse; }
-  th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; padding: 8px; border-bottom: 1px solid var(--line); }
-  td { padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  tr:last-child td { border-bottom: 0; }
-  td a { color: var(--brand); text-decoration: none; font-weight: 500; }
-  td a:hover { text-decoration: underline; }
-  .age-bad { color: var(--bad); font-weight: 600; } .age-warn { color: var(--warn); font-weight: 600; }
-  .tag { font-size: 11px; padding: 2px 7px; border-radius: 6px; background: var(--brand-soft); color: var(--brand); margin-left: 6px; white-space: nowrap; }
-  .owner-h { font-weight: 600; margin: 14px 0 4px; }
-  .owner-h:first-child { margin-top: 0; }
-  .empty { color: var(--muted); padding: 18px 4px; }
-  .banner { padding: 10px 14px; border-radius: 10px; margin-bottom: 14px; font-size: 13px; display: none; }
-  .banner.warn { background: var(--warn-soft); color: var(--warn); display: block; }
-  .banner.bad { background: var(--bad-soft); color: var(--bad); display: block; }
-  .scroll { overflow-x: auto; }
-  td a.mine { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 6px; white-space: nowrap; }
-  td a.mine:hover { color: var(--brand); }
-  @media (max-width: 640px) { .hide-sm { display: none; } }
-  #login { max-width: 360px; margin: 12vh auto 0; text-align: center; }
-  #login input { font: inherit; width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); margin: 14px 0 10px; }
-  #login button { width: 100%; padding: 10px; background: var(--brand); color: #fff; border-color: var(--brand); }
-  #login .err { color: var(--bad); font-size: 13px; min-height: 18px; margin-top: 8px; }
-  #app { display: none; }
-  .gap { border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
-  .gap.high { border-left-color: var(--bad); } .gap.medium { border-left-color: var(--warn); } .gap.low { border-left-color: var(--brand); }
-  .gap h3 { margin: 0 0 6px; font-size: 15px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .sev { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; }
-  .sev.high { background: var(--bad-soft); color: var(--bad); } .sev.medium { background: var(--warn-soft); color: var(--warn); } .sev.low { background: var(--brand-soft); color: var(--brand); }
-  .gap ul { margin: 4px 0 6px; padding-left: 18px; color: var(--muted); font-size: 13px; }
-  .gap .fix { font-size: 13px; } .gap .role { font-size: 13px; margin-top: 4px; }
-  .gaps-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 12px; }
-  .gaps-sum { font-size: 14px; max-width: 760px; }
-  .roles { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-  .roles .card { padding: 12px 14px; } .roles ul { margin: 6px 0; padding-left: 18px; font-size: 13px; }
-  .gh { font-weight: 600; margin: 18px 0 8px; }
-  .hitem { border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
-  .hitem.u-bad { border-left-color: var(--bad); } .hitem.u-warn { border-left-color: var(--warn); }
-  .hitem .top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
-  .hitem .top a { color: var(--brand); text-decoration: none; font-weight: 600; } .hitem .top a.mine { font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 6px; }
-  .hitem .meta { color: var(--muted); font-size: 13px; margin-top: 2px; }
-  .hact { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-  .hact button, .hact select { font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
-  .hact button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
-  .pend { font-size: 12px; color: var(--warn); margin-top: 6px; }
-  .htools { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
-  .seg.small button { padding: 5px 12px; font-size: 13px; }
-  .seg.small button.active { background: var(--brand); color: #fff; }
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="wrap">
-  <div id="login" class="card">
-    <h1><span>WOAH</span> Dashboard</h1>
-    <div class="sub">Enter the dashboard password</div>
-    <form onsubmit="event.preventDefault(); tryLogin();">
-      <input id="pw" type="password" autocomplete="current-password" placeholder="Password">
-      <button type="submit">Open</button>
-    </form>
-    <div class="err" id="loginErr"></div>
-  </div>
+  <div id="login" class="card"></div>
   <div id="app">
   <header>
     <div>
       <h1><span>WOAH</span> Dashboard</h1>
       <div class="sub" id="updated">Loading…</div>
     </div>
-    <div style="display:flex;gap:8px">
-      <button onclick="window.open('handlers.html', '_blank')">Email handlers page</button>
-      <button id="plannerBtn" onclick="openPlanner()">Open Planner</button>
-      <button id="refresh" onclick="load()">Refresh</button>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><nav class="pages" id="nav"></nav><button id="refresh" onclick="load()" target="_self">Refresh</button></div>
+      <div class="who" id="who"></div>
     </div>
   </header>
-
   <div class="banner" id="banner"></div>
-
   <div class="grid switches">
     <div class="card" id="sw-inbox"></div>
     <div class="card" id="sw-planner"></div>
   </div>
-
   <div class="grid stats" id="stats"></div>
-
   <div class="card">
-    <div class="tabs" id="tabs"></div>
+    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><div class="tabs" id="tabs"></div><button onclick="openPlanner()" style="align-self:flex-start">Open Planner</button></div>
     <div id="panel" class="scroll"></div>
-  </div>
-  <div class="sub" style="margin-top:14px;text-align:center">
-    Your email for "find in my email": <input id="myEmail" type="email" placeholder="you@student.greenschool.org" onchange="saveMyEmail()" style="font:inherit;font-size:12px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);width:240px">
-    &nbsp;·&nbsp; <a href="#" onclick="logout();return false" style="color:var(--muted)">Log out on this computer</a>
   </div>
   </div>
 </div>
-
+<script src="common.js"></script>
 <script>
-  // Chris's script (the "back end"). The password is checked there, not here.
-  const API = 'https://script.google.com/macros/s/AKfycbzAV1IE_Y6-IlgkQh3MGRTc6aspuaZSu00y5QXu_8R8e1nTgch3XUhUyFR2wdqgZICg/exec';
-  let PW = '';
-  try { PW = localStorage.getItem('woahDashPw') || ''; } catch (e) {}
-
-  // Plain-text POST without any Google cookies, so it works whatever accounts the browser is signed into.
-  function call(body) {
-    return fetch(API, { method: 'POST', credentials: 'omit', redirect: 'follow',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ password: PW }, body)) })
-      .then(r => r.json())
-      .then(res => { if (!res.ok) throw new Error(res.error || 'Something went wrong'); return res.data; });
-  }
-  function showApp(on) {
-    document.getElementById('login').style.display = on ? 'none' : 'block';
-    document.getElementById('app').style.display = on ? 'block' : 'none';
-  }
-  function tryLogin() {
-    PW = document.getElementById('pw').value;
-    document.getElementById('loginErr').textContent = 'Checking…';
-    call({ action: 'data' }).then(d => {
-      try { localStorage.setItem('woahDashPw', PW); } catch (e) {}
-      document.getElementById('loginErr').textContent = '';
-      showApp(true); render(d);
-    }).catch(err => {
-      document.getElementById('loginErr').textContent = /wrong password/.test(err.message) ? 'Wrong password, try again.' : err.message;
-    });
-  }
-  function saveMyEmail() {
-    const v = document.getElementById('myEmail').value.trim();
-    try { v ? localStorage.setItem('woahMyEmail', v) : localStorage.removeItem('woahMyEmail'); } catch (e) {}
-    if (DATA) renderPanel();
-  }
-  function logout() { try { localStorage.removeItem('woahDashPw'); } catch (e) {} PW = ''; showApp(false); }
   let DATA = null, TAB = 'us';
   const SW = {
     inbox: { name: 'WOAH inbox', on: 'Forwards, reminders and follow-ups go to the team as normal.',
@@ -185,46 +43,9 @@
                brk: 'No planner reminders to students. The break contacts get one daily summary instead.' },
   };
 
-  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-  function days(t) { return Math.max(0, Math.floor((Date.now() - t) / 86400000)); }
-  function ago(t) { const d = days(t); return d === 0 ? 'today' : d === 1 ? '1 day' : d + ' days'; }
-  function agoText(t) { return days(t) === 0 ? 'today' : ago(t) + ' ago'; }
-  function ageClass(t, warn, bad) { const d = days(t); return d >= bad ? 'age-bad' : d >= warn ? 'age-warn' : ''; }
-  function when(t) { return new Date(t).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
-  const NAMES = { 'dominique.jason@greenschool.org': 'Dom', 'marianakoenders@yahoo.com': 'Mariana' };
-  // Always open the exact thread in the WOAH inbox (Gmail keeps the thread when switching to that account)
-  function fixLink(l) { const m = String(l || '').match(/#all\/([0-9a-f]+)/i); return m ? 'https://mail.google.com/mail/?authuser=woahfestival@greenschool.org#all/' + m[1] : l; }
-  // "find in my email": searches the clicker's OWN Gmail - the original email (if they were on it) or Chris's forward/reminder about it
-  function mineLink(x) {
-    const id = (String(x.link || '').match(/#all\/([0-9a-f]+)/i) || [])[1] || '';
-    const subj = String(x.subject || '').replace(/^\s*((re|fwd?|aw)\s*:\s*)+/i, '').replace(/"/g, '').trim();
-    const parts = [];
-    if (id) parts.push(id);
-    if (x.sender && subj) parts.push('(from:' + x.sender + ' subject:"' + subj + '")');
-    else if (subj) parts.push('subject:"' + subj + '"');
-    const q = parts.length > 1 ? '{' + parts.join(' ') + '}' : (parts[0] || '');
-    let me = ''; try { me = localStorage.getItem('woahMyEmail') || ''; } catch (e) {}
-    return 'https://mail.google.com/mail/' + (me ? '?authuser=' + encodeURIComponent(me) : '') + '#search/' + encodeURIComponent(q);
-  }
-  function links(x) { return `<a href="${esc(fixLink(x.link))}" title="Open in the WOAH inbox">${esc(x.subject)}</a> <a class="mine" href="${esc(mineLink(x))}" title="Search your own Gmail for this email or Chris's forward/reminder about it">find in my email</a>`; }
-  function first(e) { e = String(e).toLowerCase(); return NAMES[e] || e.split('@')[0].split('.')[0].replace(/^\w/, c => c.toUpperCase()); }
-
-  function load() {
-    document.getElementById('refresh').disabled = true;
-    call({ action: 'data' }).then(render).catch(err => {
-      if (/wrong password/.test(err.message)) { logout(); return; }
-      fail(err);
-    });
-  }
-  function fail(err) {
-    document.getElementById('refresh').disabled = false;
-    const b = document.getElementById('banner'); b.className = 'banner bad'; b.textContent = 'Something went wrong: ' + (err && err.message || err);
-  }
   function openPlanner() { if (DATA) window.open(DATA.plannerUrl, '_blank'); }
-
   function render(d) {
     DATA = d;
-    document.getElementById('refresh').disabled = false;
     const s = d.snap;
     document.getElementById('updated').textContent = s
       ? 'Inbox checked ' + when(s.at) + ' · page loaded ' + when(d.now)
@@ -285,7 +106,7 @@
 
   function renderTabs() {
     const l = lists();
-    const tabs = [['us', 'Waiting on us', l.us.length], ['them', 'Waiting on them', l.them.length], ['promised', 'FOLLOW UP', l.promised.length], ['done', 'Handled', l.done.length], ['planner', 'Planner', l.planner.length], ['gaps', 'Gaps', GAPS ? GAPS.gaps.length : '']];
+    const tabs = [['us', 'Waiting on us', l.us.length], ['them', 'Waiting on them', l.them.length], ['promised', 'FOLLOW UP', l.promised.length], ['done', 'Handled', l.done.length], ['planner', 'Planner', l.planner.length]];
     document.getElementById('tabs').innerHTML = tabs.map(([k, n, c]) =>
       `<button class="${TAB === k ? 'active' : ''}" onclick="TAB='${k}';renderTabs();renderPanel()">${n}<span class="count">${c}</span></button>`).join('');
   }
@@ -312,8 +133,6 @@
         l.done.map(x => `<tr><td>${links(x)}</td><td>${esc(x.from)}</td><td>${esc(x.by || '—')}</td>
           <td><span class="tag" style="margin:0">${esc(x.how)}</span></td><td class="hide-sm sub">${x.when ? agoText(x.when) : ''}</td></tr>`).join('') + '</table>'
         : empty('Nothing handled in the last 7 days yet. Replies and dismissals show up here.');
-    } else if (TAB === 'gaps') {
-      renderGaps(p);
     } else {
       if (!l.planner.length) { p.innerHTML = empty('Nothing overdue or due in the next 2 weeks.'); return; }
       const by = {};
@@ -325,47 +144,8 @@
     }
   }
 
-  // ---------- Gaps: weak spots + jobs to fill (worked out by Chris, refreshed once a day) ----------
-  let GAPS = null, GAPS_LOADING = false, GAPS_ERR = '';
-  function loadGaps(force) {
-    if (GAPS_LOADING) return;
-    GAPS_LOADING = true; GAPS_ERR = '';
-    if (TAB === 'gaps') renderPanel();
-    call({ action: 'gaps', force: !!force })
-      .then(g => { GAPS = g; })
-      .catch(e => { GAPS_ERR = e.message; })
-      .then(() => { GAPS_LOADING = false; renderTabs(); if (TAB === 'gaps') renderPanel(); });
-  }
-  function renderGaps(p) {
-    if (!GAPS && !GAPS_LOADING && !GAPS_ERR) { loadGaps(false); }
-    if (GAPS_LOADING) { p.innerHTML = '<div class="empty">Chris is checking the inbox, Planner and Drive for weak spots… (can take up to a minute)</div>'; return; }
-    if (GAPS_ERR) { p.innerHTML = `<div class="empty">Couldn't check: ${esc(GAPS_ERR)} <button onclick="loadGaps(true)">Try again</button></div>`; return; }
-    const g = GAPS;
-    const note = g.noKey ? ' · basic checks only (no AI key set)' : g.aiError ? ' · AI unavailable, basic checks only' : '';
-    let h = `<div class="gaps-head"><div class="gaps-sum">${esc(g.summary)}</div>
-      <div style="text-align:right"><button onclick="loadGaps(true)">Re-check now</button><div class="sub" style="margin-top:4px">Checked ${agoText(g.at)}${note}</div></div></div>`;
-    if (g.roles && g.roles.length) {
-      h += `<div class="gh">Jobs to fill</div><div class="roles">` + g.roles.map(r => `<div class="card">
-        <div style="font-weight:600">${esc(r.title)} ${r.priority ? `<span class="sev ${esc(r.priority)}">${esc(r.priority)}</span>` : ''}</div>
-        ${r.responsibilities.length ? '<ul>' + r.responsibilities.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>' : ''}
-        <div class="sub">${esc(r.why)}</div></div>`).join('') + '</div>';
-    }
-    h += `<div class="gh">Weak spots</div>`;
-    h += g.gaps.length ? g.gaps.map(x => `<div class="gap ${esc(x.severity)}">
-      <h3>${esc(x.area)} <span class="sev ${esc(x.severity)}">${esc(x.severity)}</span></h3>
-      ${x.evidence && x.evidence.length ? '<ul>' + x.evidence.map(e => `<li>${esc(e)}</li>`).join('') + '</ul>' : ''}
-      ${x.why ? `<div class="fix">${esc(x.why)}</div>` : ''}
-      ${x.role ? `<div class="role"><b>Who would fix it:</b> ${esc(x.role)}</div>` : ''}
-      ${x.quickFix ? `<div class="role"><b>This week:</b> ${esc(x.quickFix)}</div>` : ''}</div>`).join('')
-      : '<div class="empty">Nothing looks badly stuck right now.</div>';
-    const f = g.facts || {}, pl = f.planner || {}, st = f.inbox && f.inbox.stats;
-    h += `<div class="sub" style="margin-top:12px">Based on: ${st ? st.total + ' emails in the last ' + st.days + ' days, ' : ''}${pl.open || 0} open Planner items (${pl.overdue || 0} overdue, ${pl.noOwner || 0} with no owner), ${f.team || 0} team members${f.drive && f.drive.filesSeen != null ? ', ' + f.drive.filesSeen + ' WOAH files in Drive' : ''}.</div>`;
-    p.innerHTML = h;
-  }
 
-  try { document.getElementById('myEmail').value = localStorage.getItem('woahMyEmail') || ''; } catch (e) {}
-  if (PW) { showApp(true); load(); } else showApp(false);
-  setInterval(() => { if (PW) load(); }, 5 * 60 * 1000);
+  start({ title: 'Dashboard', need: 'full', action: 'data', every: 5, onData: render });
 </script>
 </body>
 </html>
