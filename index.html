@@ -73,6 +73,18 @@
   #login button { width: 100%; padding: 10px; background: var(--brand); color: #fff; border-color: var(--brand); }
   #login .err { color: var(--bad); font-size: 13px; min-height: 18px; margin-top: 8px; }
   #app { display: none; }
+  .gap { border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+  .gap.high { border-left-color: var(--bad); } .gap.medium { border-left-color: var(--warn); } .gap.low { border-left-color: var(--brand); }
+  .gap h3 { margin: 0 0 6px; font-size: 15px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .sev { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; }
+  .sev.high { background: var(--bad-soft); color: var(--bad); } .sev.medium { background: var(--warn-soft); color: var(--warn); } .sev.low { background: var(--brand-soft); color: var(--brand); }
+  .gap ul { margin: 4px 0 6px; padding-left: 18px; color: var(--muted); font-size: 13px; }
+  .gap .fix { font-size: 13px; } .gap .role { font-size: 13px; margin-top: 4px; }
+  .gaps-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 12px; }
+  .gaps-sum { font-size: 14px; max-width: 760px; }
+  .roles { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .roles .card { padding: 12px 14px; } .roles ul { margin: 6px 0; padding-left: 18px; font-size: 13px; }
+  .gh { font-weight: 600; margin: 18px 0 8px; }
 </style>
 </head>
 <body>
@@ -260,7 +272,7 @@
 
   function renderTabs() {
     const l = lists();
-    const tabs = [['us', 'Waiting on us', l.us.length], ['them', 'Waiting on them', l.them.length], ['promised', 'FOLLOW UP', l.promised.length], ['done', 'Handled', l.done.length], ['planner', 'Planner', l.planner.length]];
+    const tabs = [['us', 'Waiting on us', l.us.length], ['them', 'Waiting on them', l.them.length], ['promised', 'FOLLOW UP', l.promised.length], ['done', 'Handled', l.done.length], ['planner', 'Planner', l.planner.length], ['gaps', 'Gaps', GAPS ? GAPS.gaps.length : '']];
     document.getElementById('tabs').innerHTML = tabs.map(([k, n, c]) =>
       `<button class="${TAB === k ? 'active' : ''}" onclick="TAB='${k}';renderTabs();renderPanel()">${n}<span class="count">${c}</span></button>`).join('');
   }
@@ -287,6 +299,8 @@
         l.done.map(x => `<tr><td>${links(x)}</td><td>${esc(x.from)}</td><td>${esc(x.by || '—')}</td>
           <td><span class="tag" style="margin:0">${esc(x.how)}</span></td><td class="hide-sm sub">${x.when ? agoText(x.when) : ''}</td></tr>`).join('') + '</table>'
         : empty('Nothing handled in the last 7 days yet. Replies and dismissals show up here.');
+    } else if (TAB === 'gaps') {
+      renderGaps(p);
     } else {
       if (!l.planner.length) { p.innerHTML = empty('Nothing overdue or due in the next 2 weeks.'); return; }
       const by = {};
@@ -296,6 +310,44 @@
         <table>${by[o].map(x => `<tr><td>${esc(x.item)}</td><td class="hide-sm sub">${esc(x.planner)}</td>
           <td class="${x.overdue ? 'age-bad' : ''}" style="white-space:nowrap">${esc(x.dueText)}${x.overdue ? ' · overdue' : ''}</td><td class="sub">${esc(x.status)}</td></tr>`).join('')}</table>`).join('');
     }
+  }
+
+  // ---------- Gaps: weak spots + jobs to fill (worked out by Chris, refreshed once a day) ----------
+  let GAPS = null, GAPS_LOADING = false, GAPS_ERR = '';
+  function loadGaps(force) {
+    if (GAPS_LOADING) return;
+    GAPS_LOADING = true; GAPS_ERR = '';
+    if (TAB === 'gaps') renderPanel();
+    call({ action: 'gaps', force: !!force })
+      .then(g => { GAPS = g; })
+      .catch(e => { GAPS_ERR = e.message; })
+      .then(() => { GAPS_LOADING = false; renderTabs(); if (TAB === 'gaps') renderPanel(); });
+  }
+  function renderGaps(p) {
+    if (!GAPS && !GAPS_LOADING && !GAPS_ERR) { loadGaps(false); }
+    if (GAPS_LOADING) { p.innerHTML = '<div class="empty">Chris is checking the inbox, Planner and Drive for weak spots… (can take up to a minute)</div>'; return; }
+    if (GAPS_ERR) { p.innerHTML = `<div class="empty">Couldn't check: ${esc(GAPS_ERR)} <button onclick="loadGaps(true)">Try again</button></div>`; return; }
+    const g = GAPS;
+    const note = g.noKey ? ' · basic checks only (no AI key set)' : g.aiError ? ' · AI unavailable, basic checks only' : '';
+    let h = `<div class="gaps-head"><div class="gaps-sum">${esc(g.summary)}</div>
+      <div style="text-align:right"><button onclick="loadGaps(true)">Re-check now</button><div class="sub" style="margin-top:4px">Checked ${agoText(g.at)}${note}</div></div></div>`;
+    if (g.roles && g.roles.length) {
+      h += `<div class="gh">Jobs to fill</div><div class="roles">` + g.roles.map(r => `<div class="card">
+        <div style="font-weight:600">${esc(r.title)} ${r.priority ? `<span class="sev ${esc(r.priority)}">${esc(r.priority)}</span>` : ''}</div>
+        ${r.responsibilities.length ? '<ul>' + r.responsibilities.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>' : ''}
+        <div class="sub">${esc(r.why)}</div></div>`).join('') + '</div>';
+    }
+    h += `<div class="gh">Weak spots</div>`;
+    h += g.gaps.length ? g.gaps.map(x => `<div class="gap ${esc(x.severity)}">
+      <h3>${esc(x.area)} <span class="sev ${esc(x.severity)}">${esc(x.severity)}</span></h3>
+      ${x.evidence && x.evidence.length ? '<ul>' + x.evidence.map(e => `<li>${esc(e)}</li>`).join('') + '</ul>' : ''}
+      ${x.why ? `<div class="fix">${esc(x.why)}</div>` : ''}
+      ${x.role ? `<div class="role"><b>Who would fix it:</b> ${esc(x.role)}</div>` : ''}
+      ${x.quickFix ? `<div class="role"><b>This week:</b> ${esc(x.quickFix)}</div>` : ''}</div>`).join('')
+      : '<div class="empty">Nothing looks badly stuck right now.</div>';
+    const f = g.facts || {}, pl = f.planner || {}, st = f.inbox && f.inbox.stats;
+    h += `<div class="sub" style="margin-top:12px">Based on: ${st ? st.total + ' emails in the last ' + st.days + ' days, ' : ''}${pl.open || 0} open Planner items (${pl.overdue || 0} overdue, ${pl.noOwner || 0} with no owner), ${f.team || 0} team members${f.drive && f.drive.filesSeen != null ? ', ' + f.drive.filesSeen + ' WOAH files in Drive' : ''}.</div>`;
+    p.innerHTML = h;
   }
 
   try { document.getElementById('myEmail').value = localStorage.getItem('woahMyEmail') || ''; } catch (e) {}
