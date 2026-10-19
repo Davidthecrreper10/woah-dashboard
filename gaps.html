@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WOAH Gaps</title>
+<base target="_blank">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <div id="login" class="card"></div>
+  <div id="app">
+  <header>
+    <div>
+      <h1><span>WOAH</span> Gaps</h1>
+      <div class="sub" id="updated">Loading…</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><nav class="pages" id="nav"></nav><button id="refresh" onclick="load()" target="_self">Refresh</button></div>
+      <div class="who" id="who"></div>
+    </div>
+  </header>
+  <div class="banner" id="banner"></div>
+  <div class="card"><div id="panel"></div></div>
+  <div class="card how" style="margin-top:14px">Chris looks at the WOAH inbox (who answers, what gets ignored), the Planner (overdue, no owner), the Team list, upcoming dates and Drive activity, then suggests the jobs to fill. It re-checks once a day; press <b>Re-check now</b> after big changes.</div>
+  </div>
+</div>
+<script src="common.js"></script>
+<script>
+  // ---------- Gaps: weak spots + jobs to fill (worked out by Chris, refreshed once a day) ----------
+  let GAPS = null, GAPS_LOADING = false, GAPS_ERR = '';
+  function loadGaps(force) {
+    if (GAPS_LOADING) return;
+    GAPS_LOADING = true; GAPS_ERR = '';
+    draw();
+    call({ action: 'gaps', force: !!force })
+      .then(g => { GAPS = g; })
+      .catch(e => { GAPS_ERR = e.message; })
+      .then(() => { GAPS_LOADING = false; draw(); });
+  }
+  function renderGaps(p) {
+    if (!GAPS && !GAPS_LOADING && !GAPS_ERR) { loadGaps(false); }
+    if (GAPS_LOADING) { p.innerHTML = '<div class="empty">Chris is checking the inbox, Planner and Drive for weak spots… (can take up to a minute)</div>'; return; }
+    if (GAPS_ERR) { p.innerHTML = `<div class="empty">Couldn't check: ${esc(GAPS_ERR)} <button onclick="loadGaps(true)">Try again</button></div>`; return; }
+    const g = GAPS;
+    const note = g.noKey ? ' · basic checks only (no AI key set)' : g.aiError ? ' · AI unavailable, basic checks only' : '';
+    let h = `<div class="gaps-head"><div class="gaps-sum">${esc(g.summary)}</div>
+      <div style="text-align:right"><button onclick="loadGaps(true)">Re-check now</button><div class="sub" style="margin-top:4px">Checked ${agoText(g.at)}${note}</div></div></div>`;
+    if (g.roles && g.roles.length) {
+      h += `<div class="gh">Jobs to fill</div><div class="roles">` + g.roles.map(r => `<div class="card">
+        <div style="font-weight:600">${esc(r.title)} ${r.priority ? `<span class="sev ${esc(r.priority)}">${esc(r.priority)}</span>` : ''}</div>
+        ${r.responsibilities.length ? '<ul>' + r.responsibilities.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>' : ''}
+        <div class="sub">${esc(r.why)}</div></div>`).join('') + '</div>';
+    }
+    h += `<div class="gh">Weak spots</div>`;
+    h += g.gaps.length ? g.gaps.map(x => `<div class="gap ${esc(x.severity)}">
+      <h3>${esc(x.area)} <span class="sev ${esc(x.severity)}">${esc(x.severity)}</span></h3>
+      ${x.evidence && x.evidence.length ? '<ul>' + x.evidence.map(e => `<li>${esc(e)}</li>`).join('') + '</ul>' : ''}
+      ${x.why ? `<div class="fix">${esc(x.why)}</div>` : ''}
+      ${x.role ? `<div class="role"><b>Who would fix it:</b> ${esc(x.role)}</div>` : ''}
+      ${x.quickFix ? `<div class="role"><b>This week:</b> ${esc(x.quickFix)}</div>` : ''}</div>`).join('')
+      : '<div class="empty">Nothing looks badly stuck right now.</div>';
+    const f = g.facts || {}, pl = f.planner || {}, st = f.inbox && f.inbox.stats;
+    h += `<div class="sub" style="margin-top:12px">Based on: ${st ? st.total + ' emails in the last ' + st.days + ' days, ' : ''}${pl.open || 0} open Planner items (${pl.overdue || 0} overdue, ${pl.noOwner || 0} with no owner), ${f.team || 0} team members${f.drive && f.drive.filesSeen != null ? ', ' + f.drive.filesSeen + ' WOAH files in Drive' : ''}.</div>`;
+    p.innerHTML = h;
+  }
+
+  function draw() { renderGaps(document.getElementById('panel')); }
+  function render(d) {
+    document.getElementById('updated').textContent = 'Where WOAH is weak, and which jobs would fix it';
+    if (!GAPS && !GAPS_LOADING) loadGaps(false); else draw();
+  }
+
+  start({ title: 'Gaps', need: 'full', action: 'data', every: 0, onData: render });
+</script>
+</body>
+</html>
