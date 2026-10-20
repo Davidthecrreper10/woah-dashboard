@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WOAH Email</title>
 <base target="_blank">
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 <div class="wrap">
@@ -28,7 +28,7 @@
   </div>
 </div>
 <script src="common.js?v=3"></script>
-<script src="handle.js?v=5"></script>
+<script src="handle.js?v=6"></script>
 <script>
   const ID = (new URLSearchParams(location.search).get('id') || '').replace(/[^0-9a-f]/gi, '');
 
@@ -52,13 +52,12 @@
       <div class="meta">${them ? themMeta(x) : usMeta(x)} · <span class="${ageClass(x.since, them ? 7 : 3, them ? 12 : 5)}">${dd === 0 ? 'today' : dd + (dd === 1 ? ' day' : ' days')}</span></div>
       <div style="margin-top:6px">${them ? themTags(x, me) : usTags(x, me)} <a class="mine" href="${esc(mineLink(x))}">find in my email</a></div>
       ${them ? '' : flagHtml(x)}${pendHtml(x, them)}
-      ${them ? themButtons(x, me, true) : usButtons(x, me, true)}
+      ${sending(x) ? `<div class="sentlbl" style="margin-top:8px">Sent, waiting for Chris to confirm. Nothing else to do here.</div>` : them ? themButtons(x, me, true) : usButtons(x, me, true)}
       <div class="confirm" id="hc-${x.id}"></div>
     </div>`;
     h += composerCard(x, them);
     h += convoCard(d.thread);
     main.innerHTML = h;
-    if (!DRAFTS[x.id]) suggest(x.id);
     if (/^#(followup|reply)$/.test(location.hash)) { const c = document.getElementById('compose'); if (c) c.scrollIntoView(); }
   }
 
@@ -66,11 +65,12 @@
   function composerCard(x, them) {
     const op = them ? 'followup' : 'reply', title = them ? 'Follow up' : 'Reply';
     const dr = DRAFTS[x.id];
-    const pending = ((DATA.pending || []).some(a => a.id === x.id && a.op === op));
     const to = esc((them ? x.who : x.from) || 'them');
     let body;
-    if (pending || (dr && dr.sent)) body = `<div class="okbox">Your ${them ? 'follow-up' : 'reply'} is on its way: Chris sends it from the WOAH email within about 5 minutes and emails you a copy.</div>`;
-    else if (!dr) body = `<div class="sub">Chris is reading the conversation${them ? '' : ' and the WOAH files in Drive'} and writing a suggestion…</div>
+    if (sending(x) || (dr && dr.sent)) body = `<div class="okbox">Your ${them ? 'follow-up' : 'reply'} is on its way: Chris sends it from the WOAH email within about 5 minutes and emails you a copy.</div>`;
+    else if (!dr) body = `<div class="sub" style="margin-bottom:6px">Write the ${them ? 'follow-up' : 'reply'} yourself, or let Chris suggest one${them ? ' from the conversation' : ' from the conversation and the WOAH files in Drive'}.</div>
+      <div class="hact"><button class="primary" onclick="suggest('${x.id}')">Suggest a ${them ? 'follow-up' : 'reply'} with Chris</button><button onclick="blank('${x.id}')">Write my own</button></div>`;
+    else if (dr.loading) body = `<div class="sub">Chris is reading the conversation${them ? '' : ' and the WOAH files in Drive'} and writing a suggestion…</div>
       <div class="hact"><button onclick="blank('${x.id}')">Write my own instead</button></div>`;
     else body = `<div class="sub" style="margin-bottom:6px">${dr.blank ? 'Write your ' + (them ? 'follow-up' : 'reply') + ' below.' : dr.ai ? 'Suggested by Chris. Check it and change anything you like.' : 'A simple template (the AI suggestion wasn\'t available).'} It's sent to <b>${to}</b> exactly as written, from the WOAH email.${them && x.own ? ` ${esc(x.owners || 'The team member')} first sent this from their own email, so they're copied in.` : ''}</div>
       ${dr.waitingFor ? `<div class="waitfor">What we're waiting for: <b>${esc(dr.waitingFor)}</b></div>` : ''}
@@ -79,7 +79,7 @@
       <textarea class="compose" id="draft" oninput="DRAFTS['${x.id}'].text=this.value">${esc(dr.text)}</textarea>
       ${(dr.used || []).length ? `<div class="sub" style="margin-top:4px">Facts taken from: ${esc(dr.used.join(', '))}</div>` : ''}
       <div class="sub" style="margin-top:4px">Anything in [square brackets] is a gap Chris couldn't fill: replace it before sending.</div>
-      <div class="hact"><button class="primary" onclick="act('${x.id}','${op}')">Send from the WOAH email</button><button onclick="suggest('${x.id}')">Write a new suggestion</button><button onclick="blank('${x.id}')">Start blank</button></div>
+      <div class="hact"><button class="primary" onclick="act('${x.id}','${op}')">Send from the WOAH email</button><button onclick="suggest('${x.id}')">${dr.blank ? 'Suggest with Chris' : 'Write a new suggestion'}</button><button onclick="blank('${x.id}')">Start blank</button></div>
       ${them ? '' : `<div class="sub" style="margin-top:8px">You can still reply from Chris's forward in your own inbox instead, as usual.</div>`}`;
     return `<div class="card" id="compose" style="margin-top:14px"><b>${title}</b>${body}</div>`;
   }
@@ -93,11 +93,12 @@
     DRAFTS[id] = { text: `Hi ,\n\n\n\nBest,\n${name}\nWOAH Festival Team`, blank: true, ai: false };
     redrawComposer(id);
   }
+  function sending(x) { return ((DATA.pending || []).some(a => a.id === x.id && ['reply', 'followup', 'done'].includes(a.op))); }
   function suggest(id) {
-    delete DRAFTS[id];
+    DRAFTS[id] = { loading: true };
     redrawComposer(id);
     call({ action: 'draft', id }).then(r => {
-      if (DRAFTS[id] && DRAFTS[id].blank) return;   // they chose to write their own meanwhile
+      if (!DRAFTS[id] || !DRAFTS[id].loading) return;   // they chose to write their own meanwhile
       DRAFTS[id] = { text: r.draft || '', ai: !!r.ai, waitingFor: r.waitingFor || '', asking: r.asking || '', check: r.check || [], used: r.used || [] };
       redrawComposer(id);
     }).catch(err => { DRAFTS[id] = { text: '', ai: false, check: [err.message] }; redrawComposer(id); });
