@@ -30,7 +30,7 @@
   </div>
 </div>
 <script src="common.js?v=3"></script>
-<script src="handle.js?v=6"></script>
+<script src="handle.js?v=7"></script>
 <script>
   let TAB = 'us';
   try { TAB = localStorage.getItem('woahHandlerTab') === 'them' ? 'them' : 'us'; } catch (e) {}
@@ -53,13 +53,13 @@
     document.getElementById('how').innerHTML = (TAB === 'them'
       ? `<b>Write follow-up</b> = Chris writes a suggested email; you check it and send it from the WOAH email. &nbsp;
          <b>I'll chase it</b> = only you get Chris's follow-up nudges. &nbsp;
-         <b>Pass on</b> = Chris emails that person and they get the nudges. &nbsp;
+         <b>Pass on</b> = tick one or more people: Chris emails them and they all get the nudges. &nbsp;
          <b>Remind me</b> = no nudges until the day you pick, then one more. &nbsp;
          <b>Sorted</b> = they answered some other way or no follow-up is needed. &nbsp;
          <b>Dismiss</b> = off the list in one click, no more nudges.`
       : `<b>Write reply</b> = Chris suggests an answer from the conversation and WOAH's Drive files (or write your own); you check it and send it from the WOAH email. &nbsp;
          <b>Claim</b> = "I'm on it": only you get the reminders. &nbsp;
-         <b>Reassign</b> = Chris forwards it to that person. &nbsp;
+         <b>Reassign</b> = tick one or more people: Chris forwards it to them and any of them can reply. &nbsp;
          <b>Snooze</b> = no reminders for a while. &nbsp;
          <b>Mark done</b> = answered some other way or needs no reply. &nbsp;
          <b>Dismiss</b> = off the list in one click, no more reminders.
