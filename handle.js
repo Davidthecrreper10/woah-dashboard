@@ -15,6 +15,7 @@ function findItem(id) {
   const t = l.them.find(x => x.id === id); return t ? { x: t, kind: 'them' } : null;
 }
 function teamName(e) { const p = ((DATA && DATA.team) || []).find(t => t.email === String(e).toLowerCase()); return p ? p.name.split(' ')[0] : first(e); }
+function teamNames(v) { return String(v || '').split(',').filter(Boolean).map(teamName).join(', '); }
 function urgency(x) { return days(x.since) + (x.reminders || 0) * 2; }
 function chasing(x, me) { return x.claimedBy ? x.claimedBy === me : (x.to || []).includes(me); }
 function shortDay(t) { return new Date(t).toLocaleDateString([], { day: 'numeric', month: 'short' }); }
@@ -26,7 +27,7 @@ function subjLink(x) {
 }
 function pendHtml(x, them) {
   const L = them ? THEM_OPS : OPS;
-  return ((DATA && DATA.pending) || []).filter(a => a.id === x.id).map(a => `<div class="pend">Waiting for Chris: ${esc(L[a.op] || a.op)}${a.op === 'reassign' ? ' to ' + esc(teamName(a.value)) : a.op === 'snooze' ? (them ? ' in ' : ' ') + esc(a.value) + ' days' : ''} (by ${esc(teamName(a.by))})</div>`).join('');
+  return ((DATA && DATA.pending) || []).filter(a => a.id === x.id).map(a => `<div class="pend">Waiting for Chris: ${esc(L[a.op] || a.op)}${a.op === 'reassign' ? ' to ' + esc(teamNames(a.value)) : a.op === 'snooze' ? (them ? ' in ' : ' ') + esc(a.value) + ' days' : ''} (by ${esc(teamName(a.by))})</div>`).join('');
 }
 function flagHtml(x) {
   return (x.flags || []).length ? `<div class="flagbox"><b>Check with a teacher before replying</b> · this email ${esc(x.flags.map(f => FLAG_TIPS[f] || f).join(', '))}.</div>` : '';
@@ -43,11 +44,10 @@ function usTags(x, me) {
 function usButtons(x, me, inDetail) {
   const pend = ((DATA && DATA.pending) || []).filter(a => a.id === x.id);
   const sn = x.snoozeUntil > Date.now();
-  const team = ((DATA && DATA.team) || []).filter(t => !(x.to || []).includes(t.email));
   return `<div class="hact">
     ${!inDetail ? `<a class="btn primary" href="email.html?id=${encodeURIComponent(x.id)}#reply" target="_self">Write reply</a>` : ''}
     ${x.claimedBy === me ? `<button onclick="act('${x.id}','unclaim')">Unclaim</button>` : (x.claimedBy || pend.some(a => a.op === 'claim')) ? '' : `<button class="${inDetail ? 'primary' : ''}" onclick="act('${x.id}','claim')">Claim</button>`}
-    <select onchange="if(this.value){act('${x.id}','reassign',this.value);this.value=''}"><option value="">Reassign to…</option>${team.map(t => `<option value="${esc(t.email)}">${esc(t.name)}</option>`).join('')}</select>
+    <button onclick="pickPeople('${x.id}')" title="Pass it to one or more people">Reassign…</button>
     ${sn ? `<button onclick="act('${x.id}','unsnooze')">Wake up</button>`
          : `<select onchange="if(this.value){act('${x.id}','snooze',this.value);this.value=''}"><option value="">Snooze…</option><option value="1">1 day</option><option value="3">3 days</option><option value="7">1 week</option></select>`}
     <button onclick="act('${x.id}','done')">Mark done</button>
@@ -75,11 +75,10 @@ function themTags(x, me) {
 function themButtons(x, me, inDetail) {
   const pend = ((DATA && DATA.pending) || []).filter(a => a.id === x.id);
   const later = x.snoozeUntil > Date.now();
-  const team = ((DATA && DATA.team) || []).filter(t => t.email !== (x.claimedBy || ''));
   return `<div class="hact">
     ${!inDetail && canFollowUp(x) ? `<a class="btn primary" href="email.html?id=${encodeURIComponent(x.id)}#followup" target="_self">Write follow-up</a>` : ''}
     ${x.claimedBy === me ? `<button onclick="act('${x.id}','unclaim')">Stop chasing</button>` : pend.some(a => a.op === 'claim') ? '' : `<button class="${inDetail ? 'primary' : ''}" onclick="act('${x.id}','claim')">I'll chase it</button>`}
-    <select onchange="if(this.value){act('${x.id}','reassign',this.value);this.value=''}"><option value="">Pass on to…</option>${team.map(t => `<option value="${esc(t.email)}">${esc(t.name)}</option>`).join('')}</select>
+    <button onclick="pickPeople('${x.id}')" title="Pass it to one or more people">Pass on…</button>
     ${later ? `<button onclick="act('${x.id}','unsnooze')">Cancel reminder</button>`
             : `<select onchange="if(this.value){act('${x.id}','snooze',this.value);this.value=''}"><option value="">Remind me…</option><option value="3">in 3 days</option><option value="7">in 1 week</option><option value="14">in 2 weeks</option></select>`}
     <button onclick="act('${x.id}','done')">Sorted</button>
@@ -96,6 +95,24 @@ function themItem(x, me) {
     <div class="confirm" id="hc-${x.id}"></div></div>`;
 }
 
+// ---------- Reassign / Pass on: tick one or more people ----------
+function pickPeople(id) {
+  const box = document.getElementById('hc-' + id); if (!box) return;
+  const f = findItem(id), them = f && f.kind === 'them', x = f ? f.x : {};
+  const now = x.claimedBy ? [x.claimedBy] : (x.to || []);
+  const team = (DATA && DATA.team) || [];
+  box.innerHTML = `<b>${them ? 'Pass this follow-up on to' : 'Reassign this email to'}</b> (tick one or more):
+    <div class="pick" style="display:flex;flex-wrap:wrap;gap:4px 14px;margin:6px 0">${team.map(t => `<label style="white-space:nowrap;cursor:pointer"><input type="checkbox" value="${esc(t.email)}" onchange="const m=this.closest('.confirm').querySelector('.pickmsg'); if(m) m.remove()"> ${esc(t.name)}${now.includes(t.email) ? ' <span style="opacity:.6">(has it now)</span>' : ''}</label>`).join('')}</div>
+    <button onclick="pickGo('${id}')">Next</button><button onclick="this.parentNode.style.display='none'">Cancel</button>`;
+  box.style.display = 'block';
+}
+function pickGo(id) {
+  const box = document.getElementById('hc-' + id);
+  const picked = [...box.querySelectorAll('.pick input:checked')].map(i => i.value);
+  if (!picked.length) { if (!box.querySelector('.pickmsg')) box.insertAdjacentHTML('beforeend', '<div class="pickmsg" style="margin-top:4px">Tick at least one person.</div>'); return; }
+  act(id, 'reassign', picked.join(','));
+}
+
 // ---------- buttons ----------
 function act(id, op, value) {
   const box = document.getElementById('hc-' + id);
@@ -110,9 +127,10 @@ function act(id, op, value) {
     const flags = op === 'reply' && (x.flags || []).length ? `<br><b>This email is flagged (${esc(x.flags.join(', '))}): only send it once a teacher has OK'd it.</b>` : '';
     return ask(`Send this to <b>${esc((op === 'reply' ? x.from : x.who) || 'them')}</b> from the WOAH Festival email? It goes exactly as written, in the same conversation, and Chris emails you a copy.${flags}`);
   }
-  if (them && op === 'reassign') return ask(`Pass this follow-up to <b>${esc(teamName(value))}</b>? Chris will email them about it and they get the nudges from now on.`);
+  const many = String(value || '').split(',').filter(Boolean).length > 1;
+  if (them && op === 'reassign') return ask(many ? `Pass this follow-up to <b>${esc(teamNames(value))}</b>? Chris will email all of them about it, any of them can follow up, and they all get the nudges from now on.` : `Pass this follow-up to <b>${esc(teamName(value))}</b>? Chris will email them about it and they get the nudges from now on.`);
   if (them && op === 'done') return ask('Mark as sorted? Use this if they answered some other way (phone, WhatsApp, in person) or no follow-up is needed. Chris stops nudging.');
-  if (op === 'reassign') return ask(`Pass this email to <b>${esc(teamName(value))}</b>? Chris will forward it to them and they get the reminders from now on.`);
+  if (op === 'reassign') return ask(many ? `Pass this email to <b>${esc(teamNames(value))}</b>? Chris will forward it to all of them, any of them can reply, and they all get the reminders from now on.` : `Pass this email to <b>${esc(teamName(value))}</b>? Chris will forward it to them and they get the reminders from now on.`);
   if (op === 'done') return ask('Mark as done? Use this if it was answered some other way (phone, WhatsApp, in person) or needs no reply. Reminders stop.');
   doAct(id, op, value);
 }
