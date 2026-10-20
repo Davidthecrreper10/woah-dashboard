@@ -102,20 +102,48 @@ function pickPeople(id) {
   const f = findItem(id), them = f && f.kind === 'them', x = f ? f.x : {};
   const now = x.claimedBy ? [x.claimedBy] : (x.to || []);
   const team = ((DATA && DATA.team) || []).slice().sort((a, b) => a.name.localeCompare(b.name));
+  const byEmail = {}; team.forEach(t => { byEmail[t.email] = t; });
+  // Departments = the Routing topics, with the people the team doc gives that role (someone can be in several)
+  const depts = ((DATA && DATA.depts) || []).map(d => ({ name: d.name, members: (d.members || []).filter(e => byEmail[e]) })).filter(d => d.members.length);
+  const inDept = new Set(depts.flatMap(d => d.members));
+  const rest = team.filter(t => !inDept.has(t.email));
+  const chip = t => `<label class="chip${now.includes(t.email) ? ' now' : ''}"><input type="checkbox" value="${esc(t.email)}" onchange="pickSync('${id}',this)"><span class="av">${esc(initials(t.name))}</span><span class="nm">${esc(t.name)}${now.includes(t.email) ? '<small>has it now</small>' : ''}</span><span class="tick">✓</span></label>`;
+  const group = (name, people, i) => `<div class="pick-group"><div class="pick-gh">${esc(name)}<span>${people.length}</span></div><div class="pick">${people.map(chip).join('')}</div></div>`;
+  const groups = depts.length
+    ? depts.map((d, i) => group(d.name, d.members.map(e => byEmail[e]).sort((a, b) => a.name.localeCompare(b.name)), i)).join('') + (rest.length ? group('Everyone else', rest) : '')
+    : `<div class="pick">${team.map(chip).join('')}</div>`;
   box.classList.add('picking');
-  box.innerHTML = `<div class="pick-head"><b>${them ? 'Pass this follow-up on to…' : 'Reassign this email to…'}</b><span class="pick-sub">Pick one or more people</span></div>
-    <div class="pick">${team.map(t => `<label class="chip${now.includes(t.email) ? ' now' : ''}"><input type="checkbox" value="${esc(t.email)}" onchange="pickCount('${id}')"><span class="av">${esc(initials(t.name))}</span><span class="nm">${esc(t.name)}${now.includes(t.email) ? '<small>has it now</small>' : ''}</span><span class="tick">✓</span></label>`).join('')}</div>
+  box.innerHTML = `<div class="pick-head"><b>${them ? 'Pass this follow-up on to…' : 'Reassign this email to…'}</b><span class="pick-sub">Pick a whole department, or one or more people</span></div>
+    ${depts.length ? `<div class="pick-depts" role="group" aria-label="Whole departments">${depts.map((d, i) => `<button type="button" class="dept" data-i="${i}" aria-pressed="false" onclick="pickDept('${id}',${i})" title="${esc(d.members.map(teamName).join(', '))}">${esc(d.name)}<span>${d.members.length}</span></button>`).join('')}</div>` : ''}
+    <div class="pick-scroll">${groups}</div>
     <div class="pick-foot"><button class="ghost" onclick="pickClose('${id}')">Cancel</button><button class="primary go" disabled onclick="pickGo('${id}')">Pick someone</button></div>`;
+  box._depts = depts;
   box.style.display = 'block';
 }
+// The same person can show up under several departments: keep all their boxes in step
+function pickSync(id, input) {
+  const box = document.getElementById('hc-' + id);
+  box.querySelectorAll('.pick input').forEach(i => { if (i.value === input.value) i.checked = input.checked; });
+  pickCount(id);
+}
+// Department button: ticks everyone in it (press again to untick them)
+function pickDept(id, i) {
+  const box = document.getElementById('hc-' + id), d = (box._depts || [])[i]; if (!d) return;
+  const all = d.members.every(e => [...box.querySelectorAll('.pick input')].some(n => n.value === e && n.checked));
+  box.querySelectorAll('.pick input').forEach(n => { if (d.members.includes(n.value)) n.checked = !all; });
+  pickCount(id);
+}
+function pickChosen(box) { return [...new Set([...box.querySelectorAll('.pick input:checked')].map(i => i.value))]; }
 function pickCount(id) {
-  const box = document.getElementById('hc-' + id), n = box.querySelectorAll('.pick input:checked').length, go = box.querySelector('.go');
+  const box = document.getElementById('hc-' + id), n = pickChosen(box).length, go = box.querySelector('.go');
   go.disabled = !n; go.textContent = !n ? 'Pick someone' : n === 1 ? 'Next: 1 person' : `Next: ${n} people`;
+  const on = new Set(pickChosen(box));
+  box.querySelectorAll('.pick-depts .dept').forEach(b => { const d = box._depts[+b.dataset.i]; const full = d.members.every(e => on.has(e)); b.classList.toggle('on', full); b.setAttribute('aria-pressed', full); });
 }
 function pickClose(id) { const box = document.getElementById('hc-' + id); box.classList.remove('picking'); box.style.display = 'none'; }
 function pickGo(id) {
   const box = document.getElementById('hc-' + id);
-  const picked = [...box.querySelectorAll('.pick input:checked')].map(i => i.value);
+  const picked = pickChosen(box);
   if (!picked.length) return;
   box.classList.remove('picking');
   act(id, 'reassign', picked.join(','));
