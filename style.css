@@ -124,3 +124,26 @@
   .msg { border-left: 3px solid var(--line); padding: 8px 12px; margin: 12px 0 0; }
   .msg.us { border-left-color: var(--brand); background: var(--brand-soft); border-radius: 0 8px 8px 0; }
   .msg .body { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 4px; }
+
+  /* Reassign / Pass on picker */
+  .confirm.picking { background: var(--card); border: 1px solid var(--line); box-shadow: 0 4px 14px rgba(0,0,0,.06); padding: 14px; }
+  .pick-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .pick-head b { font-size: 14px; }
+  .pick-sub { color: var(--muted); font-size: 12px; }
+  .pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+  .chip { position: relative; display: flex; align-items: center; gap: 9px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; background: var(--card); transition: border-color .12s, background .12s; user-select: none; }
+  .chip:hover { border-color: var(--brand); }
+  .chip input { position: absolute; opacity: 0; pointer-events: none; }
+  .chip .av { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; background: var(--bg); color: var(--muted); }
+  .chip .nm { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip .nm small { color: var(--muted); font-size: 11px; }
+  .chip .tick { margin-left: auto; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 11px; color: transparent; flex: none; }
+  .chip:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+  .chip:has(input:checked) .av { background: var(--brand); color: #fff; }
+  .chip:has(input:checked) .tick { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .chip:has(input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .pick-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+  .pick-foot button { margin: 0; }
+  .pick-foot button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .pick-foot button.primary:disabled { background: var(--line); border-color: var(--line); color: var(--muted); opacity: 1; }
+  .pick-foot button.ghost { color: var(--muted); }
