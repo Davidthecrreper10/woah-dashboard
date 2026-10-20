@@ -14,7 +14,9 @@ function findItem(id) {
   const u = l.us.find(x => x.id === id); if (u) return { x: u, kind: 'us' };
   const t = l.them.find(x => x.id === id); return t ? { x: t, kind: 'them' } : null;
 }
-function teamName(e) { const p = ((DATA && DATA.team) || []).find(t => t.email === String(e).toLowerCase()); return p ? p.name.split(' ')[0] : first(e); }
+// Short name = the nickname from the Team tab (Raja, Angela, Dina…), else the first word of the name
+function shortOf(t) { return (t.nick || '').trim() || String(t.name || '').split(' ')[0]; }
+function teamName(e) { const p = ((DATA && DATA.team) || []).find(t => t.email === String(e).toLowerCase()); return p ? shortOf(p) : first(e); }
 function teamNames(v) { return String(v || '').split(',').filter(Boolean).map(teamName).join(', '); }
 function urgency(x) { return days(x.since) + (x.reminders || 0) * 2; }
 function chasing(x, me) { return x.claimedBy ? x.claimedBy === me : (x.to || []).includes(me); }
@@ -97,15 +99,22 @@ function themItem(x, me) {
 
 // ---------- Reassign / Pass on: tick one or more people ----------
 function initials(n) { return String(n || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join(''); }
+// Card label: nickname first when it isn't already the first name (e.g. Raja, with the full name underneath)
+function cardName(t) {
+  const words = String(t.name || '').replace(/\([^)]*\)/g, ' ').split(/\s+/).filter(Boolean), s = shortOf(t);
+  const differs = s.toLowerCase() !== (words[0] || '').toLowerCase();
+  return { main: differs ? s : t.name, full: differs ? t.name : '', av: initials(s + (words.length > 1 ? ' ' + words[words.length - 1] : '')) };
+}
 function pickPeople(id) {
   const box = document.getElementById('hc-' + id); if (!box) return;
   const f = findItem(id), them = f && f.kind === 'them', x = f ? f.x : {};
   const now = x.claimedBy ? [x.claimedBy] : (x.to || []);
-  const team = ((DATA && DATA.team) || []).slice().sort((a, b) => a.name.localeCompare(b.name));
+  const team = ((DATA && DATA.team) || []).slice().sort((a, b) => cardName(a).main.localeCompare(cardName(b).main));
   const byEmail = {}; team.forEach(t => { byEmail[t.email] = t; });
   // Departments = the Routing topics, with the people the team doc gives that role (someone can be in several departments)
   const depts = ((DATA && DATA.depts) || []).map(d => ({ name: d.name, members: (d.members || []).filter(e => byEmail[e]) })).filter(d => d.members.length);
-  const chip = t => `<label class="chip${now.includes(t.email) ? ' now' : ''}"><input type="checkbox" value="${esc(t.email)}" onchange="pickSync('${id}',this)"><span class="av">${esc(initials(t.name))}</span><span class="nm">${esc(t.name)}${now.includes(t.email) ? '<small>has it now</small>' : ''}</span><span class="tick">✓</span></label>`;
+  const chip = t => { const c = cardName(t), sub = [c.full, now.includes(t.email) ? 'has it now' : ''].filter(Boolean).join(' · ');
+    return `<label class="chip${now.includes(t.email) ? ' now' : ''}" title="${esc(t.name)}"><input type="checkbox" value="${esc(t.email)}" onchange="pickSync('${id}',this)"><span class="av">${esc(c.av)}</span><span class="nm">${esc(c.main)}${sub ? `<small>${esc(sub)}</small>` : ''}</span><span class="tick">✓</span></label>`; };
   box.classList.add('picking');
   box.innerHTML = `<div class="pick-head"><b>${them ? 'Pass this follow-up on to…' : 'Reassign this email to…'}</b><span class="pick-sub">Pick whole departments, people, or both</span></div>
     ${depts.length ? `<div class="pick-label">Departments</div><div class="pick-depts" role="group" aria-label="Whole departments">${depts.map((d, i) => `<button type="button" class="dept" data-i="${i}" aria-pressed="false" onclick="pickDept('${id}',${i})" title="${esc(d.members.map(teamName).join(', '))}">${esc(d.name)}<span>${d.members.length}</span></button>`).join('')}</div>` : ''}
