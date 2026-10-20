@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WOAH Email</title>
+<base target="_blank">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <div id="login" class="card"></div>
+  <div id="app">
+  <header>
+    <div>
+      <a class="back" href="handlers.html" target="_self">← Back to Email handlers</a>
+      <h1 style="margin-top:6px"><span>WOAH</span> Email</h1>
+      <div class="sub" id="updated">Loading…</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><nav class="pages" id="nav"></nav><button id="refresh" onclick="load()" target="_self">Refresh</button></div>
+      <div class="who" id="who"></div>
+    </div>
+  </header>
+  <div class="banner" id="banner"></div>
+  <div id="main"></div>
+  <div style="margin-top:16px"><a class="back btnlike" href="handlers.html" target="_self">← Back to Email handlers</a></div>
+  </div>
+</div>
+<script src="common.js"></script>
+<script src="handle.js"></script>
+<script>
+  const ID = (new URLSearchParams(location.search).get('id') || '').replace(/[^0-9a-f]/gi, '');
+
+  function render(d) {
+    DATA = d;
+    const s = d.snap, me = myEmail();
+    document.getElementById('updated').textContent = s ? 'Inbox checked ' + when(s.at) + ' · page loaded ' + when(d.now) : 'No inbox data yet';
+    const b = document.getElementById('banner');
+    if (d.control && d.control.inbox === 'BREAK') { b.className = 'banner warn'; b.textContent = 'The WOAH inbox is on BREAK: forwards and reminders go to the break contacts, not the team.'; }
+    else { b.className = 'banner'; b.textContent = ''; }
+    const main = document.getElementById('main');
+    const f = findItem(ID);
+    if (!f) {
+      main.innerHTML = `<div class="card"><div class="empty">This email isn't on the lists any more. It may have been answered, marked done or sorted.</div></div>` + convoCard(d.thread);
+      return;
+    }
+    const x = f.x, them = f.kind === 'them', dd = days(x.since);
+    let h = `<div class="card">
+      <div class="sub">${them ? 'Waiting on them · WOAH sent this and is waiting for an answer' : 'To answer · someone emailed WOAH and is waiting for us'}</div>
+      <h2 class="subject">${esc(x.subject)}</h2>
+      <div class="meta">${them ? themMeta(x) : usMeta(x)} · <span class="${ageClass(x.since, them ? 7 : 3, them ? 12 : 5)}">${dd === 0 ? 'today' : dd + (dd === 1 ? ' day' : ' days')}</span></div>
+      <div style="margin-top:6px">${them ? themTags(x, me) : usTags(x, me)} <a class="mine" href="${esc(mineLink(x))}">find in my email</a></div>
+      ${them ? '' : flagHtml(x)}${pendHtml(x, them)}
+      ${them ? themButtons(x, me, true) : usButtons(x, me)}
+      <div class="confirm" id="hc-${x.id}"></div>
+      ${them ? '' : `<div class="sub" style="margin-top:10px">To reply, hit <b>Reply</b> on Chris's forward in your own inbox, as usual.</div>`}
+    </div>`;
+    if (them) h += composerCard(x);
+    h += convoCard(d.thread);
+    main.innerHTML = h;
+    if (them && canFollowUp(x) && !DRAFTS[x.id]) suggest(x.id);
+    if (location.hash === '#followup') { const c = document.getElementById('followup'); if (c) c.scrollIntoView(); }
+  }
+
+  // ---------- the follow-up: Chris suggests one, the student edits it, then sends it from the WOAH email ----------
+  function composerCard(x) {
+    if (!canFollowUp(x)) return `<div class="card" id="followup" style="margin-top:14px"><b>Follow up</b><div class="sub" style="margin-top:4px">This was sent from a team member's own email, so the follow-up has to come from their inbox. Ask them, or press Sorted if it's not needed.</div></div>`;
+    const dr = DRAFTS[x.id];
+    const pending = ((DATA.pending || []).some(a => a.id === x.id && a.op === 'followup'));
+    let body;
+    if (pending || (dr && dr.sent)) body = `<div class="okbox">Your follow-up is on its way: Chris sends it from the WOAH email within about 5 minutes and emails you a copy.</div>`;
+    else if (!dr) body = `<div class="sub">Chris is writing a suggestion…</div>`;
+    else body = `<div class="sub" style="margin-bottom:6px">${dr.ai ? 'Suggested by Chris from the conversation below.' : 'A simple template (the AI suggestion wasn\'t available).'} Check it and change anything you like: it's sent to <b>${esc(x.who || 'them')}</b> exactly as written.</div>
+      <textarea class="compose" id="draft" oninput="DRAFTS['${x.id}'].text=this.value">${esc(dr.text)}</textarea>
+      <div class="hact"><button class="primary" onclick="act('${x.id}','followup')">Send from the WOAH email</button><button onclick="suggest('${x.id}', true)">Write a new suggestion</button></div>`;
+    return `<div class="card" id="followup" style="margin-top:14px"><b>Follow up</b>${body}</div>`;
+  }
+  function suggest(id, again) {
+    delete DRAFTS[id];
+    const f = findItem(id); if (f) document.getElementById('followup').outerHTML = composerCard(f.x);
+    call({ action: 'draft', id }).then(r => {
+      DRAFTS[id] = { text: r.draft || '', ai: !!r.ai };
+      const g = findItem(id); const c = document.getElementById('followup');
+      if (g && c) c.outerHTML = composerCard(g.x);
+    }).catch(err => { DRAFTS[id] = { text: '', ai: false }; const c = document.getElementById('followup'); if (c) c.innerHTML = '<b>Follow up</b><div class="err">' + esc(err.message) + '</div>'; });
+  }
+
+  // ---------- the whole conversation, oldest first ----------
+  function convoCard(t) {
+    if (!t || !(t.msgs || []).length) return `<div class="card" style="margin-top:14px"><b>The email</b><div class="sub" style="margin-top:4px">The full email isn't ready yet (Chris saves it within the hour). Use "find in my email" to read it in Gmail.</div></div>`;
+    const more = t.count > t.msgs.length ? `<div class="sub">Showing the last ${t.msgs.length} of ${t.count} emails in this conversation.</div>` : '';
+    return `<div class="card" style="margin-top:14px"><b>The email</b>${more}` + t.msgs.map((m, i) => `
+      <div class="msg ${m.us ? 'us' : ''} ${i === t.msgs.length - 1 ? 'last' : ''}">
+        <div class="mhead"><b>${esc(m.us ? 'WOAH Festival' : m.from)}</b> <span class="sub">${m.us ? '' : '&lt;' + esc(m.email) + '&gt;'} · ${esc(when(m.at))}</span></div>
+        <div class="body">${esc(m.text || '(no text)')}</div>
+        ${(m.files || []).length ? `<div class="sub">Attached: ${esc(m.files.join(', '))}</div>` : ''}
+      </div>`).join('') + `</div>`;
+  }
+
+  window.afterAct = d => { d.thread = DATA.thread; d.id = DATA.id; render(d); };
+  if (!ID) document.getElementById('main').innerHTML = '<div class="card"><div class="empty">No email picked. Go back to the Email handlers page.</div></div>';
+  start({ title: 'Email', need: 'handler', action: 'thread', params: { id: ID }, onData: render });
+</script>
+</body>
+</html>
