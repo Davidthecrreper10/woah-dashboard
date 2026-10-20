@@ -103,3 +103,16 @@
   .form-row select, .form-row input { font: inherit; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
   .pill.role-admin { background: var(--bad-soft); color: var(--bad); } .pill.role-full { background: var(--brand-soft); color: var(--brand); } .pill.role-handler { background: var(--ok-soft); color: var(--ok); }
   .flagbox { margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); font-size: 13px; }
+  /* email detail page */
+  a.back { color: var(--brand); text-decoration: none; font-size: 13px; font-weight: 600; }
+  a.back.btnlike { display: inline-block; border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 7px 12px; }
+  h2.subject { font-size: 19px; margin: 4px 0 2px; }
+  a.mine { color: var(--muted); font-size: 12px; }
+  .hact a.btn { font-size: 13px; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line); text-decoration: none; color: var(--ink); background: var(--card); }
+  .hact a.btn.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+  textarea.compose { width: 100%; min-height: 200px; font: inherit; line-height: 1.5; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); resize: vertical; }
+  textarea.compose:focus { outline: 2px solid var(--brand-soft); border-color: var(--brand); }
+  .okbox { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--ok-soft); color: var(--ok); font-size: 13px; }
+  .msg { border-left: 3px solid var(--line); padding: 8px 12px; margin: 12px 0 0; }
+  .msg.us { border-left-color: var(--brand); background: var(--brand-soft); border-radius: 0 8px 8px 0; }
+  .msg .body { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 4px; }
