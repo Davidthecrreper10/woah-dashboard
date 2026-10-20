@@ -147,3 +147,11 @@
   .pick-foot button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
   .pick-foot button.primary:disabled { background: var(--line); border-color: var(--line); color: var(--muted); opacity: 1; }
   .pick-foot button.ghost { color: var(--muted); }
+  .pick-depts { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+  .pick-depts .dept { margin: 0; font-size: 13px; padding: 5px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; }
+  .pick-depts .dept span, .pick-gh span { font-size: 11px; color: var(--muted); background: var(--bg); border-radius: 999px; padding: 0 6px; min-width: 18px; text-align: center; }
+  .pick-depts .dept.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .pick-depts .dept.on span { background: rgba(255,255,255,.25); color: #fff; }
+  .pick-scroll { max-height: 420px; overflow-y: auto; padding-right: 2px; }
+  .pick-group + .pick-group { margin-top: 12px; }
+  .pick-gh { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
