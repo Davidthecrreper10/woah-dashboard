@@ -96,20 +96,28 @@ function themItem(x, me) {
 }
 
 // ---------- Reassign / Pass on: tick one or more people ----------
+function initials(n) { return String(n || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join(''); }
 function pickPeople(id) {
   const box = document.getElementById('hc-' + id); if (!box) return;
   const f = findItem(id), them = f && f.kind === 'them', x = f ? f.x : {};
   const now = x.claimedBy ? [x.claimedBy] : (x.to || []);
-  const team = (DATA && DATA.team) || [];
-  box.innerHTML = `<b>${them ? 'Pass this follow-up on to' : 'Reassign this email to'}</b> (tick one or more):
-    <div class="pick" style="display:flex;flex-wrap:wrap;gap:4px 14px;margin:6px 0">${team.map(t => `<label style="white-space:nowrap;cursor:pointer"><input type="checkbox" value="${esc(t.email)}" onchange="const m=this.closest('.confirm').querySelector('.pickmsg'); if(m) m.remove()"> ${esc(t.name)}${now.includes(t.email) ? ' <span style="opacity:.6">(has it now)</span>' : ''}</label>`).join('')}</div>
-    <button onclick="pickGo('${id}')">Next</button><button onclick="this.parentNode.style.display='none'">Cancel</button>`;
+  const team = ((DATA && DATA.team) || []).slice().sort((a, b) => a.name.localeCompare(b.name));
+  box.classList.add('picking');
+  box.innerHTML = `<div class="pick-head"><b>${them ? 'Pass this follow-up on to…' : 'Reassign this email to…'}</b><span class="pick-sub">Pick one or more people</span></div>
+    <div class="pick">${team.map(t => `<label class="chip${now.includes(t.email) ? ' now' : ''}"><input type="checkbox" value="${esc(t.email)}" onchange="pickCount('${id}')"><span class="av">${esc(initials(t.name))}</span><span class="nm">${esc(t.name)}${now.includes(t.email) ? '<small>has it now</small>' : ''}</span><span class="tick">✓</span></label>`).join('')}</div>
+    <div class="pick-foot"><button class="ghost" onclick="pickClose('${id}')">Cancel</button><button class="primary go" disabled onclick="pickGo('${id}')">Pick someone</button></div>`;
   box.style.display = 'block';
 }
+function pickCount(id) {
+  const box = document.getElementById('hc-' + id), n = box.querySelectorAll('.pick input:checked').length, go = box.querySelector('.go');
+  go.disabled = !n; go.textContent = !n ? 'Pick someone' : n === 1 ? 'Next: 1 person' : `Next: ${n} people`;
+}
+function pickClose(id) { const box = document.getElementById('hc-' + id); box.classList.remove('picking'); box.style.display = 'none'; }
 function pickGo(id) {
   const box = document.getElementById('hc-' + id);
   const picked = [...box.querySelectorAll('.pick input:checked')].map(i => i.value);
-  if (!picked.length) { if (!box.querySelector('.pickmsg')) box.insertAdjacentHTML('beforeend', '<div class="pickmsg" style="margin-top:4px">Tick at least one person.</div>'); return; }
+  if (!picked.length) return;
+  box.classList.remove('picking');
   act(id, 'reassign', picked.join(','));
 }
 
