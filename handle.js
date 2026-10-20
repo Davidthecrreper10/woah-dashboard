@@ -4,6 +4,7 @@ let DATA = null;
 const ADMIN = 'david.mantzios@student.greenschool.org';
 const OPS = { claim: 'Claim', unclaim: 'Unclaim', snooze: 'Snooze', unsnooze: 'Wake up', done: 'Mark done', reassign: 'Reassign' };
 const THEM_OPS = { claim: "I'll chase it", unclaim: 'Stop chasing', snooze: 'Remind me', unsnooze: 'Cancel reminder', done: 'Sorted', reassign: 'Pass on', followup: 'Send your follow-up' };
+OPS.reply = 'Send your reply';
 const FLAG_TIPS = { 'Money': 'mentions money', 'Contract': 'mentions a contract or agreement', 'Personal details': 'asks for personal details', 'Looks like a scam': 'might be a scam', 'Has attachments': 'has attachments' };
 const DRAFTS = {};   // follow-up text being written, kept while the page refreshes
 
@@ -39,12 +40,13 @@ function usMeta(x) {
 function usTags(x, me) {
   return `${x.cc ? '<span class="tag">their inbox</span>' : ''}${x.claimedBy ? `<span class="tag">${x.claimedBy === me ? 'You claimed this' : esc(x.claimedName || teamName(x.claimedBy)) + ' is on it'}</span>` : ''}`;
 }
-function usButtons(x, me) {
+function usButtons(x, me, inDetail) {
   const pend = ((DATA && DATA.pending) || []).filter(a => a.id === x.id);
   const sn = x.snoozeUntil > Date.now();
   const team = ((DATA && DATA.team) || []).filter(t => !(x.to || []).includes(t.email));
   return `<div class="hact">
-    ${x.claimedBy === me ? `<button onclick="act('${x.id}','unclaim')">Unclaim</button>` : (x.claimedBy || pend.some(a => a.op === 'claim')) ? '' : `<button class="primary" onclick="act('${x.id}','claim')">Claim</button>`}
+    ${!inDetail ? `<a class="btn primary" href="email.html?id=${encodeURIComponent(x.id)}#reply" target="_self">Write reply</a>` : ''}
+    ${x.claimedBy === me ? `<button onclick="act('${x.id}','unclaim')">Unclaim</button>` : (x.claimedBy || pend.some(a => a.op === 'claim')) ? '' : `<button class="${inDetail ? 'primary' : ''}" onclick="act('${x.id}','claim')">Claim</button>`}
     <select onchange="if(this.value){act('${x.id}','reassign',this.value);this.value=''}"><option value="">Reassign to…</option>${team.map(t => `<option value="${esc(t.email)}">${esc(t.name)}</option>`).join('')}</select>
     ${sn ? `<button onclick="act('${x.id}','unsnooze')">Wake up</button>`
          : `<select onchange="if(this.value){act('${x.id}','snooze',this.value);this.value=''}"><option value="">Snooze…</option><option value="1">1 day</option><option value="3">3 days</option><option value="7">1 week</option></select>`}
@@ -98,12 +100,15 @@ function themItem(x, me) {
 function act(id, op, value) {
   const box = document.getElementById('hc-' + id);
   const f = findItem(id), them = f && f.kind === 'them', x = f ? f.x : {};
-  const go = op === 'followup' ? `doAct('${id}','followup')` : `doAct('${id}','${op}','${esc(value || '')}')`;
-  const ask = html => { box.innerHTML = html + `<br><button onclick="${go}">${op === 'followup' ? 'Yes, send it' : op === 'done' ? (them ? "Yes, it's sorted" : "Yes, it's done") : 'Yes, pass it on'}</button><button onclick="this.parentNode.style.display='none'">Cancel</button>`; box.style.display = 'block'; };
-  if (op === 'followup') {
+  const go = op === 'followup' || op === 'reply' ? `doAct('${id}','${op}')` : `doAct('${id}','${op}','${esc(value || '')}')`;
+  const ask = html => { box.innerHTML = html + `<br><button onclick="${go}">${op === 'followup' || op === 'reply' ? 'Yes, send it' : op === 'done' ? (them ? "Yes, it's sorted" : "Yes, it's done") : 'Yes, pass it on'}</button><button onclick="this.parentNode.style.display='none'">Cancel</button>`; box.style.display = 'block'; };
+  if (op === 'followup' || op === 'reply') {
     const text = ((DRAFTS[id] || {}).text || '').trim();
-    if (text.length < 5) { box.innerHTML = 'Write the follow-up first.'; box.style.display = 'block'; return; }
-    return ask(`Send this to <b>${esc(x.who || 'them')}</b> from the WOAH Festival email? It goes exactly as written, in the same conversation, and Chris emails you a copy.`);
+    const gap = text.match(/\[[^\]\n]{2,80}\]/);
+    if (text.length < 5) { box.innerHTML = 'Write the ' + (op === 'reply' ? 'reply' : 'follow-up') + ' first.'; box.style.display = 'block'; return; }
+    if (gap) { box.innerHTML = `Fill in <b>${esc(gap[0])}</b> first (and any other [square brackets]).`; box.style.display = 'block'; return; }
+    const flags = op === 'reply' && (x.flags || []).length ? `<br><b>This email is flagged (${esc(x.flags.join(', '))}): only send it once a teacher has OK'd it.</b>` : '';
+    return ask(`Send this to <b>${esc((op === 'reply' ? x.from : x.who) || 'them')}</b> from the WOAH Festival email? It goes exactly as written, in the same conversation, and Chris emails you a copy.${flags}`);
   }
   if (them && op === 'reassign') return ask(`Pass this follow-up to <b>${esc(teamName(value))}</b>? Chris will email them about it and they get the nudges from now on.`);
   if (them && op === 'done') return ask('Mark as sorted? Use this if they answered some other way (phone, WhatsApp, in person) or no follow-up is needed. Chris stops nudging.');
@@ -114,8 +119,8 @@ function act(id, op, value) {
 function doAct(id, op, value) {
   const box = document.getElementById('hc-' + id); if (box) { box.innerHTML = 'Sending…'; box.style.display = 'block'; }
   if (op === 'dismiss') { op = 'done'; value = 'dismiss'; }   // Dismiss = done in one click, no questions
-  if (op === 'followup') value = (DRAFTS[id] || {}).text || '';
+  if (op === 'followup' || op === 'reply') value = (DRAFTS[id] || {}).text || '';
   call({ action: 'inbox', op, id, value: value || '' })
-    .then(d => { if (op === 'followup' && DRAFTS[id]) DRAFTS[id].sent = true; (window.afterAct || render)(d); })
+    .then(d => { if ((op === 'followup' || op === 'reply') && DRAFTS[id]) DRAFTS[id].sent = true; (window.afterAct || render)(d); })
     .catch(err => { if (box) { box.innerHTML = esc(err.message); box.style.display = 'block'; } else fail(err); });
 }
