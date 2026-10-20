@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WOAH Email Handlers</title>
 <base target="_blank">
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 <div class="wrap">
@@ -30,7 +30,7 @@
   </div>
 </div>
 <script src="common.js?v=3"></script>
-<script src="handle.js?v=4"></script>
+<script src="handle.js?v=5"></script>
 <script>
   let TAB = 'us';
   try { TAB = localStorage.getItem('woahHandlerTab') === 'them' ? 'them' : 'us'; } catch (e) {}
@@ -57,12 +57,13 @@
          <b>Remind me</b> = no nudges until the day you pick, then one more. &nbsp;
          <b>Sorted</b> = they answered some other way or no follow-up is needed. &nbsp;
          <b>Dismiss</b> = off the list in one click, no more nudges.`
-      : `<b>Claim</b> = "I'm on it": only you get the reminders. &nbsp;
+      : `<b>Write reply</b> = Chris suggests an answer from the conversation and WOAH's Drive files (or write your own); you check it and send it from the WOAH email. &nbsp;
+         <b>Claim</b> = "I'm on it": only you get the reminders. &nbsp;
          <b>Reassign</b> = Chris forwards it to that person. &nbsp;
          <b>Snooze</b> = no reminders for a while. &nbsp;
          <b>Mark done</b> = answered some other way or needs no reply. &nbsp;
          <b>Dismiss</b> = off the list in one click, no more reminders.
-         To reply, hit Reply on Chris's forward in your own inbox.`) + ' Click an email\'s subject to see the whole email.';
+         You can still reply from Chris's forward in your own inbox.`) + ' Click an email\'s subject to see the whole email.';
   }
   const section = (title, list, note, fn, me) => list.length ? `<div class="gh">${title} <span class="sub">· ${list.length}</span></div>${note ? `<div class="sub" style="margin:-4px 0 8px">${note}</div>` : ''}` + list.map(x => fn(x, me)).join('') : '';
 
