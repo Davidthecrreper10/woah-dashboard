@@ -28,7 +28,7 @@
   </div>
 </div>
 <script src="common.js?v=3"></script>
-<script src="handle.js?v=10"></script>
+<script src="handle.js?v=11"></script>
 <script>
   const ID = (new URLSearchParams(location.search).get('id') || '').replace(/[^0-9a-f]/gi, '');
 
@@ -89,7 +89,7 @@
   }
   function blank(id) {
     const g = findItem(id); if (!g) return;
-    const name = String(myEmail() && ME ? ME.name : '').split(' ')[0] || '';
+    const name = myEmail() ? teamName(myEmail()) : '';
     DRAFTS[id] = { text: `Hi ,\n\n\n\nBest,\n${name}\nWOAH Festival Team`, blank: true, ai: false };
     redrawComposer(id);
   }
