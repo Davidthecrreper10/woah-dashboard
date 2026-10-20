@@ -26,13 +26,7 @@
     <div class="tabs" id="tabs"></div>
     <div id="panel" class="scroll"></div>
   </div>
-  <div class="card how" style="margin-top:14px">
-    <b>Claim</b> = "I'm on it": everyone sees it and only you get the reminders. &nbsp;
-    <b>Reassign</b> = Chris forwards it to that person and they get the reminders. &nbsp;
-    <b>Snooze</b> = no reminders for a while. &nbsp;
-    <b>Mark done</b> = answered some other way (phone, WhatsApp, in person) or needs no reply.
-    To actually reply, hit Reply on Chris's forward in your own inbox, as usual.
-  </div>
+  <div class="card how" id="how" style="margin-top:14px"></div>
   </div>
 </div>
 <script src="common.js"></script>
@@ -44,31 +38,70 @@
   function renderTabs() {
     const me = myEmail(), l = lists();
     const mineUs = l.us.filter(x => !(x.snoozeUntil > Date.now()) && ((x.to || []).includes(me) || x.claimedBy === me)).length;
-    const mineThem = l.them.filter(x => (x.to || []).includes(me)).length;
+    const mineThem = l.them.filter(x => !(x.snoozeUntil > Date.now()) && chasing(x, me)).length;
     const tabs = [['us', 'To answer', mineUs ? mineUs + ' yours' : ''], ['them', 'Waiting on them', mineThem ? mineThem + ' yours' : '']];
     document.getElementById('tabs').innerHTML = tabs.map(([k, n, c]) => `<button class="${TAB === k ? 'active' : ''}" onclick="setTab('${k}')">${n}${c ? `<span class="count">· ${c}</span>` : ''}</button>`).join('');
   }
   function renderPanel() {
     const p = document.getElementById('panel');
     if (TAB === 'them') renderThem(p); else renderHandle(p);
+    document.getElementById('how').innerHTML = TAB === 'them'
+      ? `<b>I'll chase it</b> = everyone sees you're on it and only you get Chris's follow-up nudges. &nbsp;
+         <b>Pass on</b> = Chris emails that person and they get the nudges. &nbsp;
+         <b>Remind me</b> = no nudges until the day you pick, then one more, even if Chris had stopped. &nbsp;
+         <b>Sorted</b> = they answered some other way (phone, WhatsApp, in person) or no follow-up is needed.
+         To follow up, reply to Chris's nudge email (or your own email if you sent it yourself).`
+      : `<b>Claim</b> = "I'm on it": everyone sees it and only you get the reminders. &nbsp;
+         <b>Reassign</b> = Chris forwards it to that person and they get the reminders. &nbsp;
+         <b>Snooze</b> = no reminders for a while. &nbsp;
+         <b>Mark done</b> = answered some other way (phone, WhatsApp, in person) or needs no reply.
+         To actually reply, hit Reply on Chris's forward in your own inbox, as usual.`;
   }
   function mineToggle() {
     return `<div class="seg small" style="margin:0"><button class="${MINE_ONLY ? '' : 'active'}" onclick="setMine(false)">Everyone</button><button class="${MINE_ONLY ? 'active' : ''}" onclick="setMine(true)">Mine only</button></div>`;
   }
 
-  // ---------- Waiting on them: emails we sent that the other person hasn't answered (Chris nudges whoever sent it) ----------
+  // ---------- Waiting on them: emails WOAH sent that the other person hasn't answered ----------
+  // Same idea as "To answer": I'll chase it / Pass on / Remind me / Sorted. Chris nudges whoever is chasing.
+  function chasing(x, me) { return x.claimedBy ? x.claimedBy === me : (x.to || []).includes(me); }
   function renderThem(p) {
-    const me = myEmail();
-    let items = lists().them;
-    if (MINE_ONLY && me) items = items.filter(x => (x.to || []).includes(me));
-    items = items.slice().sort((a, b) => (a.since || 0) - (b.since || 0));
-    let h = `<div class="htools"><div class="sub">Emails WOAH sent that the other person hasn't answered yet. Chris reminds whoever sent it to follow up (2 nudges max).</div>${mineToggle()}</div>`;
-    h += items.length ? `<table><tr><th>Email</th><th>Waiting on</th><th class="hide-sm">Our side</th><th>Sent</th><th class="hide-sm">Nudges</th></tr>` +
-      items.map(x => `<tr><td>${links(x)}</td><td>${esc(x.who)}</td><td class="hide-sm">${esc(x.owners || '—')}</td>
-        <td class="${ageClass(x.since, 7, 12)}" style="white-space:nowrap">${x.since ? agoText(x.since) : ''}</td><td class="hide-sm">${x.nudges}/2</td></tr>`).join('') + '</table>'
-      : `<div class="empty">${MINE_ONLY ? 'Nobody is keeping you waiting.' : 'Nobody is keeping us waiting.'}</div>`;
-    h += `<div class="sub" style="margin-top:10px">Tip: if they've gone quiet for over a week, a short friendly follow-up usually works ("Just checking you saw my last email…").</div>`;
+    const me = myEmail(), now = Date.now();
+    let items = lists().them.filter(x => x.id);
+    if (MINE_ONLY && me) items = items.filter(x => chasing(x, me));
+    const later = items.filter(x => x.snoozeUntil > now).sort((a, b) => a.snoozeUntil - b.snoozeUntil);
+    const live = items.filter(x => !(x.snoozeUntil > now)).sort((a, b) => (a.since || 0) - (b.since || 0));
+    const quiet = live.filter(x => (x.nudges || 0) >= 2);
+    const waiting = live.filter(x => !quiet.includes(x));
+    let h = `<div class="htools"><div class="sub">Emails WOAH sent that haven't been answered yet, oldest first. Buttons are done by Chris within about 5 minutes.</div>${mineToggle()}</div>`;
+    const section = (title, list, note) => list.length ? `<div class="gh">${title} <span class="sub">· ${list.length}</span></div>${note ? `<div class="sub" style="margin:-4px 0 8px">${note}</div>` : ''}` + list.map(x => themItem(x, me)).join('') : '';
+    h += section('Gone quiet', quiet, 'Chris has nudged twice and stopped. Send one last follow-up, set a reminder, or mark it sorted.');
+    h += section('Waiting', waiting, 'Chris nudges whoever is chasing it (2 nudges max).');
+    h += section('Reminder set', later, 'No nudges until the date shown, then one more.');
+    if (!items.length) h += `<div class="empty">${MINE_ONLY ? 'Nobody is keeping you waiting.' : 'Nobody is keeping us waiting.'}</div>`;
+    else h += `<div class="sub" style="margin-top:10px">Tip: a short friendly follow-up usually works ("Just checking you saw my last email…").</div>`;
     p.innerHTML = h;
+  }
+
+  function themItem(x, me) {
+    const d = days(x.since);
+    const pend = (DATA.pending || []).filter(a => a.id === x.id);
+    const mineNow = x.claimedBy && x.claimedBy === me;
+    const later = x.snoozeUntil > Date.now();
+    const team = (DATA.team || []).filter(t => t.email !== (x.claimedBy || ''));
+    const day = t => new Date(t).toLocaleDateString([], { day: 'numeric', month: 'short' });
+    return `<div class="hitem ${!later && (x.nudges >= 2 || d >= 12) ? 'u-bad' : !later && d >= 7 ? 'u-warn' : ''}">
+      <div class="top"><div>${links(x)}${x.own ? '<span class="tag">sent from their own email</span>' : ''}${x.claimedBy ? `<span class="tag">${mineNow ? "You're chasing this" : esc(x.claimedName || teamName(x.claimedBy)) + ' is chasing'}</span>` : ''}</div>
+        <div class="${ageClass(x.since, 7, 12)}" style="white-space:nowrap">${d === 0 ? 'today' : d + (d === 1 ? ' day' : ' days')}</div></div>
+      <div class="meta">Waiting on ${esc(x.who || '—')} · ${x.claimedBy ? 'chased by' : 'sent by'} ${esc(x.owners || '—')} · nudges ${x.nudges || 0}${later ? ' · reminder on ' + esc(day(x.snoozeUntil)) : ''}</div>
+      ${pend.map(a => `<div class="pend">Waiting for Chris: ${esc(THEM_OPS[a.op] || a.op)}${a.op === 'reassign' ? ' to ' + esc(teamName(a.value)) : a.op === 'snooze' ? ' in ' + esc(a.value) + ' days' : ''} (by ${esc(teamName(a.by))})</div>`).join('')}
+      <div class="hact">
+        ${mineNow ? `<button onclick="act('${x.id}','unclaim')">Stop chasing</button>` : pend.some(a => a.op === 'claim') ? '' : `<button class="primary" onclick="act('${x.id}','claim')">I'll chase it</button>`}
+        <select onchange="if(this.value){act('${x.id}','reassign',this.value);this.value=''}"><option value="">Pass on to…</option>${team.map(t => `<option value="${esc(t.email)}">${esc(t.name)}</option>`).join('')}</select>
+        ${later ? `<button onclick="act('${x.id}','unsnooze')">Cancel reminder</button>`
+                : `<select onchange="if(this.value){act('${x.id}','snooze',this.value);this.value=''}"><option value="">Remind me…</option><option value="3">in 3 days</option><option value="7">in 1 week</option><option value="14">in 2 weeks</option></select>`}
+        <button onclick="act('${x.id}','done')">Sorted</button>
+      </div>
+      <div class="confirm" id="hc-${x.id}"></div></div>`;
   }
 
   function render(d) {
@@ -87,6 +120,7 @@
   const ADMIN = 'david.mantzios@student.greenschool.org';
   let MINE_ONLY = false; try { MINE_ONLY = localStorage.getItem('woahMineOnly') === '1'; } catch (e) {}
   const OPS = { claim: 'Claim', unclaim: 'Unclaim', snooze: 'Snooze', unsnooze: 'Wake up', done: 'Mark done', reassign: 'Reassign' };
+  const THEM_OPS = { claim: "I'll chase it", unclaim: 'Stop chasing', snooze: 'Remind me', unsnooze: 'Cancel reminder', done: 'Sorted', reassign: 'Pass on' };
   function setMine(on) { MINE_ONLY = on; try { localStorage.setItem('woahMineOnly', on ? '1' : '0'); } catch (e) {} renderPanel(); }
   const FLAG_TIPS = { 'Money': 'mentions money', 'Contract': 'mentions a contract or agreement', 'Personal details': 'asks for personal details', 'Looks like a scam': 'might be a scam', 'Has attachments': 'has attachments' };
   function teamName(e) { const p = (DATA.team || []).find(t => t.email === String(e).toLowerCase()); return p ? p.name.split(' ')[0] : first(e); }
@@ -136,6 +170,9 @@
     const me = myEmail();
     const box = document.getElementById('hc-' + id);
     const go = `doAct('${id}','${op}','${esc(value || '')}')`;
+    const them = lists().them.some(x => x.id === id) && !lists().us.some(x => x.id === id);
+    if (them && op === 'reassign') { box.innerHTML = `Pass this follow-up to <b>${esc(teamName(value))}</b>? Chris will email them about it and they get the nudges from now on.<br><button onclick="${go}">Yes, pass it on</button><button onclick="this.parentNode.style.display='none'">Cancel</button>`; box.style.display = 'block'; return; }
+    if (them && op === 'done') { box.innerHTML = `Mark as sorted? Use this if they answered some other way (phone, WhatsApp, in person) or no follow-up is needed. Chris stops nudging.<br><button onclick="${go}">Yes, it's sorted</button><button onclick="this.parentNode.style.display='none'">Cancel</button>`; box.style.display = 'block'; return; }
     if (op === 'reassign') { box.innerHTML = `Pass this email to <b>${esc(teamName(value))}</b>? Chris will forward it to them and they get the reminders from now on.<br><button onclick="${go}">Yes, pass it on</button><button onclick="this.parentNode.style.display='none'">Cancel</button>`; box.style.display = 'block'; return; }
     if (op === 'done') { box.innerHTML = `Mark as done? Use this if it was answered some other way (phone, WhatsApp, in person) or needs no reply. Reminders stop.<br><button onclick="${go}">Yes, it's done</button><button onclick="this.parentNode.style.display='none'">Cancel</button>`; box.style.display = 'block'; return; }
     doAct(id, op, value);
