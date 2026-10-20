@@ -17,7 +17,7 @@ function teamName(e) { const p = ((DATA && DATA.team) || []).find(t => t.email =
 function urgency(x) { return days(x.since) + (x.reminders || 0) * 2; }
 function chasing(x, me) { return x.claimedBy ? x.claimedBy === me : (x.to || []).includes(me); }
 function shortDay(t) { return new Date(t).toLocaleDateString([], { day: 'numeric', month: 'short' }); }
-function canFollowUp(x) { return !x.own; }
+function canFollowUp(x) { return true; }   // emails a team member sent from their own inbox (WOAH CC'd) are followed up from the WOAH email too
 
 // The subject opens the email in full; "find in my email" searches your own Gmail
 function subjLink(x) {
@@ -49,6 +49,7 @@ function usButtons(x, me) {
     ${sn ? `<button onclick="act('${x.id}','unsnooze')">Wake up</button>`
          : `<select onchange="if(this.value){act('${x.id}','snooze',this.value);this.value=''}"><option value="">Snooze…</option><option value="1">1 day</option><option value="3">3 days</option><option value="7">1 week</option></select>`}
     <button onclick="act('${x.id}','done')">Mark done</button>
+    <button class="ghost" onclick="act('${x.id}','dismiss')" title="Take it off the list straight away and stop the reminders">Dismiss</button>
   </div>`;
 }
 function item(x, me) {
@@ -67,7 +68,7 @@ function themMeta(x) {
   return `Waiting on ${esc(x.who || '—')} · ${x.claimedBy ? 'chased by' : 'sent by'} ${esc(x.owners || '—')} · nudges ${x.nudges || 0}${x.followedUp ? ' · followed up by ' + esc(x.followedBy || 'the team') + ' ' + esc(agoText(x.followedUp)) : ''}${later ? ' · reminder on ' + esc(shortDay(x.snoozeUntil)) : ''}`;
 }
 function themTags(x, me) {
-  return `${x.own ? '<span class="tag">sent from their own email</span>' : ''}${x.claimedBy ? `<span class="tag">${x.claimedBy === me ? "You're chasing this" : esc(x.claimedName || teamName(x.claimedBy)) + ' is chasing'}</span>` : ''}`;
+  return `${x.own ? `<span class="tag" title="${esc(x.owners || 'A team member')} sent this from their own email with WOAH in CC. A follow-up from this page still comes from the WOAH email, in the same conversation.">sent from ${esc(x.owners || 'their')}'s own email</span>` : ''}${x.claimedBy ? `<span class="tag">${x.claimedBy === me ? "You're chasing this" : esc(x.claimedName || teamName(x.claimedBy)) + ' is chasing'}</span>` : ''}`;
 }
 function themButtons(x, me, inDetail) {
   const pend = ((DATA && DATA.pending) || []).filter(a => a.id === x.id);
@@ -80,6 +81,7 @@ function themButtons(x, me, inDetail) {
     ${later ? `<button onclick="act('${x.id}','unsnooze')">Cancel reminder</button>`
             : `<select onchange="if(this.value){act('${x.id}','snooze',this.value);this.value=''}"><option value="">Remind me…</option><option value="3">in 3 days</option><option value="7">in 1 week</option><option value="14">in 2 weeks</option></select>`}
     <button onclick="act('${x.id}','done')">Sorted</button>
+    <button class="ghost" onclick="act('${x.id}','dismiss')" title="Take it off the list straight away and stop the nudges">Dismiss</button>
   </div>`;
 }
 function themItem(x, me) {
@@ -111,6 +113,7 @@ function act(id, op, value) {
 }
 function doAct(id, op, value) {
   const box = document.getElementById('hc-' + id); if (box) { box.innerHTML = 'Sending…'; box.style.display = 'block'; }
+  if (op === 'dismiss') { op = 'done'; value = 'dismiss'; }   // Dismiss = done in one click, no questions
   if (op === 'followup') value = (DRAFTS[id] || {}).text || '';
   call({ action: 'inbox', op, id, value: value || '' })
     .then(d => { if (op === 'followup' && DRAFTS[id]) DRAFTS[id].sent = true; (window.afterAct || render)(d); })
