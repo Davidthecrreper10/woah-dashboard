@@ -54,7 +54,7 @@ function tryLogin() {
   EMAIL = document.getElementById('em').value.trim().toLowerCase();
   try { localStorage.setItem('woahKey', KEY); localStorage.setItem('woahEmail', EMAIL); } catch (e) {}   // remembered so every page opens straight away; the password is removed again if it's wrong
   document.getElementById('loginErr').textContent = 'Checking…';
-  call({ action: PAGE.action || 'data' }).then(d => {
+  call(Object.assign({ action: PAGE.action || 'data' }, PAGE.params || {})).then(d => {
     try { localStorage.setItem('woahKey', KEY); localStorage.removeItem('woahDashPw'); localStorage.removeItem('woahMyEmail'); } catch (e) {}
     document.getElementById('loginErr').textContent = '';
     showApp(true); PAGE.onData(d);
@@ -74,7 +74,7 @@ function start(opts) {
 }
 function load() {
   const r = document.getElementById('refresh'); if (r) r.disabled = true;
-  return call({ action: PAGE.action || 'data' }).then(d => { if (r) r.disabled = false; PAGE.onData(d); }).catch(fail);
+  return call(Object.assign({ action: PAGE.action || 'data' }, PAGE.params || {})).then(d => { if (r) r.disabled = false; PAGE.onData(d); }).catch(fail);
 }
 function fail(err) {
   const r = document.getElementById('refresh'); if (r) r.disabled = false;
