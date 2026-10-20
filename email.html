@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WOAH Email</title>
 <base target="_blank">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 <div class="wrap">
@@ -27,8 +27,8 @@
   <div style="margin-top:16px"><a class="back btnlike" href="handlers.html" target="_self">← Back to Email handlers</a></div>
   </div>
 </div>
-<script src="common.js"></script>
-<script src="handle.js"></script>
+<script src="common.js?v=3"></script>
+<script src="handle.js?v=3"></script>
 <script>
   const ID = (new URLSearchParams(location.search).get('id') || '').replace(/[^0-9a-f]/gi, '');
 
@@ -72,6 +72,7 @@
     if (pending || (dr && dr.sent)) body = `<div class="okbox">Your follow-up is on its way: Chris sends it from the WOAH email within about 5 minutes and emails you a copy.</div>`;
     else if (!dr) body = `<div class="sub">Chris is writing a suggestion…</div>`;
     else body = `<div class="sub" style="margin-bottom:6px">${dr.ai ? 'Suggested by Chris from the conversation below.' : 'A simple template (the AI suggestion wasn\'t available).'} Check it and change anything you like: it's sent to <b>${esc(x.who || 'them')}</b> exactly as written.</div>
+      ${dr.waitingFor ? `<div class="waitfor">What we're waiting for: <b>${esc(dr.waitingFor)}</b></div>` : ''}
       <textarea class="compose" id="draft" oninput="DRAFTS['${x.id}'].text=this.value">${esc(dr.text)}</textarea>
       <div class="hact"><button class="primary" onclick="act('${x.id}','followup')">Send from the WOAH email</button><button onclick="suggest('${x.id}', true)">Write a new suggestion</button></div>`;
     return `<div class="card" id="followup" style="margin-top:14px"><b>Follow up</b>${body}</div>`;
@@ -80,7 +81,7 @@
     delete DRAFTS[id];
     const f = findItem(id); if (f) document.getElementById('followup').outerHTML = composerCard(f.x);
     call({ action: 'draft', id }).then(r => {
-      DRAFTS[id] = { text: r.draft || '', ai: !!r.ai };
+      DRAFTS[id] = { text: r.draft || '', ai: !!r.ai, waitingFor: r.waitingFor || '' };
       const g = findItem(id); const c = document.getElementById('followup');
       if (g && c) c.outerHTML = composerCard(g.x);
     }).catch(err => { DRAFTS[id] = { text: '', ai: false }; const c = document.getElementById('followup'); if (c) c.innerHTML = '<b>Follow up</b><div class="err">' + esc(err.message) + '</div>'; });
