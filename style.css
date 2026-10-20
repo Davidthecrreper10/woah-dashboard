@@ -108,6 +108,8 @@
   a.back, a.back:visited { color: var(--brand); text-decoration: none; font-size: 13px; font-weight: 600; }
   a.back:hover { text-decoration: underline; }
   .hact button.ghost { color: var(--muted); border-style: dashed; }
+  .checkbox { margin: 0 0 8px; padding: 8px 10px; border-radius: 8px; background: var(--warn-soft); color: var(--ink); font-size: 13px; }
+  .checkbox ul { margin: 4px 0 0; padding-left: 18px; }
   .waitfor { margin: 0 0 8px; padding: 8px 10px; border-radius: 8px; background: var(--brand-soft); color: var(--ink); font-size: 13px; }
   a.back.btnlike { display: inline-block; border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 7px 12px; }
   h2.subject { font-size: 19px; margin: 4px 0 2px; }
