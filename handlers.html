@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WOAH Email Handlers</title>
 <base target="_blank">
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 <div class="wrap">
@@ -30,7 +30,7 @@
   </div>
 </div>
 <script src="common.js?v=3"></script>
-<script src="handle.js?v=5"></script>
+<script src="handle.js?v=6"></script>
 <script>
   let TAB = 'us';
   try { TAB = localStorage.getItem('woahHandlerTab') === 'them' ? 'them' : 'us'; } catch (e) {}
@@ -67,7 +67,14 @@
   }
   // Sent / done from the page: hidden straight away while Chris carries it out (within about 5 minutes)
   const leaving = x => ((DATA && DATA.pending) || []).some(a => a.id === x.id && ['reply', 'followup', 'done'].includes(a.op));
-  const leavingNote = list => { const n = list.filter(leaving).length; return n ? `<div class="sub" style="margin-top:10px">${n} ${n === 1 ? 'email is' : 'emails are'} being sent or closed by Chris and will drop off the list within about 5 minutes.</div>` : ''; };
+  // "Sent, waiting for confirmation": nothing can be pressed again here, so nothing gets sent twice
+  const sentSection = (list, them) => {
+    const s = list.filter(leaving);
+    if (!s.length) return '';
+    const what = x => { const a = ((DATA && DATA.pending) || []).find(p => p.id === x.id && ['reply', 'followup', 'done'].includes(p.op)); return a.op === 'reply' ? 'Reply sent by ' + teamName(a.by) : a.op === 'followup' ? 'Follow-up sent by ' + teamName(a.by) : 'Closed by ' + teamName(a.by); };
+    return `<div class="gh">Sent, waiting for confirmation <span class="sub">· ${s.length}</span></div><div class="sub" style="margin:-4px 0 8px">Chris sends these from the WOAH email within about 5 minutes, then they drop off the list. Don't send them again.</div>` +
+      s.map(x => `<div class="hitem sent"><div class="top"><div>${subjLink(x)}</div><div class="sentlbl">${esc(what(x))} · waiting for Chris</div></div><div class="meta">${them ? themMeta(x) : usMeta(x)}</div></div>`).join('');
+  };
   const section = (title, list, note, fn, me) => list.length ? `<div class="gh">${title} <span class="sub">· ${list.length}</span></div>${note ? `<div class="sub" style="margin:-4px 0 8px">${note}</div>` : ''}` + list.map(x => fn(x, me)).join('') : '';
 
   // To answer: No owner first, then the queue (most urgent first), then snoozed
@@ -81,11 +88,11 @@
     const noOwner = active.filter(x => !x.claimedBy && (x.to || []).length === 1 && x.to[0] === ADMIN);
     const queue = active.filter(x => !noOwner.includes(x)).sort((a, b) => urgency(b) - urgency(a));
     let h = `<div class="htools"><div class="sub">Most urgent first. Buttons are done by Chris within about 5 minutes.</div>${mineToggle()}</div>`;
+    h += sentSection(allUs.filter(x => !MINE_ONLY || !me || (x.to || []).includes(me) || x.claimedBy === me), false);
     h += section('No owner', noOwner, 'No topic fitted, so these only went to David. Claim one or pass it to the right person.', item, me);
     h += section('Queue', queue, '', item, me);
     h += section('Snoozed', snoozed, 'No reminders until the date shown.', item, me);
     if (!items.length) h += `<div class="empty">${MINE_ONLY ? 'Nothing waiting on you.' : 'Nothing waiting. Nice.'}</div>`;
-    h += leavingNote(allUs);
     p.innerHTML = h;
   }
 
@@ -100,11 +107,11 @@
     const quiet = live.filter(x => (x.nudges || 0) >= 2);
     const waiting = live.filter(x => !quiet.includes(x));
     let h = `<div class="htools"><div class="sub">Emails WOAH sent that haven't been answered yet, oldest first. Buttons are done by Chris within about 5 minutes.</div>${mineToggle()}</div>`;
+    h += sentSection(allThem.filter(x => !MINE_ONLY || !me || chasing(x, me)), true);
     h += section('Gone quiet', quiet, 'Chris has nudged twice and stopped. Send a follow-up, set a reminder, or mark it sorted.', themItem, me);
     h += section('Waiting', waiting, 'Chris nudges whoever is chasing it (2 nudges max).', themItem, me);
     h += section('Reminder set', later, 'No nudges until the date shown, then one more.', themItem, me);
     if (!items.length) h += `<div class="empty">${MINE_ONLY ? 'Nobody is keeping you waiting.' : 'Nobody is keeping us waiting.'}</div>`;
-    h += leavingNote(allThem);
     p.innerHTML = h;
   }
 
