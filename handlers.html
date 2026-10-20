@@ -42,8 +42,8 @@
   }
   function renderTabs() {
     const me = myEmail(), l = lists(), now = Date.now();
-    const mineUs = l.us.filter(x => !(x.snoozeUntil > now) && ((x.to || []).includes(me) || x.claimedBy === me)).length;
-    const mineThem = l.them.filter(x => !(x.snoozeUntil > now) && chasing(x, me)).length;
+    const mineUs = l.us.filter(x => !leaving(x) && !(x.snoozeUntil > now) && ((x.to || []).includes(me) || x.claimedBy === me)).length;
+    const mineThem = l.them.filter(x => !leaving(x) && !(x.snoozeUntil > now) && chasing(x, me)).length;
     const tabs = [['us', 'To answer', mineUs ? mineUs + ' yours' : ''], ['them', 'Waiting on them', mineThem ? mineThem + ' yours' : '']];
     document.getElementById('tabs').innerHTML = tabs.map(([k, n, c]) => `<button class="${TAB === k ? 'active' : ''}" onclick="setTab('${k}')">${n}${c ? `<span class="count">· ${c}</span>` : ''}</button>`).join('');
   }
@@ -65,12 +65,16 @@
          <b>Dismiss</b> = off the list in one click, no more reminders.
          You can still reply from Chris's forward in your own inbox.`) + ' Click an email\'s subject to see the whole email.';
   }
+  // Sent / done from the page: hidden straight away while Chris carries it out (within about 5 minutes)
+  const leaving = x => ((DATA && DATA.pending) || []).some(a => a.id === x.id && ['reply', 'followup', 'done'].includes(a.op));
+  const leavingNote = list => { const n = list.filter(leaving).length; return n ? `<div class="sub" style="margin-top:10px">${n} ${n === 1 ? 'email is' : 'emails are'} being sent or closed by Chris and will drop off the list within about 5 minutes.</div>` : ''; };
   const section = (title, list, note, fn, me) => list.length ? `<div class="gh">${title} <span class="sub">· ${list.length}</span></div>${note ? `<div class="sub" style="margin:-4px 0 8px">${note}</div>` : ''}` + list.map(x => fn(x, me)).join('') : '';
 
   // To answer: No owner first, then the queue (most urgent first), then snoozed
   function renderHandle(p) {
     const me = myEmail(), now = Date.now();
-    let items = lists().us.filter(x => x.id);
+    const allUs = lists().us.filter(x => x.id);
+    let items = allUs.filter(x => !leaving(x));
     if (MINE_ONLY && me) items = items.filter(x => (x.to || []).includes(me) || x.claimedBy === me);
     const snoozed = items.filter(x => x.snoozeUntil > now);
     const active = items.filter(x => !(x.snoozeUntil > now));
@@ -81,13 +85,15 @@
     h += section('Queue', queue, '', item, me);
     h += section('Snoozed', snoozed, 'No reminders until the date shown.', item, me);
     if (!items.length) h += `<div class="empty">${MINE_ONLY ? 'Nothing waiting on you.' : 'Nothing waiting. Nice.'}</div>`;
+    h += leavingNote(allUs);
     p.innerHTML = h;
   }
 
   // Waiting on them: Gone quiet (nudged twice), Waiting, Reminder set
   function renderThem(p) {
     const me = myEmail(), now = Date.now();
-    let items = lists().them.filter(x => x.id);
+    const allThem = lists().them.filter(x => x.id);
+    let items = allThem.filter(x => !leaving(x));
     if (MINE_ONLY && me) items = items.filter(x => chasing(x, me));
     const later = items.filter(x => x.snoozeUntil > now).sort((a, b) => a.snoozeUntil - b.snoozeUntil);
     const live = items.filter(x => !(x.snoozeUntil > now)).sort((a, b) => (a.since || 0) - (b.since || 0));
@@ -98,6 +104,7 @@
     h += section('Waiting', waiting, 'Chris nudges whoever is chasing it (2 nudges max).', themItem, me);
     h += section('Reminder set', later, 'No nudges until the date shown, then one more.', themItem, me);
     if (!items.length) h += `<div class="empty">${MINE_ONLY ? 'Nobody is keeping you waiting.' : 'Nobody is keeping us waiting.'}</div>`;
+    h += leavingNote(allThem);
     p.innerHTML = h;
   }
 
