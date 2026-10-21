@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WOAH Email Handlers</title>
 <base target="_blank">
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
 <div class="wrap">
@@ -31,11 +31,12 @@
 </div>
 <script src="common.js?v=3"></script>
 <script src="handle.js?v=11"></script>
+<script src="outreach.js?v=1"></script>
 <script>
   let TAB = 'us';
-  try { TAB = localStorage.getItem('woahHandlerTab') === 'them' ? 'them' : 'us'; } catch (e) {}
+  try { const t = localStorage.getItem('woahHandlerTab'); TAB = t === 'them' || t === 'new' ? t : 'us'; } catch (e) {}
   let MINE_ONLY = false; try { MINE_ONLY = localStorage.getItem('woahMineOnly') === '1'; } catch (e) {}
-  function setTab(t) { TAB = t; try { localStorage.setItem('woahHandlerTab', t); } catch (e) {} renderTabs(); renderPanel(); }
+  function setTab(t) { TAB = t; try { localStorage.setItem('woahHandlerTab', t); } catch (e) {} renderTabs(); renderPanel(false); }
   function setMine(on) { MINE_ONLY = on; try { localStorage.setItem('woahMineOnly', on ? '1' : '0'); } catch (e) {} renderPanel(); }
   function mineToggle() {
     return `<div class="seg small" style="margin:0"><button class="${MINE_ONLY ? '' : 'active'}" onclick="setMine(false)">Everyone</button><button class="${MINE_ONLY ? 'active' : ''}" onclick="setMine(true)">Mine only</button></div>`;
@@ -44,11 +45,18 @@
     const me = myEmail(), l = lists(), now = Date.now();
     const mineUs = l.us.filter(x => !leaving(x) && !(x.snoozeUntil > now) && ((x.to || []).includes(me) || x.claimedBy === me)).length;
     const mineThem = l.them.filter(x => !leaving(x) && !(x.snoozeUntil > now) && chasing(x, me)).length;
-    const tabs = [['us', 'To answer', mineUs ? mineUs + ' yours' : ''], ['them', 'Waiting on them', mineThem ? mineThem + ' yours' : '']];
+    const tabs = [['us', 'To answer', mineUs ? mineUs + ' yours' : ''], ['them', 'Waiting on them', mineThem ? mineThem + ' yours' : ''], ['new', 'New sponsor email', '']];
     document.getElementById('tabs').innerHTML = tabs.map(([k, n, c]) => `<button class="${TAB === k ? 'active' : ''}" onclick="setTab('${k}')">${n}${c ? `<span class="count">· ${c}</span>` : ''}</button>`).join('');
   }
-  function renderPanel() {
+  function renderPanel(refreshed) {
     const p = document.getElementById('panel');
+    if (TAB === 'new') {
+      renderOutreach(p, refreshed);
+      document.getElementById('how').innerHTML = `<b>New sponsor / Returning sponsor</b> = which template the email starts from (the two template docs; edits to them show up here automatically). &nbsp;
+         Fill in their name, company and email, check the text, then <b>Send from the WOAH email</b>. Chris sends it within about 5 minutes and emails you a copy. &nbsp;
+         If they reply, Chris forwards it to you and the sponsorship team; if they don't, you get a follow-up nudge after 5 days (it then shows in <b>Waiting on them</b>).`;
+      return;
+    }
     if (TAB === 'them') renderThem(p); else renderHandle(p);
     document.getElementById('how').innerHTML = (TAB === 'them'
       ? `<b>Write follow-up</b> = Chris writes a suggested email; you check it and send it from the WOAH email. &nbsp;
@@ -123,7 +131,7 @@
     if (d.control && d.control.inbox === 'BREAK') { b.className = 'banner warn'; b.textContent = 'The WOAH inbox is on BREAK: forwards and reminders go to the break contacts, not the team.'; }
     else if (s && Date.now() - s.at > 60 * 60000) { b.className = 'banner warn'; b.textContent = 'The WOAH Inbox last checked in ' + when(s.at) + '. It may have stopped running.'; }
     else { b.className = 'banner'; b.textContent = ''; }
-    renderTabs(); renderPanel();
+    renderTabs(); renderPanel(true);
   }
 
   start({ title: 'Email Handlers', need: 'handler', action: 'data', every: 2, onData: render });
