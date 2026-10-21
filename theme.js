@@ -208,7 +208,16 @@
     'WOAH 2027 is the 7th edition. Sanur, February.', 'Bring the colour back.', 'Chris is waking up the eel in the H…', 'Asking the octopus to let go of the A…',
     'Counting how many emails Chris read today…', 'Polishing the waves…', 'Coral grows on the coral before it. So does WOAH.', 'Rule #1 of WOAH design: no cartoon fish. Ever.',
   ];
-  let MSGSET = MSGS, loginNext = false;
+  const PAGE_JOKES = [
+    'Chris is on his third coffee…', 'Untangling the octopus…', 'Telling the eel to sit still…', 'Checking nobody drew a cartoon fish…',
+    'Chris says hi. He’s busy.', 'Bringing the colour back…', 'Asking the coral nicely…', 'Chris pretends this is easy…',
+    'Waking up the wave in the O…', 'Reminding Chris who’s boss…',
+  ];
+  function pageMsgs() {   // the normal lines in order, with a couple of jokes sneaked in
+    const j = PAGE_JOKES.slice().sort(() => Math.random() - .5);
+    return [MSGS[0], MSGS[1], j[0], MSGS[2], MSGS[3], j[1], MSGS[4], MSGS[5]];
+  }
+  let MSGSET = MSGS, loginNext = false, Llogin = false;
   let L = null, Lp = 0, Lt0 = 0, Lraf = 0, Lmsg = 0, Lbig = false, Lopen = 0, bigNext = BOOT, bootDone = !BOOT;
   function loaderEl() {
     if (L) return L;
@@ -222,14 +231,14 @@
   function paint() {
     const el = loaderEl(), k = Math.round(Lp);
     el.querySelector('.w-load-pct span').textContent = k;
-    el.style.setProperty('--wp', (Lp / 100).toFixed(3));
+    el.style.setProperty('--wp', (Lp / 100).toFixed(3)); html.style.setProperty('--wp', (Lp / 100).toFixed(3));
     document.getElementById('wBar').style.transform = `scaleX(${(Lp / 100).toFixed(3)})`;
   }
   function tick() {
     const t = (performance.now() - Lt0) / 1000;
     Lp = Math.max(Lp, 94 * (1 - Math.exp(-t / 2.3)));
     if (Lfin) { const k = Math.min(1, (performance.now() - Lfin.t) / 2000); Lp = Lfin.from + (100 - Lfin.from) * (1 - Math.pow(1 - k, 2)); }   // the extra 2 s fill the ring smoothly to 100%   // real calls have no progress events, so it eases towards 94% and jumps to 100% when Chris answers
-    const m = Math.min(MSGSET.length - 1, Math.floor(t / (MSGSET === MSGS ? 1.6 : 2.2)));
+    const m = Math.min(MSGSET.length - 1, Math.floor(t / (Llogin ? 2.2 : 1.4)));
     if (m !== Lmsg) { Lmsg = m; const e = L.querySelector('.w-load-msg'); e.classList.remove('w-msg-in'); void e.offsetWidth; e.textContent = MSGSET[m]; e.classList.add('w-msg-in'); }
     paint(); Lraf = requestAnimationFrame(tick);
   }
@@ -241,7 +250,8 @@
     if (Lopen > 1 && !big) return;
     loaderEl(); cancelAnimationFrame(Lraf);
     Lp = 0; Lt0 = performance.now(); Lmsg = 0; Lbig = big || Lbig;
-    MSGSET = isLogin ? [LOGIN_FIRST].concat(LOGIN_FUN.slice().sort(() => Math.random() - .5)) : MSGS;
+    Llogin = isLogin; html.classList.toggle('w-login-load', isLogin);
+    MSGSET = isLogin ? [LOGIN_FIRST].concat(LOGIN_FUN.slice().sort(() => Math.random() - .5)) : pageMsgs();
     L.querySelector('.w-load-msg').textContent = MSGSET[0];
     html.classList.toggle('w-loading-big', Lbig); html.classList.add('w-loading');
     Lraf = requestAnimationFrame(tick);
@@ -249,17 +259,17 @@
   let Lhold = 0, Lfin = null;
   function endLoad() {
     Lopen = Math.max(0, Lopen - 1); if (Lopen) return;
-    if (MSGSET !== MSGS && !Lhold && Lbig) {   // logging in: stay 2 seconds longer on purpose so the jokes and facts get a turn
+    if (Llogin && !Lhold && Lbig) {   // logging in: stay 2 seconds longer on purpose so the jokes and facts get a turn
       Lfin = { t: performance.now(), from: Lp };
-      Lhold = setTimeout(() => { Lhold = 0; Lfin = null; MSGSET = MSGS; if (!Lopen) { Lopen = 1; endLoad(); } }, 2000);
+      Lhold = setTimeout(() => { Lhold = 0; Lfin = null; Llogin = false; if (!Lopen) { Lopen = 1; endLoad(); } }, 2000);
       return;
     }
     cancelAnimationFrame(Lraf); Lp = 100; if (L) paint();
     setTimeout(() => {
       if (Lbig && bootDone) { html.classList.add('w-booted'); setTimeout(() => html.classList.remove('w-booted'), 1200); }   // the page rises in only once the loader is at 100%
-      html.classList.remove('w-loading', 'w-loading-big', 'w-arrive', 'w-leaving'); Lbig = false;
+      html.classList.remove('w-loading', 'w-loading-big', 'w-arrive', 'w-leaving', 'w-login-load'); Lbig = false;
       if (!bootDone) { bootDone = true; html.classList.remove('w-boot'); html.classList.add('w-booted'); setTimeout(() => html.classList.remove('w-booted'), 1200); firstRender = Date.now(); }
-    }, Lbig ? 260 : 150);
+    }, Lbig ? 180 : 120);
   }
   const _fetch = window.fetch;
   window.fetch = function (u) {
@@ -283,7 +293,7 @@
     try { sessionStorage.setItem('wNav', String(Date.now())); } catch (er) {}
     html.classList.add('w-leaving');
     loaderEl(); Lp = 0; paint(); L.querySelector('.w-load-msg').textContent = MSGS[0];
-    setTimeout(() => { location.href = url.href; }, 340);
+    setTimeout(() => { location.href = url.href; }, 220);
   });
   window.addEventListener('pageshow', e => { if (e.persisted) html.classList.remove('w-leaving', 'w-loading', 'w-loading-big'); });
 

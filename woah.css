@@ -215,7 +215,7 @@ html.w-boot .w-load-box, html.w-loading-big .w-load-box, html.w-leaving .w-load-
 html.w-loading:not(.w-loading-big):not(.w-boot) .w-bar { opacity: 1; }
 
 /* ---------- page changes ---------- */
-html[data-ui="woah"].w-leaving .wrap { animation: w-out .32s cubic-bezier(.4,0,.6,1) forwards; }
+html[data-ui="woah"].w-leaving .wrap { animation: w-out .22s cubic-bezier(.4,0,.6,1) forwards; }
 @keyframes w-out { to { opacity: 0; transform: translateY(-10px) scale(.985); filter: saturate(.3); } }
 html[data-ui="woah"].w-booted .wrap { animation: w-rise .65s cubic-bezier(.2,.75,.25,1) both; }
 @keyframes w-rise { from { opacity: 0; transform: translateY(16px); filter: saturate(.3); } to { opacity: 1; transform: none; filter: none; } }
@@ -237,4 +237,6 @@ html[data-ui="woah"] .stat:hover, html[data-ui="woah"] .card.feat:hover { transf
 /* while the big loader is up, the page stays hidden behind it (no peeking before 100%) */
 html.w-loading-big .wrap, html.w-boot .wrap { opacity: 0 !important; }
 html.w-loading-big .w-load, html.w-boot .w-load { background: var(--bg); }
-html.w-loading-big .w-loginbg { opacity: 0 !important; }
+/* logging in: the festival photo stays visible through the loader, and its colour comes back as the ring fills */
+html.w-login-load .w-load { background: color-mix(in srgb, var(--bg) 55%, transparent) !important; }
+html[data-ui="woah"].w-login-load .w-loginbg { opacity: 1 !important; filter: saturate(calc(.15 + var(--wp, 0))) brightness(.95); transition: filter .3s linear, opacity .6s; }
