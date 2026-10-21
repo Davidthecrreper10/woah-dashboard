@@ -76,7 +76,8 @@
       ${dr.waitingFor ? `<div class="waitfor">What we're waiting for: <b>${esc(dr.waitingFor)}</b></div>` : ''}
       ${dr.asking ? `<div class="waitfor">What they're asking: <b>${esc(dr.asking)}</b></div>` : ''}
       ${(dr.check || []).length ? `<div class="checkbox"><b>Check before sending</b><ul>${dr.check.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
-      <textarea class="compose" id="draft" oninput="DRAFTS['${x.id}'].text=this.value">${esc(dr.text)}</textarea>
+      <textarea class="compose" id="draft" oninput="DRAFTS['${x.id}'].text=this.value" ${dr.polishing ? 'disabled' : ''}>${esc(dr.text)}</textarea>
+      ${dr.blank ? `<div class="hact polish" style="align-items:center"><button onclick="polish('${x.id}')" ${dr.polishing ? 'disabled' : ''}>${dr.polishing ? 'Improving…' : 'Improve my text'}</button>${dr.before != null && !dr.polishing ? `<button onclick="unpolish('${x.id}')">Undo</button>` : ''}<span class="sub">${dr.polishing ? 'Chris is fixing the grammar and wording…' : dr.polishErr ? esc(dr.polishErr) : dr.before != null ? 'Chris tidied the grammar and wording. Nothing else was changed, but read it once before sending.' : 'Chris fixes the grammar and makes it sound professional, without changing what you wrote.'}</span></div>` : ''}
       ${(dr.used || []).length ? `<div class="sub" style="margin-top:4px">Facts taken from: ${esc(dr.used.join(', '))}</div>` : ''}
       <div class="sub" style="margin-top:4px">Anything in [square brackets] is a gap Chris couldn't fill: replace it before sending.</div>
       <div class="hact"><button class="primary" onclick="act('${x.id}','${op}')">Send from the WOAH email</button><button onclick="suggest('${x.id}')">${dr.blank ? 'Suggest with Chris' : 'Write a new suggestion'}</button><button onclick="blank('${x.id}')">Start blank</button></div>
@@ -93,6 +94,22 @@
     DRAFTS[id] = { text: `Hi ,\n\n\n\nBest,\n${name}\nWOAH Festival Team`, blank: true, ai: false };
     redrawComposer(id);
   }
+  // "Improve my text": only for a reply they wrote themselves. Chris fixes grammar and tone, keeps every fact.
+  function polish(id) {
+    const dr = DRAFTS[id]; if (!dr || !dr.blank || dr.polishing) return;
+    const t = document.getElementById('draft'); if (t) dr.text = t.value;
+    const own = dr.text.split('\n').filter(l => !/^\s*(hi\s*,?|best,?|woah festival team)\s*$/i.test(l) && l.trim() !== (myEmail() ? teamName(myEmail()) : '')).join(' ').trim();
+    if (own.length < 15) { dr.polishErr = 'Write your message first, then press Improve my text.'; redrawComposer(id); return; }
+    const g = findItem(id);
+    dr.polishing = true; dr.polishErr = ''; redrawComposer(id);
+    call({ action: 'polish', id, text: dr.text, kind: g && g.kind === 'them' ? 'followup' : 'reply' }).then(r => {
+      if (DRAFTS[id] !== dr) return;   // they switched to a Chris suggestion meanwhile
+      dr.polishing = false;
+      if (r.text) { dr.before = dr.text; dr.text = r.text; }
+      redrawComposer(id);
+    }).catch(err => { if (DRAFTS[id] !== dr) return; dr.polishing = false; dr.polishErr = err.message; redrawComposer(id); });
+  }
+  function unpolish(id) { const dr = DRAFTS[id]; if (!dr || dr.before == null) return; dr.text = dr.before; dr.before = null; redrawComposer(id); }
   function sending(x) { return ((DATA.pending || []).some(a => a.id === x.id && ['reply', 'followup', 'done'].includes(a.op))); }
   function suggest(id) {
     DRAFTS[id] = { loading: true };
