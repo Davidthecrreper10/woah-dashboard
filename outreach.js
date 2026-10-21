@@ -5,9 +5,10 @@
 const OUT = { kind: 'new', name: '', company: '', to: '', subject: '', body: '', edited: false, subjEdited: false, tpl: null, loading: false, err: '', sent: null };
 try { const k = localStorage.getItem('woahOutKind'); if (k === 'returning') OUT.kind = 'returning'; } catch (e) {}
 
+// The subject is always "<base> - <Company Name>" (set automatically, can't be typed over)
 function outSubject() {
-  const c = OUT.company.trim();
-  return OUT.kind === 'returning' ? `Supporting WOAH Festival again this year${c ? ' – ' + c : ''}` : `Sponsorship invitation: WOAH Festival${c ? ' × ' + c : ''}`;
+  const c = OUT.company.trim() || '[Company Name]';
+  return (OUT.kind === 'returning' ? 'Supporting WOAH Festival again this year' : 'Sponsorship invitation: WOAH Festival') + ' - ' + c;
 }
 // Template text -> the email: drop the doc's title line, tidy blank lines, put the name after "Dear", sign with your nickname
 function outFill(raw) {
@@ -25,7 +26,7 @@ function outFill(raw) {
 function outRebuild(force) {
   const tp = OUT.tpl && OUT.tpl[OUT.kind];
   if (tp && tp.text && (force || !OUT.edited)) { OUT.body = outFill(tp.text); OUT.edited = false; }
-  if (force || !OUT.subjEdited) { OUT.subject = outSubject(); OUT.subjEdited = false; }
+  OUT.subject = outSubject();
 }
 function outLoad(quiet) {
   if (OUT.loading) return;
@@ -41,16 +42,16 @@ function outLoad(quiet) {
 function outKind(k) { OUT.kind = k; try { localStorage.setItem('woahOutKind', k); } catch (e) {} OUT.edited = false; OUT.sent = null; outRebuild(true); outDraw(); }
 function outField(f, v) {
   OUT[f] = v;
-  if (f === 'subject') OUT.subjEdited = true;
   if (f === 'body') OUT.edited = true;
   if (f === 'name' && !OUT.edited) { outRebuild(false); const b = document.getElementById('outBody'); if (b) b.value = OUT.body; }
-  if (f === 'company' && !OUT.subjEdited) { OUT.subject = outSubject(); const s = document.getElementById('outSubj'); if (s) s.value = OUT.subject; }
+  if (f === 'company') { OUT.subject = outSubject(); const s = document.getElementById('outSubj'); if (s) s.value = OUT.subject; }
   const m = document.getElementById('outMsg'); if (m) { m.style.display = 'none'; }
 }
 function outProblem() {
   if (!/^[^\s@,;<>"]+@[^\s@,;<>"]+\.[a-z]{2,}$/i.test(OUT.to.trim())) return "Add the sponsor's email address.";
   if (/@student\.greenschool\.org$/i.test(OUT.to.trim()) || ((DATA && DATA.team) || []).some(t => t.email === OUT.to.trim().toLowerCase())) return "That address is someone on the team, not a sponsor.";
   if (!OUT.name.trim()) return "Add the name of the person you're writing to.";
+  if (!OUT.company.trim()) return 'Add the company name (it goes in the subject).';
   if (!OUT.subject.trim()) return 'Add a subject.';
   if (OUT.body.trim().length < 40) return 'The email is empty.';
   const gap = OUT.body.match(/\[[^\]\n]{2,80}\]/); if (gap) return `Fill in ${gap[0]} first (and any other [square brackets]).`;
@@ -99,7 +100,7 @@ function outDraw() {
       <label>Their name<input id="outName" value="${esc(OUT.name)}" placeholder="e.g. Made" oninput="outField('name',this.value)"></label>
       <label>Company<input id="outCo" value="${esc(OUT.company)}" placeholder="e.g. Ocean Café" oninput="outField('company',this.value)"></label>
       <label class="wide">Their email<input id="outTo" type="email" value="${esc(OUT.to)}" placeholder="name@company.com" oninput="outField('to',this.value)"></label>
-      <label class="wide">Subject<input id="outSubj" value="${esc(OUT.subject)}" oninput="outField('subject',this.value)"></label>
+      <label class="wide">Subject (filled in from the company name)<input id="outSubj" value="${esc(OUT.subject)}" readonly tabindex="-1"></label>
     </div>
     <div class="sub" style="margin:10px 0 6px">${tplNote} ${tp && !OUT.loading ? `<a href="#" target="_self" onclick="outLoad();return false">Reload</a>${OUT.edited ? ' · <a href="#" target="_self" onclick="outRebuild(true);outDraw();return false">Start again from the template</a>' : ''}` : ''}</div>
     <textarea class="compose" id="outBody" oninput="outField('body',this.value)" ${tp && tp.text ? '' : 'disabled'}>${esc(OUT.body)}</textarea>
