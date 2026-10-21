@@ -8,7 +8,7 @@ try { KEY = localStorage.getItem('woahKey') || localStorage.getItem('woahDashPw'
 if (!EMAIL) KEY = '';   // old logins without an email: ask once
 
 // Plain-text POST without any Google cookies, so it works whatever accounts the browser is signed into.
-function call(body) {
+function call(body, tries) {
   return fetch(API, { method: 'POST', credentials: 'omit', redirect: 'follow',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ key: KEY, email: EMAIL }, body)) })
     .then(r => r.json())
@@ -17,7 +17,11 @@ function call(body) {
       if (res.data && res.data.me) gate(res.data.me);
       return res.data;
     })
-    .catch(e => { if (e.auth) logout(e.message); throw e; });
+    .catch(e => {
+      // "Failed to fetch" now and then on the first call: try again once before showing an error
+      if (e instanceof TypeError && !tries) return new Promise(r => setTimeout(r, 800)).then(() => call(body, 1));
+      if (e.auth) logout(e.message); throw e;
+    });
 }
 
 // Send people to the page they're allowed to see
@@ -28,7 +32,7 @@ function gate(me) {
   if (w) w.innerHTML = `Logged in as <b>${esc(me.name)}</b> · <a href="#" onclick="logout();return false">Log out</a>`;
   const nav = document.getElementById('nav');
   if (nav) {
-    const pages = [['./', 'Dashboard', 'full'], ['handlers.html', 'Email handlers', 'handler'], ['partners.html', 'Partners', 'handler'], ['gaps.html', 'Gaps', 'full']]
+    const pages = [['./', 'Dashboard', 'full'], ['handlers.html', 'Email handlers', 'handler'], ['partners.html', 'Partners', 'handler'], ['gaps.html', 'Gaps', 'full'], ['control.html', 'Control', 'full']]
       .filter(p => RANK[me.role] >= RANK[p[2]]);
     nav.innerHTML = pages.length > 1 ? pages.map(([href, label]) => `<a href="${href}" target="_self" class="${(location.pathname.endsWith(href) || (href === './' && /\/(index\.html)?$/.test(location.pathname))) ? 'here' : ''}">${label}</a>`).join('') : '';
   }
