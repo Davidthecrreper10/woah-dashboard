@@ -52,7 +52,7 @@
   <div class="card how" style="margin-top:14px">This is the <b>WOAH 2027 Possible Partners List</b>. Chris keeps it up to date from the WOAH emails: the row colour shows the status, and he fills in the latest contact, the PIC, the progress and what they offer. Search here to see where any company or person stands. To change something, press <b>Open in sheet</b>.</div>
   </div>
 </div>
-<script src="common.js?v=4"></script>
+<script src="common.js?v=5"></script>
 <script>
   let PP = null, Q = '', F_TAB = '', F_ST = '', MINE = false, SHOW = 40;
   try { const s = JSON.parse(sessionStorage.getItem('ppFilters') || '{}'); Q = s.q || ''; F_TAB = s.tab || ''; F_ST = s.st || ''; MINE = !!s.mine; } catch (e) {}
@@ -61,7 +61,7 @@
   function colorOf(label) { const L = (PP && PP.legend) || {}; const k = Object.keys(L).find(x => L[x].label === label); return k ? L[k].color : ''; }
   function sheetLink(r) { return PP && PP.sheetId ? `https://docs.google.com/spreadsheets/d/${encodeURIComponent(PP.sheetId)}/edit#gid=${encodeURIComponent((PP.gids || {})[r.tab] || 0)}&range=A${r.row}` : '#'; }
   function mailLink(r) { const me = myEmail(); return 'https://mail.google.com/mail/' + (me ? '?authuser=' + encodeURIComponent(me) : '') + '#search/' + encodeURIComponent(r.email || ('"' + r.company + '"')); }
-  function myNames() { const nm = String((ME && ME.name) || ''); const paren = (nm.match(/\(([^)]+)\)/) || [])[1]; return [...new Set([PP && PP.nick, nm.split(' ')[0], paren].filter(Boolean).map(s => s.toLowerCase()))]; }
+  function myNames() { const nm = String((ME && ME.name) || ''); const paren = (nm.match(/\(([^)]+)\)/) || [])[1]; return [...new Set([...String((PP && PP.nick) || '').split(','), nm.split(' ')[0], paren].map(s => String(s || '').trim()).filter(Boolean).map(s => s.toLowerCase()))]; }
   function matches(r) {
     if (F_TAB && r.tab !== F_TAB) return false;
     if (F_ST && (F_ST === '-' ? !!r.status : r.status !== F_ST)) return false;
