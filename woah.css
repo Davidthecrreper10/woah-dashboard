@@ -233,3 +233,4 @@ html[data-ui="woah"] .confirm { animation: w-up .32s cubic-bezier(.2,.75,.25,1) 
 html[data-ui="woah"] details[open] > :not(summary) { animation: w-up .35s ease both; }
 html[data-ui="woah"] .w-panel.open .w-seg { animation: w-up .3s ease both; }
 html[data-ui="woah"] .stat:hover, html[data-ui="woah"] .card.feat:hover { transform: translateY(-2px); box-shadow: var(--shadow-up); }
+.w-load-msg { max-width: min(380px, 86vw); text-align: center; line-height: 1.4; }

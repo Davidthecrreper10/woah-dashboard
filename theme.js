@@ -200,6 +200,15 @@
 
   // ---------- loading screen (centre, with %) + thin bar for background refreshes ----------
   const MSGS = ['Asking Chris…', 'Reading the WOAH inbox…', 'Checking the Planner…', 'Counting reminders…', 'Lining up the emails…', 'Almost there…'];
+  // logging in: Chris checks the door first, then easter eggs and WOAH facts while the page loads
+  const LOGIN_FIRST = "Asking Chris if you're allowed in…";
+  const LOGIN_FUN = [
+    'Chris is checking the guest list…', 'Making sure you’re not a cartoon fish…', 'Fun fact: every letter in the WOAH logo is a different sea creature.',
+    'The W is coral. The O is a wave.', 'The A is an octopus tentacle. Look closely.', 'And the H? That’s an eel.', 'This year’s theme is REEF: Reconnect, Educate, Experience, Fun.',
+    'WOAH 2027 is the 7th edition. Sanur, February.', 'Bring the colour back.', 'Chris is waking up the eel in the H…', 'Asking the octopus to let go of the A…',
+    'Counting how many emails Chris read today…', 'Polishing the waves…', 'Coral grows on the coral before it. So does WOAH.', 'Rule #1 of WOAH design: no cartoon fish. Ever.',
+  ];
+  let MSGSET = MSGS, loginNext = false;
   let L = null, Lp = 0, Lt0 = 0, Lraf = 0, Lmsg = 0, Lbig = false, Lopen = 0, bigNext = BOOT, bootDone = !BOOT;
   function loaderEl() {
     if (L) return L;
@@ -219,18 +228,20 @@
   function tick() {
     const t = (performance.now() - Lt0) / 1000;
     Lp = Math.max(Lp, 94 * (1 - Math.exp(-t / 2.3)));   // real calls have no progress events, so it eases towards 94% and jumps to 100% when Chris answers
-    const m = Math.min(MSGS.length - 1, Math.floor(t / 1.6));
-    if (m !== Lmsg) { Lmsg = m; const e = L.querySelector('.w-load-msg'); e.classList.remove('w-msg-in'); void e.offsetWidth; e.textContent = MSGS[m]; e.classList.add('w-msg-in'); }
+    const m = Math.min(MSGSET.length - 1, Math.floor(t / (MSGSET === MSGS ? 1.6 : 2.2)));
+    if (m !== Lmsg) { Lmsg = m; const e = L.querySelector('.w-load-msg'); e.classList.remove('w-msg-in'); void e.offsetWidth; e.textContent = MSGSET[m]; e.classList.add('w-msg-in'); }
     paint(); Lraf = requestAnimationFrame(tick);
   }
   function startLoad() {
     if (!document.body) return;
     const big = bigNext && MAX(); bigNext = false;
+    const isLogin = loginNext; loginNext = false;
     Lopen++;
     if (Lopen > 1 && !big) return;
     loaderEl(); cancelAnimationFrame(Lraf);
     Lp = 0; Lt0 = performance.now(); Lmsg = 0; Lbig = big || Lbig;
-    L.querySelector('.w-load-msg').textContent = MSGS[0];
+    MSGSET = isLogin ? [LOGIN_FIRST].concat(LOGIN_FUN.slice().sort(() => Math.random() - .5)) : MSGS;
+    L.querySelector('.w-load-msg').textContent = MSGSET[0];
     html.classList.toggle('w-loading-big', Lbig); html.classList.add('w-loading');
     Lraf = requestAnimationFrame(tick);
   }
@@ -249,7 +260,7 @@
     return _fetch.apply(this, arguments).then(r => { endLoad(); return r; }, e => { endLoad(); throw e; });
   };
   document.addEventListener('click', e => { if (e.target.closest('#refresh')) bigNext = true; }, true);
-  document.addEventListener('submit', e => { if (e.target.closest('#login')) bigNext = true; }, true);
+  document.addEventListener('submit', e => { if (e.target.closest('#login')) { bigNext = true; loginNext = true; } }, true);
 
   // ---------- page change: the page sinks away, the loader takes over, the next page rises ----------
   document.addEventListener('click', e => {
