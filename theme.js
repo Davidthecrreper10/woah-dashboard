@@ -15,7 +15,7 @@
     return {
       ui: P.ui === 'retro' ? 'retro' : 'woah',
       theme: P.theme === 'light' || P.theme === 'dark' ? P.theme : (mqDark.matches ? 'dark' : 'light'),
-      motion: P.motion === 'full' || P.motion === 'reduced' || P.motion === 'off' ? P.motion : (mqCalm.matches ? 'reduced' : 'full'),
+      motion: P.motion === 'max' || P.motion === 'full' || P.motion === 'reduced' || P.motion === 'off' ? P.motion : (mqCalm.matches ? 'reduced' : 'full'),
     };
   }
   function apply(animate) {
@@ -32,6 +32,13 @@
   mqDark.addEventListener && mqDark.addEventListener('change', () => { if (P.theme === 'system') apply(true); });
   mqCalm.addEventListener && mqCalm.addEventListener('change', () => { if (P.motion === 'auto') apply(false); });
   apply(false);
+  let BOOT = false;
+  try { BOOT = !!localStorage.getItem('woahKey') && !!localStorage.getItem('woahEmail'); } catch (e) {}
+  const MAX = () => html.dataset.motion === 'max';   // the loading screen and page-change animation are only in Max
+  if (!MAX()) BOOT = false;
+  if (BOOT) html.classList.add('w-boot');
+  const CAME_BY_LINK = (() => { try { const v = sessionStorage.getItem('wNav'); sessionStorage.removeItem('wNav'); return !!v && Date.now() - Number(v) < 8000; } catch (e) { return false; } })();
+  if (CAME_BY_LINK && MAX()) html.classList.add('w-arrive');
 
   // ---------- page decoration (WOAH UI only; Retro stays exactly as it was) ----------
   function logoHTML() { return '<img class="w-logo w-logo-light" src="img/logo-light.webp" alt="WOAH Festival" width="180" height="86"><img class="w-logo w-logo-dark" src="img/logo-dark.webp" alt="WOAH Festival" width="180" height="81">'; }
@@ -91,7 +98,16 @@
   // ---------- animations ----------
   let firstRender = Date.now(), lastAction = 0;
   const ANIM = '.card, .hitem, .gap, .pp-item, .banner, .msg, .owner-h, .c-sec, .flow .card, .confirm, .okbox, .waitfor, .checkbox';
-  document.addEventListener('click', e => { if (e.target.closest('button, a, .chip, label')) lastAction = Date.now(); }, true);
+  let lastDir = 1;
+  document.addEventListener('click', e => {
+    const t = e.target.closest('button, a, .chip, label, select'); if (!t) return;
+    lastAction = Date.now();
+    html.classList.add('w-acted'); clearTimeout(html._wa); html._wa = setTimeout(() => html.classList.remove('w-acted'), 900);
+    const grp = t.closest('.tabs, .seg, .c-nav, .w-seg');
+    if (grp) { const items = [...grp.querySelectorAll('button, a')]; const now = items.indexOf(t), was = items.findIndex(x => x.classList.contains('active') || x.classList.contains('on') || x.classList.contains('here')); lastDir = now >= was ? 1 : -1; }
+    else lastDir = 1;
+  }, true);
+  document.addEventListener('change', () => { lastAction = Date.now(); }, true);
   function animateNodes(nodes) {
     const m = html.dataset.motion;
     if (m === 'off' || html.dataset.ui !== 'woah') return;
@@ -105,7 +121,7 @@
     });
   }
   function countUp(root) {
-    if (html.dataset.motion !== 'full' || html.dataset.ui !== 'woah') return;
+    if (!/^(full|max)$/.test(html.dataset.motion) || html.dataset.ui !== 'woah') return;
     (root || document).querySelectorAll('.stat .n').forEach(el => {
       if (el.dataset.wCount) return;
       el.dataset.wCount = '1';
@@ -128,6 +144,24 @@
     }));
     if (add.length) animateNodes(add);
     if (fresh) countUp();
+    if (Date.now() - lastAction < 900 && html.dataset.ui === 'woah' && html.dataset.motion !== 'off') {
+      const areas = new Set();
+      muts.forEach(m => {
+        const t = m.target;
+        if (t.nodeType !== 1 || !m.addedNodes.length || /^(BUTTON|SPAN|A|B|I|SMALL|OPTION|SELECT|LABEL|TEXTAREA|INPUT)$/.test(t.tagName)) return;
+        if (t.closest('header, nav, .w-panel, .w-load, .w-hero, .tabs, .seg') || t === document.body) return;
+        if (t.offsetHeight < 50) return;
+        areas.add(t);
+      });
+      [...areas].filter(a => ![...areas].some(b => b !== a && b.contains(a))).forEach(swap);
+    }
+  }
+  function swap(el) {
+    el.style.setProperty('--wdx', (lastDir * 18) + 'px');
+    el.classList.remove('w-swap'); void el.offsetWidth; el.classList.add('w-swap');
+    let n = 0;
+    el.querySelectorAll(':scope > *, :scope > table > tbody > tr, :scope tbody > tr').forEach(c => { if (n > 14) return; c.style.setProperty('--wi', n++); c.classList.remove('w-row'); void c.offsetWidth; c.classList.add('w-row'); });
+    setTimeout(() => el.classList.remove('w-swap'), 700);
   }
 
   // ---------- settings panel (both UIs) ----------
@@ -137,8 +171,8 @@
     const opt = (k, v, label) => `<button type="button" target="_self" class="${(P[k] === v || (k === 'motion' && v === 'full' && P.motion === 'auto' && !mqCalm.matches) || (k === 'motion' && v === 'reduced' && P.motion === 'auto' && mqCalm.matches)) ? 'on' : ''}" data-k="${k}" data-v="${v}">${label}</button>`;
     p.innerHTML = `<div class="w-ph-h">Look</div><div class="w-seg">${opt('ui', 'woah', 'WOAH')}${opt('ui', 'retro', 'Retro')}</div>
       <div class="w-ph-h">Theme</div><div class="w-seg">${opt('theme', 'light', 'Light')}${opt('theme', 'dark', 'Dark')}${opt('theme', 'system', 'System')}</div>
-      <div class="w-ph-h">Animations</div><div class="w-seg">${opt('motion', 'full', 'Full')}${opt('motion', 'reduced', 'Calm')}${opt('motion', 'off', 'Off')}</div>
-      <div class="w-ph-note">Saved on this device only.${mqCalm.matches ? ' Your device asks for less motion, so Calm is the default.' : ''}</div>`;
+      <div class="w-ph-h">Animations</div><div class="w-seg">${opt('motion', 'max', 'Max')}${opt('motion', 'full', 'Full')}${opt('motion', 'reduced', 'Calm')}${opt('motion', 'off', 'Off')}</div>
+      <div class="w-ph-note">Max adds a loading screen and page-change animation. Saved on this device only.${mqCalm.matches ? ' Your device asks for less motion, so Calm is the default.' : ''}</div>`;
   }
   function gear() {
     if (document.getElementById('wGear')) return;
@@ -164,6 +198,76 @@
     }
   }
 
+  // ---------- loading screen (centre, with %) + thin bar for background refreshes ----------
+  const MSGS = ['Asking Chris…', 'Reading the WOAH inbox…', 'Checking the Planner…', 'Counting reminders…', 'Lining up the emails…', 'Almost there…'];
+  let L = null, Lp = 0, Lt0 = 0, Lraf = 0, Lmsg = 0, Lbig = false, Lopen = 0, bigNext = BOOT, bootDone = !BOOT;
+  function loaderEl() {
+    if (L) return L;
+    L = document.createElement('div'); L.className = 'w-load'; L.id = 'wLoad'; L.setAttribute('role', 'status'); L.setAttribute('aria-live', 'polite');
+    L.innerHTML = `<div class="w-load-box"><div class="w-ring"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="w-ring-bg" cx="60" cy="60" r="52"/><circle class="w-ring-fg" cx="60" cy="60" r="52"/></svg><img src="img/chris.webp" alt="Chris"></div>
+      <div class="w-load-pct"><span>0</span>%</div><div class="w-load-msg">${MSGS[0]}</div></div>`;
+    document.body.appendChild(L);
+    const bar = document.createElement('div'); bar.className = 'w-bar'; bar.id = 'wBar'; document.body.appendChild(bar);
+    return L;
+  }
+  function paint() {
+    const el = loaderEl(), k = Math.round(Lp);
+    el.querySelector('.w-load-pct span').textContent = k;
+    el.style.setProperty('--wp', (Lp / 100).toFixed(3));
+    document.getElementById('wBar').style.transform = `scaleX(${(Lp / 100).toFixed(3)})`;
+  }
+  function tick() {
+    const t = (performance.now() - Lt0) / 1000;
+    Lp = Math.max(Lp, 94 * (1 - Math.exp(-t / 2.3)));   // real calls have no progress events, so it eases towards 94% and jumps to 100% when Chris answers
+    const m = Math.min(MSGS.length - 1, Math.floor(t / 1.6));
+    if (m !== Lmsg) { Lmsg = m; const e = L.querySelector('.w-load-msg'); e.classList.remove('w-msg-in'); void e.offsetWidth; e.textContent = MSGS[m]; e.classList.add('w-msg-in'); }
+    paint(); Lraf = requestAnimationFrame(tick);
+  }
+  function startLoad() {
+    if (!document.body) return;
+    const big = bigNext && MAX(); bigNext = false;
+    Lopen++;
+    if (Lopen > 1 && !big) return;
+    loaderEl(); cancelAnimationFrame(Lraf);
+    Lp = 0; Lt0 = performance.now(); Lmsg = 0; Lbig = big || Lbig;
+    L.querySelector('.w-load-msg').textContent = MSGS[0];
+    html.classList.toggle('w-loading-big', Lbig); html.classList.add('w-loading');
+    Lraf = requestAnimationFrame(tick);
+  }
+  function endLoad() {
+    Lopen = Math.max(0, Lopen - 1); if (Lopen) return;
+    cancelAnimationFrame(Lraf); Lp = 100; if (L) paint();
+    setTimeout(() => {
+      html.classList.remove('w-loading', 'w-loading-big', 'w-arrive', 'w-leaving'); Lbig = false;
+      if (!bootDone) { bootDone = true; html.classList.remove('w-boot'); html.classList.add('w-booted'); setTimeout(() => html.classList.remove('w-booted'), 1200); firstRender = Date.now(); }
+    }, Lbig ? 260 : 150);
+  }
+  const _fetch = window.fetch;
+  window.fetch = function (u) {
+    if (!/script\.google(usercontent)?\.com\/macros/.test(String(u && u.url || u))) return _fetch.apply(this, arguments);
+    startLoad();
+    return _fetch.apply(this, arguments).then(r => { endLoad(); return r; }, e => { endLoad(); throw e; });
+  };
+  document.addEventListener('click', e => { if (e.target.closest('#refresh')) bigNext = true; }, true);
+  document.addEventListener('submit', e => { if (e.target.closest('#login')) bigNext = true; }, true);
+
+  // ---------- page change: the page sinks away, the loader takes over, the next page rises ----------
+  document.addEventListener('click', e => {
+    const a = e.target.closest('a[href]');
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const tgt = (a.getAttribute('target') || (document.querySelector('base[target]') || {}).target || '_self');
+    if (tgt !== '_self' || a.hasAttribute('download')) return;
+    const url = new URL(a.href, location.href);
+    if (url.origin !== location.origin || !/\.html$|\/$/.test(url.pathname) || (url.pathname === location.pathname && url.search === location.search)) return;
+    if (!MAX()) return;
+    e.preventDefault();
+    try { sessionStorage.setItem('wNav', String(Date.now())); } catch (er) {}
+    html.classList.add('w-leaving');
+    loaderEl(); Lp = 0; paint(); L.querySelector('.w-load-msg').textContent = MSGS[0];
+    setTimeout(() => { location.href = url.href; }, 340);
+  });
+  window.addEventListener('pageshow', e => { if (e.persisted) html.classList.remove('w-leaving', 'w-loading', 'w-loading-big'); });
+
   let decorated = false;
   function decorate() {
     if (!document.body) return;
@@ -173,6 +277,8 @@
     if (!decorated) {
       decorated = true;
       watchLogin();
+      loaderEl(); paint();
+      if (BOOT) { setTimeout(() => { if (!bootDone && !Lopen) { bootDone = true; html.classList.remove('w-boot', 'w-arrive'); firstRender = Date.now(); } }, 2500); }
       new MutationObserver(onMutations).observe(document.body, { childList: true, subtree: true });
       animateNodes([...document.querySelectorAll(ANIM)]);
       countUp();

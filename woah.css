@@ -178,3 +178,58 @@ html[data-ui="woah"] header > div:last-child { flex: 1 1 340px; display: flex; f
 html[data-ui="woah"] header > div:last-child > div { justify-content: flex-end; }
 @media (max-width: 640px) { html[data-ui="woah"] header > div:last-child { align-items: stretch; } html[data-ui="woah"] header > div:last-child > div { justify-content: flex-start !important; } html[data-ui="woah"] .who { text-align: left; } }
 html[data-ui="woah"] header > div:first-child { max-width: 440px; }
+
+/* ---------- fill the screen: the page grows with the window ---------- */
+html[data-ui="woah"] .wrap { max-width: min(1760px, 100%); padding-left: clamp(16px, 2.6vw, 48px); padding-right: clamp(16px, 2.6vw, 48px); }
+@media (min-width: 1500px) {
+  html[data-ui="woah"] body { font-size: 15px; }
+  html[data-ui="woah"] .w-hero { height: 196px; }
+  html[data-ui="woah"] .card { padding: 18px 20px; }
+  html[data-ui="woah"] .stats { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+}
+@media (min-width: 1900px) { html[data-ui="woah"] body { font-size: 15.5px; } html[data-ui="woah"] .w-hero { height: 220px; } }
+
+/* ---------- loading screen (both looks) ---------- */
+html.w-boot .wrap { opacity: 0; }
+.w-load { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); opacity: 0; visibility: hidden; transition: opacity .35s ease, visibility 0s .35s; --wp: 0; }
+html.w-boot .w-load, html.w-loading-big .w-load, html.w-leaving .w-load, html.w-arrive .w-load { opacity: 1; visibility: visible; transition: opacity .25s ease, visibility 0s; }
+html.w-boot:not(.w-arrive) .w-load { background: var(--bg); }
+.w-load-box { display: grid; justify-items: center; gap: 10px; transform: translateY(6px) scale(.97); transition: transform .45s cubic-bezier(.2,.75,.25,1); }
+html.w-boot .w-load-box, html.w-loading-big .w-load-box, html.w-leaving .w-load-box, html.w-arrive .w-load-box { transform: none; }
+.w-ring { position: relative; width: 132px; height: 132px; }
+.w-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.w-ring circle { fill: none; stroke-width: 7; }
+.w-ring-bg { stroke: var(--line); }
+.w-ring-fg { stroke: var(--coral, var(--brand)); stroke-linecap: round; stroke-dasharray: 326.73; stroke-dashoffset: calc(326.73 * (1 - var(--wp))); transition: stroke-dashoffset .25s linear; }
+.w-ring img { position: absolute; inset: 20px; width: calc(100% - 40px); height: calc(100% - 40px); object-fit: contain; border-radius: 50%; animation: w-bob 2.6s ease-in-out infinite; }
+@keyframes w-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.w-ring::after { content: ""; position: absolute; inset: -8px; border-radius: 50%; border: 2px solid transparent; border-top-color: var(--shallows, var(--brand)); opacity: .55; animation: w-spin 1.4s linear infinite; }
+@keyframes w-spin { to { transform: rotate(360deg); } }
+.w-load-pct { font: 700 30px/1 "JetBrains Mono", ui-monospace, monospace; letter-spacing: -.03em; color: var(--ink); font-variant-numeric: tabular-nums; }
+.w-load-pct span { display: inline-block; min-width: 2.2ch; text-align: right; }
+.w-load-msg { font-size: 14px; color: var(--muted); min-height: 20px; }
+.w-msg-in { animation: w-msg .4s ease both; }
+@keyframes w-msg { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+.w-bar { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 61; background: var(--coral, var(--brand)); transform-origin: left; transform: scaleX(0); opacity: 0; transition: opacity .3s, transform .25s linear; pointer-events: none; }
+html.w-loading:not(.w-loading-big):not(.w-boot) .w-bar { opacity: 1; }
+
+/* ---------- page changes ---------- */
+html[data-ui="woah"].w-leaving .wrap { animation: w-out .32s cubic-bezier(.4,0,.6,1) forwards; }
+@keyframes w-out { to { opacity: 0; transform: translateY(-10px) scale(.985); filter: saturate(.3); } }
+html[data-ui="woah"].w-booted .wrap { animation: w-rise .65s cubic-bezier(.2,.75,.25,1) both; }
+@keyframes w-rise { from { opacity: 0; transform: translateY(16px); filter: saturate(.3); } to { opacity: 1; transform: none; filter: none; } }
+html[data-ui="woah"].w-booted .w-hero .w-ph.on { animation: w-heroin 1.2s cubic-bezier(.2,.75,.25,1) both, w-drift 16s ease-out both; }
+@keyframes w-heroin { from { filter: saturate(.12); transform: scale(1.1); } to { filter: saturate(1.15) contrast(1.03); transform: scale(1.02); } }
+
+/* ---------- switching tabs / views ---------- */
+html[data-ui="woah"] .w-swap { animation: w-swapin .42s cubic-bezier(.2,.75,.25,1) both; }
+@keyframes w-swapin { from { opacity: 0; transform: translateX(var(--wdx, 18px)); } to { opacity: 1; transform: none; } }
+html[data-ui="woah"] .w-row { animation: w-up .4s cubic-bezier(.2,.75,.25,1) both; animation-delay: calc(var(--wi, 0) * 28ms); }
+html[data-ui="woah"][data-motion="reduced"] .w-swap, html[data-ui="woah"][data-motion="reduced"] .w-row { animation: w-fade .25s ease both; animation-delay: 0ms; }
+html[data-ui="woah"].w-acted .tabs button.active, html[data-ui="woah"].w-acted .seg button.active, html[data-ui="woah"].w-acted .w-seg button.on { animation: w-pop .38s cubic-bezier(.3,1.6,.5,1) both; }
+@keyframes w-pop { 0% { transform: scale(.9); } 60% { transform: scale(1.05); } 100% { transform: none; } }
+html[data-ui="woah"] .confirm { animation: w-up .32s cubic-bezier(.2,.75,.25,1) both; }
+html[data-ui="woah"] details[open] > :not(summary) { animation: w-up .35s ease both; }
+html[data-ui="woah"] .w-panel.open .w-seg { animation: w-up .3s ease both; }
+html[data-ui="woah"] .stat:hover, html[data-ui="woah"] .card.feat:hover { transform: translateY(-2px); box-shadow: var(--shadow-up); }
