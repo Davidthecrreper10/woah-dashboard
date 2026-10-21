@@ -164,5 +164,6 @@
   .out-grid label.wide { grid-column: 1 / -1; }
   .out-grid input { font: inherit; font-weight: 400; font-size: 14px; color: var(--ink); background: var(--bg); padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); }
   .out-grid input:focus { outline: 2px solid var(--brand-soft); border-color: var(--brand); }
+  .out-grid input[readonly] { color: var(--muted); background: var(--card); border-style: dashed; }
   #outBody { min-height: 380px; }
   @media (max-width: 560px) { .out-kind, .out-grid { grid-template-columns: 1fr; } }
