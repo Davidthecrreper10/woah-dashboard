@@ -28,7 +28,7 @@ function gate(me) {
   if (w) w.innerHTML = `Logged in as <b>${esc(me.name)}</b> · <a href="#" onclick="logout();return false">Log out</a>`;
   const nav = document.getElementById('nav');
   if (nav) {
-    const pages = [['./', 'Dashboard', 'full'], ['handlers.html', 'Email handlers', 'handler'], ['gaps.html', 'Gaps', 'full']]
+    const pages = [['./', 'Dashboard', 'full'], ['handlers.html', 'Email handlers', 'handler'], ['partners.html', 'Partners', 'handler'], ['gaps.html', 'Gaps', 'full']]
       .filter(p => RANK[me.role] >= RANK[p[2]]);
     nav.innerHTML = pages.length > 1 ? pages.map(([href, label]) => `<a href="${href}" target="_self" class="${(location.pathname.endsWith(href) || (href === './' && /\/(index\.html)?$/.test(location.pathname))) ? 'here' : ''}">${label}</a>`).join('') : '';
   }
