@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WOAH Partners</title>
+<base target="_blank">
+<link rel="stylesheet" href="style.css?v=11">
+<style>
+  .pp-search { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .pp-search input[type=search] { flex: 1 1 260px; font: inherit; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .pp-search select { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .pp-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 10px 0 4px; font-size: 12px; color: var(--muted); }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); vertical-align: -1px; margin-right: 5px; }
+  .pp-item { border: 1px solid var(--line); border-left: 5px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 8px; }
+  .pp-top { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+  .pp-st { font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .pp-meta { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .pp-prog { font-size: 13px; margin-top: 6px; }
+  .pp-kv { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .pp-kv b { color: var(--ink); font-weight: 600; }
+  .pp-item .hact a { font-size: 13px; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line); text-decoration: none; color: var(--ink); background: var(--card); }
+  .pp-sw { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .pp-sw .card { padding: 14px; }
+  .pp-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  .pp-row input[type=number] { width: 70px; font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .pp-depts td select { font: inherit; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); max-width: 100%; }
+  .pp-test { font-size: 13px; max-height: 340px; overflow: auto; background: var(--bg); border-radius: 10px; padding: 8px 12px; margin-top: 8px; }
+  .pp-test div { padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .pp-test div:last-child { border-bottom: 0; }
+  .pp-log td { font-size: 13px; }
+  .pp-h { font-weight: 600; font-size: 16px; margin: 0 0 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="login" class="card"></div>
+  <div id="app">
+  <header>
+    <div>
+      <h1><span>WOAH</span> Partners</h1>
+      <div class="sub" id="updated">Loading…</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><nav class="pages" id="nav"></nav><button id="refresh" onclick="load()" target="_self">Refresh</button></div>
+      <div class="who" id="who"></div>
+    </div>
+  </header>
+  <div class="banner" id="banner"></div>
+  <div class="card" id="searchCard"></div>
+  <div id="control"></div>
+  <div class="card how" style="margin-top:14px">This is the <b>WOAH 2027 Possible Partners List</b>. Chris keeps it up to date from the WOAH emails: the row colour shows the status, and he fills in the latest contact, the PIC, the progress and what they offer. Search here to see where any company or person stands. To change something, press <b>Open in sheet</b>.</div>
+  </div>
+</div>
+<script src="common.js?v=4"></script>
+<script>
+  let PP = null, Q = '', F_TAB = '', F_ST = '', MINE = false, SHOW = 40;
+  try { const s = JSON.parse(sessionStorage.getItem('ppFilters') || '{}'); Q = s.q || ''; F_TAB = s.tab || ''; F_ST = s.st || ''; MINE = !!s.mine; } catch (e) {}
+  function keep() { try { sessionStorage.setItem('ppFilters', JSON.stringify({ q: Q, tab: F_TAB, st: F_ST, mine: MINE })); } catch (e) {} }
+
+  function colorOf(label) { const L = (PP && PP.legend) || {}; const k = Object.keys(L).find(x => L[x].label === label); return k ? L[k].color : ''; }
+  function sheetLink(r) { return PP && PP.sheetId ? `https://docs.google.com/spreadsheets/d/${encodeURIComponent(PP.sheetId)}/edit#gid=${encodeURIComponent((PP.gids || {})[r.tab] || 0)}&range=A${r.row}` : '#'; }
+  function mailLink(r) { const me = myEmail(); return 'https://mail.google.com/mail/' + (me ? '?authuser=' + encodeURIComponent(me) : '') + '#search/' + encodeURIComponent(r.email || ('"' + r.company + '"')); }
+  function myNames() { const nm = String((ME && ME.name) || ''); const paren = (nm.match(/\(([^)]+)\)/) || [])[1]; return [...new Set([PP && PP.nick, nm.split(' ')[0], paren].filter(Boolean).map(s => s.toLowerCase()))]; }
+  function matches(r) {
+    if (F_TAB && r.tab !== F_TAB) return false;
+    if (F_ST && (F_ST === '-' ? !!r.status : r.status !== F_ST)) return false;
+    if (MINE) { const p = String(r.pic || '').toLowerCase(); if (!myNames().some(n => n && new RegExp('(^|[^a-z])' + n.replace(/[^a-z]/g, '') + '([^a-z]|$)').test(p))) return false; }
+    if (!Q.trim()) return true;
+    const hay = [r.company, r.contact, r.email, r.pic, r.progress, r.offer, r.tab, r.status].join(' ').toLowerCase();
+    return Q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w));
+  }
+  function item(r) {
+    const c = colorOf(r.status);
+    const kv = [['Latest contact', r.latest], ['PIC', r.pic], ['Coming?', r.coming], ['Offer', r.offer]].filter(x => x[1]);
+    return `<div class="pp-item" style="${c ? 'border-left-color:' + esc(c) : ''}">
+      <div class="pp-top"><div><b>${esc(r.company || r.contact || r.email)}</b><span class="tag">${esc(r.tab)}</span></div>
+        <div class="pp-st">${c ? `<span class="dot" style="background:${esc(c)}"></span>` : ''}${esc(r.status || 'no status yet')}</div></div>
+      <div class="pp-meta">${[r.contact, r.email].filter(Boolean).map(esc).join(' · ') || 'No contact details yet'}</div>
+      ${r.progress ? `<div class="pp-prog">${esc(r.progress)}</div>` : ''}
+      ${kv.length ? `<div class="pp-kv">${kv.map(([k, v]) => `<span>${k}: <b>${esc(v)}</b></span>`).join('')}</div>` : ''}
+      <div class="hact"><a href="${esc(sheetLink(r))}">Open in sheet</a>${r.email ? `<a href="${esc(mailLink(r))}">Find in my email</a>` : ''}</div>
+    </div>`;
+  }
+  function drawResults() {
+    const box = document.getElementById('ppResults'); if (!box || !PP) return;
+    const all = PP.rows || [];
+    const hits = all.filter(matches);
+    const counts = {}; hits.forEach(r => { counts[r.status || '-'] = (counts[r.status || '-'] || 0) + 1; });
+    const L = PP.legend || {};
+    const sum = Object.keys(L).map(k => counts[L[k].label] ? `<span><span class="dot" style="background:${esc(L[k].color)}"></span>${esc(L[k].label)} <b>${counts[L[k].label]}</b></span>` : '').join('') + (counts['-'] ? `<span><span class="dot"></span>no status <b>${counts['-']}</b></span>` : '');
+    box.innerHTML = `<div class="sub" style="margin-top:10px">${hits.length} of ${all.length} contacts${hits.length > SHOW ? ', showing the first ' + SHOW : ''}</div>
+      ${sum ? `<div class="pp-legend">${sum}</div>` : ''}
+      ${hits.length ? hits.slice(0, SHOW).map(item).join('') : '<div class="empty">Nothing matches. Try fewer words, or another tab / status.</div>'}
+      ${hits.length > SHOW ? `<div style="margin-top:10px"><button onclick="SHOW+=40;drawResults()">Show more</button></div>` : ''}`;
+  }
+  function drawSearch() {
+    const c = document.getElementById('searchCard');
+    if (!PP || !PP.ready || !(PP.rows || []).length) { c.innerHTML = `<div class="pp-h">Search partners</div><div class="empty">Chris hasn't copied the partners list here yet. It appears within 10 minutes of him starting; press Refresh then.</div>`; return; }
+    const tabs = [...new Set(PP.rows.map(r => r.tab))];
+    const L = PP.legend || {};
+    if (!document.getElementById('ppQ')) {
+      c.innerHTML = `<div class="pp-h">Search partners</div>
+        <div class="sub" style="margin-bottom:10px">Every company and person on every tab of the Possible Partners List. Search by company, person, email, PIC or what they offer.</div>
+        <div class="pp-search">
+          <input type="search" id="ppQ" placeholder="e.g. surf, Bali United, Max…" value="${esc(Q)}" oninput="Q=this.value;SHOW=40;keep();drawResults()">
+          <select id="ppTab" onchange="F_TAB=this.value;SHOW=40;keep();drawResults()"></select>
+          <select id="ppSt" onchange="F_ST=this.value;SHOW=40;keep();drawResults()"></select>
+          <label class="sub" style="display:flex;align-items:center;gap:5px"><input type="checkbox" id="ppMine" ${MINE ? 'checked' : ''} onchange="MINE=this.checked;SHOW=40;keep();drawResults()"> Only mine</label>
+        </div>
+        <div id="ppResults"></div>`;
+    }
+    document.getElementById('ppTab').innerHTML = `<option value="">All tabs</option>` + tabs.map(t => `<option ${t === F_TAB ? 'selected' : ''}>${esc(t)}</option>`).join('');
+    document.getElementById('ppSt').innerHTML = `<option value="">Any status</option>` + Object.keys(L).map(k => `<option value="${esc(L[k].label)}" ${L[k].label === F_ST ? 'selected' : ''}>${esc(L[k].label)}</option>`).join('') + `<option value="-" ${F_ST === '-' ? 'selected' : ''}>No status yet</option>`;
+    drawResults();
+  }
+
+  // ---------- controls (full password only) ----------
+  const SW = [
+    ['sync', 'Updates from emails', 'Chris reads the WOAH emails with outside companies and updates their row: colour, latest contact, progress, PIC and what they offer. New companies WOAH emails get a new row.'],
+    ['pics', 'Reassign PICs who left', "Once a day, contacts whose PIC isn't on the Team tab anymore go to someone in the right department (Chris works out the department from the company). You get an email with the list."],
+    ['move', 'Move rows between tabs', 'When a company changes what it\'s coming as (e.g. a sponsor that will come as a vendor), Chris moves its row to the right tab and notes where it came from.'],
+  ];
+  const OPS = [['pp_sync', 'Update now', 'Read new emails and update the sheet now instead of waiting for the next check.'], ['pp_pics', 'Check PICs now', 'Reassign contacts whose PIC left the team, right now.'], ['pp_test', 'Test run: emails', "Shows what Chris would change for the last 4 days of emails. Changes nothing."], ['pp_testpics', 'Test run: PICs', 'Shows which PICs left and who their contacts would go to. Changes nothing.']];
+  function dt(t) { return t ? when(t) : 'never'; }
+  function drawControl() {
+    const box = document.getElementById('control');
+    if (!PP || !PP.cfg) { box.innerHTML = ''; return; }
+    const cfg = Object.assign({ sync: true, pics: true, move: true, aiPerRun: 6, tabDept: {} }, PP.cfg), st = PP.status || {};
+    const pend = PP.pending || [];
+    const err = st.error && st.errorAt && Date.now() - st.errorAt < 86400000;
+    const behind = st.cursor && Date.now() - st.cursor > 86400000;
+    let h = `<div class="gh" style="font-size:16px;margin-top:22px">Control panel <span class="sub" style="font-weight:400">· full password only</span></div>`;
+    if (err) h += `<div class="banner bad">Last problem (${esc(dt(st.errorAt))}): ${esc(st.error)}</div>`;
+    h += `<div class="grid stats">
+      <div class="card stat brand"><div class="n">${(PP.rows || []).length}</div><div class="l">contacts on the list</div></div>
+      <div class="card stat"><div class="n" style="font-size:16px;padding-top:6px">${esc(dt(st.lastCheck))}</div><div class="l">last update from emails${st.lastChanges != null ? ' · ' + st.lastChanges + ' rows changed' : ''}</div></div>
+      <div class="card stat ${behind ? 'warn' : ''}"><div class="n" style="font-size:16px;padding-top:6px">${st.cursor ? esc(behind ? 'catching up: ' + new Date(st.cursor).toLocaleDateString([], { day: 'numeric', month: 'short' }) : 'up to date') : '–'}</div><div class="l">${behind ? 'reading older emails, a few days per check' : 'emails read so far'}</div></div>
+      <div class="card stat"><div class="n" style="font-size:16px;padding-top:6px">${esc(dt(st.lastPicFix))}</div><div class="l">last PIC check${st.lastPicChanges != null ? ' · ' + st.lastPicChanges + ' moved' : ''}</div></div>
+    </div>`;
+    h += `<div class="pp-sw">` + SW.map(([k, name, note]) => `<div class="card">
+      <div class="sw-top"><div class="sw-name">${name}</div><span class="pill ${cfg[k] !== false ? 'on' : 'break'}">${cfg[k] !== false ? 'ON' : 'OFF'}</span></div>
+      <div class="sw-note">${note}</div>
+      <div class="seg" style="margin-top:10px"><button class="${cfg[k] !== false ? 'active on' : ''}" onclick="setCfg({${k}:true})">On</button><button class="${cfg[k] === false ? 'active break' : ''}" onclick="setCfg({${k}:false})">Off</button></div>
+    </div>`).join('') + `</div>`;
+    h += `<div class="card" style="margin-top:14px"><div class="sw-name">Run</div>
+      <div class="sw-note">Chris does these within about 5 minutes (he checks the queue at every inbox check).</div>
+      ${OPS.map(([op, label, note]) => { const w = pend.find(p => p.op === op); return `<div class="pp-row"><button ${w ? 'disabled' : ''} onclick="askRun('${op}')">${label}</button><span class="sub">${w ? '<b>Waiting for Chris</b> (pressed ' + esc(dt(w.at)) + ')' : note}</span></div>`; }).join('')}
+      <div class="confirm" id="ppConfirm"></div>
+      <div class="pp-row"><span class="sub">AI reads up to</span><input type="number" min="1" max="20" id="ppAi" value="${esc(cfg.aiPerRun)}"><span class="sub">conversations per check (more = faster catch-up, more AI use)</span><button onclick="setCfg({aiPerRun:Number(document.getElementById('ppAi').value)})">Save</button></div>
+    </div>`;
+    if (PP.test) h += `<div class="card" style="margin-top:14px"><div class="sw-top"><div class="sw-name">${esc(PP.test.kind)}</div><div class="sub">${esc(dt(PP.test.at))}${PP.test.by ? ' · pressed by ' + esc(first(PP.test.by)) : ''}</div></div>
+      <div class="pp-test">${(PP.test.lines || []).length ? PP.test.lines.map(l => `<div>${esc(l)}</div>`).join('') : '<div>Nothing would change.</div>'}</div></div>`;
+    const tabs = st.tabs || [];
+    if (tabs.length) h += `<div class="card" style="margin-top:14px"><div class="sw-name">Which department looks after each tab</div>
+      <div class="sw-note">Used when Chris can't tell a contact's department from the company itself. "Chris's guess" uses the tab name and the Routing tab.</div>
+      <div class="scroll"><table class="pp-depts" style="margin-top:8px"><tr><th>Tab</th><th>Department</th></tr>
+      ${tabs.map(t => `<tr><td>${esc(t.name)}</td><td><select data-tab="${esc(t.name)}"><option value="">Chris's guess${t.dept && !cfg.tabDept[t.name] ? ': ' + esc(t.dept) : ''}</option>${(PP.topics || []).map(x => `<option ${cfg.tabDept[t.name] === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></td></tr>`).join('')}
+      </table></div><div class="pp-row"><button onclick="saveDepts()">Save departments</button></div></div>`;
+    const log = PP.log || [];
+    h += `<div class="card" style="margin-top:14px"><div class="sw-name">What Chris changed lately</div>
+      ${log.length ? `<div class="scroll"><table class="pp-log" style="margin-top:8px"><tr><th>When</th><th>Company</th><th>What changed</th></tr>
+        ${log.map(l => `<tr><td style="white-space:nowrap">${esc(l.at ? when(l.at) : '')}</td><td><b>${esc(l.company || '')}</b><div class="sub">${esc(l.tab)}${l.row ? ' · row ' + esc(l.row) : ''}${l.why ? ' · ' + esc(l.why) : ''}</div></td><td>${esc(l.what)}</td></tr>`).join('')}</table></div>` : '<div class="empty">Nothing yet.</div>'}</div>`;
+    box.innerHTML = h;
+  }
+  function setCfg(c) { call({ action: 'partnersSet', cfg: c }).then(render).catch(fail); }
+  function saveDepts() { const m = {}; document.querySelectorAll('.pp-depts select').forEach(s => { if (s.value) m[s.dataset.tab] = s.value; }); setCfg({ tabDept: m }); }
+  function askRun(op) {
+    const o = OPS.find(x => x[0] === op), box = document.getElementById('ppConfirm');
+    const risky = op === 'pp_sync' || op === 'pp_pics';
+    if (!risky) return run(op);
+    box.innerHTML = `${esc(o[1])}: ${esc(o[2])} It changes the sheet.<br><button class="primary" onclick="run('${op}')">Yes, do it</button><button onclick="document.getElementById('ppConfirm').style.display='none'">Cancel</button>`;
+    box.style.display = 'block';
+  }
+  function run(op) { call({ action: 'partnersRun', op }).then(render).catch(fail); }
+
+  function render(d) {
+    PP = d;
+    document.getElementById('updated').textContent = d.at ? 'List copied from the sheet ' + when(d.at) + ' · refreshes every 10 minutes' : 'Possible Partners List';
+    drawSearch();
+    drawControl();
+  }
+  start({ title: 'Partners', need: 'handler', action: 'partners', every: 2, onData: render });
+</script>
+</body>
+</html>
