@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WOAH Control</title>
+<base target="_blank">
+<link rel="stylesheet" href="style.css?v=11">
+<style>
+  .c-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 14px; }
+  .c-nav a { font-size: 13px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); text-decoration: none; }
+  .c-nav a:hover { border-color: var(--brand); }
+  .c-sec { margin-top: 26px; scroll-margin-top: 10px; }
+  .c-sec > h2 { font-size: 18px; margin: 0 0 4px; display: flex; align-items: baseline; gap: 8px; }
+  .c-sec > h2 .num { color: var(--brand); font-size: 14px; font-weight: 700; }
+  .c-sec > .sub { margin-bottom: 10px; }
+  .c-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .c-grid .card { padding: 14px; }
+  .flow { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); counter-reset: st; }
+  .flow .card { padding: 12px 14px; position: relative; }
+  .flow .card > b { display: block; margin-bottom: 3px; }
+  .flow .card > b::before { counter-increment: st; content: counter(st); display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--brand-soft); color: var(--brand); font-size: 12px; margin-right: 7px; }
+  .flow .card div { font-size: 13px; color: var(--muted); }
+  details.c-more { margin-top: 10px; }
+  details.c-more summary { cursor: pointer; color: var(--brand); font-size: 14px; }
+  details.c-more ul { margin: 8px 0 0; padding-left: 20px; font-size: 14px; }
+  details.c-more li { margin: 4px 0; }
+  .h-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; background: var(--ok); }
+  .h-dot.warn { background: var(--warn); } .h-dot.bad { background: var(--bad); }
+  .kv { font-size: 14px; } .kv div { padding: 3px 0; } .kv span { color: var(--muted); }
+  .f-row { display: grid; grid-template-columns: minmax(150px, 230px) 1fr; gap: 6px 14px; align-items: start; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .f-row:last-of-type { border-bottom: 0; }
+  .f-row label { font-weight: 600; font-size: 14px; }
+  .f-row .sub { font-size: 12px; margin-top: 2px; font-weight: 400; }
+  .f-row input[type=text], .f-row input[type=number], .f-row textarea, .c-form input, .c-form textarea {
+    font: inherit; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--card); color: var(--ink); width: 100%; box-sizing: border-box; }
+  .f-row input[type=number] { width: 90px; }
+  .f-row textarea, .c-form textarea { min-height: 54px; resize: vertical; }
+  .f-inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .c-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+  .c-actions button.primary, button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .c-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .c-table th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  .c-table td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .c-table td.act { white-space: nowrap; text-align: right; }
+  .c-table td.act button { font-size: 12px; padding: 4px 9px; }
+  .chip-admin { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); margin-left: 6px; vertical-align: 1px; }
+  .c-form { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-top: 10px; padding: 12px; border-radius: 10px; background: var(--bg); }
+  .c-form .wide { grid-column: 1 / -1; }
+  .c-form label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 3px; }
+  .c-msg { font-size: 13px; margin-top: 8px; }
+  .c-msg.bad { color: var(--bad); } .c-msg.ok { color: var(--ok); }
+  .feat .seg { margin-top: 10px; }
+  .log td { font-size: 13px; }
+  .roles { font-size: 13px; columns: 2 260px; margin: 8px 0 0; padding-left: 18px; }
+  .handover li { margin: 6px 0; }
+  @media (max-width: 560px) {
+    .f-row { grid-template-columns: 1fr; }
+    .c-table .hide-s { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="login" class="card"></div>
+  <div id="app">
+  <header>
+    <div>
+      <h1><span>WOAH</span> Control</h1>
+      <div class="sub" id="updated">Loading…</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><nav class="pages" id="nav"></nav><button id="refresh" onclick="load()" target="_self">Refresh</button></div>
+      <div class="who" id="who"></div>
+    </div>
+  </header>
+  <div class="banner" id="banner"></div>
+  <div class="c-nav">
+    <a href="#how" target="_self">1 How Chris works</a><a href="#health" target="_self">2 Health</a><a href="#switches" target="_self">3 Switches</a><a href="#settings" target="_self">4 Settings</a>
+    <a href="#team" target="_self">5 Team &amp; departments</a><a href="#run" target="_self">6 Run</a><a href="#activity" target="_self">7 Activity</a><a href="#handover" target="_self">8 For the next admin</a>
+  </div>
+
+  <section class="c-sec" id="how">
+    <h2><span class="num">1</span> How Chris works</h2>
+    <div class="sub">Chris is WOAH's email assistant. He works by himself every few minutes; this page lets you see what he's doing and change how he does it. No code needed.</div>
+    <div class="flow">
+      <div class="card"><b>An email arrives</b><div>Every 5 minutes Chris checks the WOAH inbox for new emails.</div></div>
+      <div class="card"><b>He works out who it's for</b><div>Using the <b>Routing</b> list (topics and keywords) and AI, he picks the department and the right team members from the <b>Team</b> list.</div></div>
+      <div class="card"><b>He forwards it</b><div>The team member gets it in their own inbox, and can answer from the <b>Email handlers</b> page. Outside people get a short auto-reply.</div></div>
+      <div class="card"><b>He reminds</b><div>If nobody answers, he sends reminders (CC'ing the people set in Settings). When someone answers, he tells everyone it's done.</div></div>
+      <div class="card"><b>He follows up</b><div>If WOAH emailed someone and they didn't answer, he nudges the sender to follow up.</div></div>
+      <div class="card"><b>He keeps records</b><div>He updates the Planner, the Email handlers page and the Possible Partners List, and emails the admins if something breaks.</div></div>
+    </div>
+    <details class="c-more"><summary>More detail: words you'll see</summary>
+      <ul>
+        <li><b>Team list</b>: everyone Chris can send to. If someone isn't on it, Chris never emails them, and they can't log in to these pages.</li>
+        <li><b>Routing</b>: each department, the words that point to it, and who it goes to. "Default" is used when nothing fits.</li>
+        <li><b>Break</b>: holidays. Nothing goes to students; everything goes to the break contacts instead.</li>
+        <li><b>Test mode</b>: every email Chris would send goes only to the first alerts person. Good for trying changes safely.</li>
+        <li><b>Admins</b>: the people who can open this page. Everyone else on the team only sees Email handlers and Partners.</li>
+        <li><b>Passwords</b>: there are two (full and handlers). They're kept in Chris's script settings and are never shown on any page.</li>
+        <li>Changes you save here work from Chris's next check (within about 5 minutes). Every change is written in <a href="#activity" target="_self">Activity</a> with who made it.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section class="c-sec" id="health"><h2><span class="num">2</span> Health</h2><div class="sub">Is Chris running, and is anything wrong?</div><div id="healthBox"></div></section>
+  <section class="c-sec" id="switches"><h2><span class="num">3</span> Switches</h2><div class="sub">Turn whole parts of Chris on or off. Each one says what changes.</div><div id="switchBox"></div></section>
+  <section class="c-sec" id="settings"><h2><span class="num">4</span> Settings</h2><div class="sub">Who gets copied, when reminders go out, how Chris signs his emails. Separate several emails with commas.</div><div id="settingsBox"></div></section>
+  <section class="c-sec" id="team"><h2><span class="num">5</span> Team &amp; departments</h2><div class="sub">Who's on the team, who's an admin, and which department gets which emails.</div><div id="teamBox"></div></section>
+  <section class="c-sec" id="run"><h2><span class="num">6</span> Run</h2><div class="sub">Make Chris do something now instead of waiting. He picks it up within about 5 minutes.</div><div id="runBox"></div></section>
+  <section class="c-sec" id="activity"><h2><span class="num">7</span> Activity</h2><div class="sub">Changes made on this page, what people did on the website, and Chris's alerts.</div><div id="activityBox"></div></section>
+  <section class="c-sec" id="handover">
+    <h2><span class="num">8</span> For the next admin</h2>
+    <div class="sub">Taking over Chris? Do these once, in this order.</div>
+    <div class="card"><ol class="handover">
+      <li><b>Get added.</b> Ask a current admin to add you to the Team list and press <b>Make admin</b> next to your name (section 5). Then log in here with your own email.</li>
+      <li><b>Get the passwords</b> from the person handing over: the full password and the handlers password. Never post them in a chat group or a document.</li>
+      <li><b>Put yourself on alerts.</b> In Settings, add your email to "Who gets Chris's alerts" so you hear about problems.</li>
+      <li><b>Update the team every term.</b> Add new students, remove people who left (their open emails and partner contacts move to the right department automatically), and check the Routing departments still match.</li>
+      <li><b>Check Health once a week.</b> Green means fine. If it's red, read the alert in Activity; most problems fix themselves on the next check.</li>
+      <li><b>Before holidays</b>, switch the WOAH inbox and Planner to <b>Break</b>, and check the break contacts are right. Switch back <b>On</b> when term starts.</li>
+      <li><b>Remove the old admin</b> when they've left: take away <b>Admin</b>, then remove them from the team. There always has to be at least one admin.</li>
+      <li><b>Read the WOAH Systems Guide</b> for how the Email handlers and Partners pages work for students.</li>
+    </ol>
+    <div class="sub" id="links" style="margin-top:8px"></div></div>
+  </section>
+  </div>
+</div>
+<script src="common.js?v=5"></script>
+<script>
+  let D = null, EDIT = null;
+  const FEAT = [
+    ['autoReply', 'Auto-reply to outside people', 'When someone outside WOAH emails, Chris sends a short "we got your email" reply.', 'Outside people get no automatic reply.'],
+    ['reminders', 'Reminders to the team', "Team members get reminders about emails they haven't answered.", 'No reminders. Forwards still go out.'],
+    ['followups', 'Follow-up nudges', "When WOAH emailed someone and they didn't answer, the sender gets a nudge to follow up.", 'No follow-up nudges.'],
+    ['promises', 'Promise tracking', 'When someone from WOAH promises something in an email ("I\'ll send it Friday"), Chris labels it and keeps track.', 'Promises are not tracked.'],
+    ['ai', 'AI sorting', 'AI reads each email to pick the department and spot what it needs.', 'Chris uses keywords from Routing only. Less accurate.'],
+    ['deptCc', 'CC the department', 'The other people in the department are CC\'d on forwards and reminders.', 'Only the person it\'s forwarded to gets it.'],
+  ];
+  const SWB = { inbox: ['WOAH inbox', 'Forwards, reminders and follow-ups go to the team as normal.', 'Nothing goes to students. Everything goes to the break contacts. Outside people still get the auto-reply.'],
+    planner: ['Planner reminders', 'Daily planner reminders go to each owner.', 'No planner reminders to students. The break contacts get one daily summary instead.'] };
+  const OPS = { ctl_dash: ['Update the Email handlers page', 'Re-read the inbox and refresh the lists on the Email handlers page now (normally hourly).'],
+    ctl_remind: ['Send due reminders now', "Send any reminders and follow-up nudges that are due now, instead of at the next hour. Doesn't send extra ones."] };
+  const OPNAMES = { ctl_dash: 'Updated the Email handlers page', ctl_remind: 'Sent due reminders', pp_sync: 'Partners: update from emails', pp_pics: 'Partners: reassign PICs', pp_test: 'Partners: test run', pp_testpics: 'Partners: PIC test run',
+    reply: 'Replied from the page', followup: 'Sent a follow-up', reassign: 'Reassigned an email', claim: 'Took an email', done: 'Marked done', pass: 'Passed on', outreach: 'Sent outreach' };
+
+  function eff() { return Object.assign({}, (D.health && D.health.effective) || {}, D.settings || {}); }
+  function L(v) { return Array.isArray(v) ? v.join(', ') : String(v == null ? '' : v); }
+  function splitList(s) { return String(s || '').split(/[,;\n]/).map(x => x.trim().toLowerCase()).filter(Boolean); }
+  function msg(id, text, ok) { const e = document.getElementById(id); if (e) { e.className = 'c-msg ' + (ok ? 'ok' : 'bad'); e.textContent = text; } }
+  function save(body, msgId, done) {
+    msg(msgId, 'Saving…', true);
+    return call(body).then(d => { render(d); msg(msgId, done || 'Saved. Chris uses it from his next check.', true); }).catch(e => msg(msgId, e.message, false));
+  }
+  function nameOf(e) { const p = (D.team || []).find(t => t.email === String(e).toLowerCase()); return p ? p.name : e; }
+
+  // ---------- 2 Health ----------
+  function drawHealth() {
+    const h = D.health || {}, p = D.partners || {};
+    const mins = h.lastRun ? Math.round((Date.now() - h.lastRun) / 60000) : null;
+    const runState = mins == null ? ['bad', "Chris hasn't reported in yet. If this stays after 10 minutes, his schedule may be off."] : mins <= 15 ? ['', 'Running. Last check ' + (mins < 1 ? 'just now' : mins + ' min ago') + (h.lastRunMs ? ' (took ' + Math.round(h.lastRunMs / 1000) + 's)' : '') + '.'] : mins <= 60 ? ['warn', 'Last check ' + mins + ' min ago. A bit late; it usually runs every 5 minutes.'] : ['bad', 'Last check ' + agoText(h.lastRun) + ' (' + when(h.lastRun) + '). Chris seems stopped.'];
+    const recentAlerts = (D.alerts || []).filter(a => Date.now() - a.at < 86400000);
+    const ppErr = p.error && p.errorAt && Date.now() - p.errorAt < 86400000;
+    const dashMins = D.dashAt ? Math.round((Date.now() - D.dashAt) / 60000) : null;
+    const items = [
+      [runState[0], 'Chris', runState[1]],
+      [h.ai ? '' : 'warn', 'AI', h.ai ? 'Connected (' + esc(h.ai) + ').' : 'No AI key found, so Chris sorts by keywords only. An admin with access to Chris\'s script settings has to add the key.'],
+      [h.testMode ? 'warn' : '', 'Test mode', h.testMode ? 'ON: every email goes only to ' + esc(L((h.effective || {}).alerts || (h.effective || {}).admin)) + '. Turn it off in Switches when done.' : 'Off (normal).'],
+      [D.control && (D.control.inbox === 'BREAK' || D.control.planner === 'BREAK') ? 'warn' : '', 'Break', D.control && (D.control.inbox === 'BREAK' || D.control.planner === 'BREAK') ? 'On break: ' + ['inbox', 'planner'].filter(k => D.control[k] === 'BREAK').map(k => SWB[k][0]).join(' and ') + '.' : 'Not on break.'],
+      [dashMins != null && dashMins > 180 ? 'warn' : '', 'Email handlers page', D.dashAt ? 'Updated ' + (dashMins < 60 ? dashMins + ' min ago' : when(D.dashAt)) + '.' : 'Not updated yet.'],
+      [ppErr ? 'bad' : '', 'Possible Partners', ppErr ? 'Problem ' + when(p.errorAt) + ': ' + esc(p.error) : p.lastCheck ? 'Last update ' + when(p.lastCheck) + '.' : 'Not run yet.'],
+      [recentAlerts.length ? 'bad' : '', 'Alerts (24h)', recentAlerts.length ? recentAlerts.length + ': ' + esc(recentAlerts[0].subject) + ' — see Activity.' : 'None.'],
+    ];
+    const worst = items.some(i => i[0] === 'bad') ? 'bad' : items.some(i => i[0] === 'warn') ? 'warn' : '';
+    document.getElementById('healthBox').innerHTML = `<div class="banner ${worst === 'bad' ? 'bad' : worst === 'warn' ? 'warn' : ''}" style="display:block;${worst ? '' : 'background:var(--ok-soft);color:var(--ok)'}">${worst === 'bad' ? 'Something needs a look.' : worst === 'warn' ? 'Working, with a few things to know.' : 'All good. Chris is running normally.'}</div>
+      <div class="card kv">${items.map(([c, k, v]) => `<div><i class="h-dot ${c}"></i><b>${k}</b> <span>·</span> ${v}</div>`).join('')}
+      ${h.me ? `<div class="sub" style="margin-top:6px">Chris sends from ${esc(h.me)}.</div>` : ''}</div>`;
+  }
+
+  // ---------- 3 Switches ----------
+  function drawSwitches() {
+    const e = eff(), f = Object.assign({ autoReply: true, reminders: true, followups: true, promises: true, ai: true, deptCc: true }, e.features || {});
+    const c = D.control || {};
+    let h = `<div class="c-grid">` + ['inbox', 'planner'].map(k => { const on = c[k] !== 'BREAK'; return `<div class="card">
+      <div class="sw-top"><div class="sw-name">${SWB[k][0]}</div><span class="pill ${on ? 'on' : 'break'}">${on ? 'ON' : 'BREAK'}</span></div>
+      <div class="sw-note">${on ? SWB[k][1] : SWB[k][2]}</div>
+      <div class="seg" style="margin-top:10px"><button class="${on ? 'active on' : ''}" onclick="askBreak('${k}','ON')">On</button><button class="${!on ? 'active break' : ''}" onclick="askBreak('${k}','BREAK')">Break</button></div>
+      <div class="confirm" id="cf-${k}"></div></div>`; }).join('');
+    h += FEAT.map(([k, name, onTxt, offTxt]) => `<div class="card feat">
+      <div class="sw-top"><div class="sw-name">${name}</div><span class="pill ${f[k] ? 'on' : 'break'}">${f[k] ? 'ON' : 'OFF'}</span></div>
+      <div class="sw-note">${f[k] ? onTxt : '<b>Off:</b> ' + offTxt}</div>
+      <div class="seg"><button class="${f[k] ? 'active on' : ''}" onclick="setFeat('${k}',true)">On</button><button class="${!f[k] ? 'active break' : ''}" onclick="setFeat('${k}',false)">Off</button></div></div>`).join('');
+    h += `<div class="card"><div class="sw-top"><div class="sw-name">Test mode</div><span class="pill ${e.testMode ? 'break' : 'on'}">${e.testMode ? 'ON' : 'OFF'}</span></div>
+      <div class="sw-note">${e.testMode ? 'Every email Chris would send goes only to ' + esc(L(e.alerts && e.alerts.length ? e.alerts[0] : e.admin)) + '. Nobody else gets anything.' : 'Off: emails go to the real people. Turn on to try changes safely.'}</div>
+      <div class="seg" style="margin-top:10px"><button class="${!e.testMode ? 'active on' : ''}" onclick="askTest(false)">Off</button><button class="${e.testMode ? 'active break' : ''}" onclick="askTest(true)">On</button></div>
+      <div class="confirm" id="cf-test"></div></div>
+      <div class="card"><div class="sw-name">Possible Partners</div><div class="sw-note">The partners sheet has its own switches (updates from emails, PIC reassigning, moving rows).</div><div style="margin-top:10px"><a href="partners.html" target="_self">Open the Partners controls →</a></div></div>`;
+    document.getElementById('switchBox').innerHTML = h + `</div><div class="c-msg" id="swMsg"></div>`;
+  }
+  function askBreak(k, v) {
+    if ((D.control || {})[k] === v || (v === 'ON' && (D.control || {})[k] !== 'BREAK')) return;
+    const box = document.getElementById('cf-' + k);
+    box.innerHTML = (v === 'BREAK' ? 'Switch ' + SWB[k][0] + ' to <b>Break</b>? ' + SWB[k][2] : 'Switch ' + SWB[k][0] + ' back <b>On</b>? ' + SWB[k][1]) + `<br><button class="primary" onclick="doBreak('${k}','${v}')">Yes, switch</button><button onclick="this.parentNode.style.display='none'">Cancel</button>`;
+    box.style.display = 'block';
+  }
+  function doBreak(k, v) { msg('swMsg', 'Switching…', true); call({ action: 'set', which: k, value: v }).then(() => load()).then(() => msg('swMsg', 'Switched.', true)).catch(e => msg('swMsg', e.message, false)); }
+  function setFeat(k, v) { save({ action: 'controlSet', settings: { features: { [k]: v } } }, 'swMsg'); }
+  function askTest(v) {
+    if (!!eff().testMode === v) return;
+    if (!v) return save({ action: 'controlSet', settings: { testMode: false } }, 'swMsg');
+    const box = document.getElementById('cf-test');
+    box.innerHTML = `Turn on <b>Test mode</b>? The team will stop getting forwards and reminders until you turn it off.<br><button class="primary" onclick="save({action:'controlSet',settings:{testMode:true}},'swMsg')">Yes, turn on</button><button onclick="this.parentNode.style.display='none'">Cancel</button>`;
+    box.style.display = 'block';
+  }
+
+  // ---------- 4 Settings ----------
+  const SET_LISTS = [
+    ['alerts', "Who gets Chris's alerts", 'Emails about problems (and Test mode emails, to the first person). At least one.'],
+    ['ccEvery', "CC'd on every reminder and forward", 'Usually the teacher in charge.'],
+    ['ccFirst', "CC'd on the first reminder only", ''],
+    ['ccImportant', "CC'd on important emails", 'Sponsors, money, contracts and anything urgent.'],
+    ['breakContacts', 'Break contacts', 'Who gets everything while a switch is on Break.'],
+    ['ignore', 'Senders Chris ignores', 'Newsletters or systems that should never be forwarded. Emails or parts like "noreply".'],
+  ];
+  const SET_NUMS = [['remindAfterDays', 'First reminder after', 'days', 1, 14], ['remindEveryDays', 'Then a reminder every', 'days', 1, 14], ['maxReminders', 'Stop after', 'reminders', 0, 10],
+    ['hoursFrom', 'Send reminders from', ':00 (Bali time)', 0, 23], ['hoursTo', '…until', ':00', 1, 24], ['followupDays', 'Follow-up nudge after', 'days without an answer', 1, 30], ['followupMax', 'At most', 'follow-up nudges per hour', 1, 50]];
+  function drawSettings() {
+    const e = eff();
+    const val = k => k === 'breakContacts' ? (D.control && D.control.contacts) || '' : L(e[k] != null ? e[k] : (k === 'alerts' ? e.admin : ''));
+    document.getElementById('settingsBox').innerHTML = `<div class="card">
+      ${SET_LISTS.map(([k, label, note]) => `<div class="f-row"><label for="s-${k}">${label}<div class="sub">${note}</div></label><textarea id="s-${k}" rows="2">${esc(val(k))}</textarea></div>`).join('')}
+      ${SET_NUMS.map(([k, label, unit, lo, hi]) => `<div class="f-row"><label for="s-${k}">${label}</label><div class="f-inline"><input type="number" id="s-${k}" min="${lo}" max="${hi}" value="${esc(e[k] != null ? e[k] : '')}"><span class="sub">${unit}</span></div></div>`).join('')}
+      <div class="f-row"><label for="s-senderName">Sender name<div class="sub">The name people see on Chris's emails.</div></label><input type="text" id="s-senderName" value="${esc(e.senderName || '')}"></div>
+      <div class="f-row"><label for="s-signature">Signature<div class="sub">Under every email Chris writes.</div></label><input type="text" id="s-signature" value="${esc(e.signature || '')}"></div>
+      <div class="c-actions"><button class="primary" onclick="saveSettings()">Save settings</button><button onclick="drawSettings()">Undo my edits</button><span class="sub">${D.settings && D.settings.changedAt ? 'Last saved ' + when(D.settings.changedAt) + ' by ' + esc(first(D.settings.changedBy)) : ''}</span></div>
+      <div class="c-msg" id="setMsg"></div></div>`;
+  }
+  function saveSettings() {
+    const s = {}, e = eff();
+    SET_LISTS.forEach(([k]) => {
+      const now = splitList(document.getElementById('s-' + k).value);
+      const before = k === 'breakContacts' ? splitList(D.control && D.control.contacts) : splitList(L(e[k] != null ? e[k] : (k === 'alerts' ? e.admin : '')));
+      if (now.join() !== before.join()) s[k] = now;
+    });
+    SET_NUMS.forEach(([k]) => { const v = document.getElementById('s-' + k).value; if (v !== '' && Number(v) !== e[k]) s[k] = Number(v); });
+    ['senderName', 'signature'].forEach(k => { const v = document.getElementById('s-' + k).value.trim(); if (v && v !== e[k]) s[k] = v; });
+    if (!Object.keys(s).length) return msg('setMsg', 'Nothing changed.', true);
+    save({ action: 'controlSet', settings: s }, 'setMsg');
+  }
+
+  // ---------- 5 Team & departments ----------
+  function admins() { return D.admins || []; }
+  function drawTeam() {
+    const ad = admins(), me = myEmail();
+    let h = '';
+    if (!ad.length) h += `<div class="banner warn" style="display:block">No admins set yet, so anyone with the full password can open this page. Press <b>Make admin</b> for yourself (and anyone else who should have control) to lock it down. After that, only admins get full control.</div>`;
+    h += `<div class="card"><div class="sw-top"><div class="sw-name">Team <span class="sub" style="font-weight:400">· ${(D.team || []).length} people · ${ad.length} admin${ad.length === 1 ? '' : 's'}</span></div><button onclick="teamForm('add')">+ Add person</button></div>
+      <div class="sub">Chris only emails people on this list, and only they can log in. Nicknames help Chris understand "ask Max" in emails.</div>
+      <div id="teamForm"></div>
+      <div class="scroll"><table class="c-table" style="margin-top:8px"><tr><th>Name</th><th class="hide-s">Email</th><th class="hide-s">Nicknames</th><th></th></tr>
+      ${(D.team || []).map(p => { const isA = ad.includes(p.email); return `<tr><td><b>${esc(p.name)}</b>${isA ? '<span class="chip-admin">ADMIN</span>' : ''}${p.email === me ? ' <span class="sub">(you)</span>' : ''}</td><td class="hide-s">${esc(p.email)}</td><td class="hide-s">${esc(p.nick)}</td>
+        <td class="act"><button onclick="toggleAdmin('${esc(p.email)}')">${isA ? 'Remove admin' : 'Make admin'}</button> <button onclick="teamForm('edit','${esc(p.email)}')">Edit</button> <button onclick="teamForm('remove','${esc(p.email)}')">Remove</button></td></tr>`; }).join('')}
+      </table></div><div class="c-msg" id="teamMsg"></div></div>`;
+    h += `<div class="card" style="margin-top:14px"><div class="sw-top"><div class="sw-name">Departments (Routing)</div><button onclick="routeForm('add')">+ Add department</button></div>
+      <div class="sub">Chris matches each email to a department by its words, then sends it to the people in "Send to" (names, nicknames, role words from the team roles, or emails). <b>Default</b> is for everything else.</div>
+      <div id="routeForm"></div>
+      <div class="scroll"><table class="c-table" style="margin-top:8px"><tr><th>Department</th><th class="hide-s">Words that point to it</th><th>Send to</th><th></th></tr>
+      ${(D.routing || []).map(r => `<tr><td><b>${esc(r.topic)}</b></td><td class="hide-s sub">${esc(r.keywords)}</td><td>${esc(r.sendTo)}</td>
+        <td class="act"><button onclick="routeForm('edit','${esc(r.topic)}')">Edit</button>${/^default/i.test(r.topic) ? '' : ` <button onclick="routeForm('remove','${esc(r.topic)}')">Remove</button>`}</td></tr>`).join('')}
+      </table></div><div class="c-msg" id="routeMsg"></div></div>`;
+    if ((D.roles || []).length) h += `<div class="card" style="margin-top:14px"><div class="sw-name">Team roles</div><div class="sub">From the team roles document. Chris uses these to understand who does what. To change them, edit the document${D.teamDocUrl ? ` (<a href="${esc(D.teamDocUrl)}">open it</a>)` : ''}.</div><ul class="roles">${D.roles.map(r => `<li>${esc(r)}</li>`).join('')}</ul></div>`;
+    document.getElementById('teamBox').innerHTML = h;
+  }
+  function toggleAdmin(email) {
+    const ad = admins().slice(), me = myEmail();
+    let next;
+    if (ad.includes(email)) {
+      if (email === me) return msg('teamMsg', "You can't remove yourself as admin. Ask another admin.", false);
+      if (ad.length === 1) return msg('teamMsg', 'There has to be at least one admin.', false);
+      next = ad.filter(e => e !== email);
+    } else {
+      next = ad.concat(email);
+      if (!next.includes(me)) next.unshift(me);   // the first admin list must include you, or you'd lock yourself out
+    }
+    save({ action: 'controlSet', settings: { admins: next } }, 'teamMsg', ad.includes(email) ? nameOf(email) + ' is no longer an admin.' : nameOf(email) + ' is now an admin' + (!ad.length && email !== me ? ' (and so are you)' : '') + '.');
+  }
+  function teamForm(mode, email) {
+    const p = (D.team || []).find(t => t.email === email) || { name: '', email: '', nick: '' };
+    const box = document.getElementById('teamForm');
+    if (mode === 'remove') {
+      box.innerHTML = `<div class="confirm" style="display:block">Remove <b>${esc(p.name)}</b> from the team? Chris stops emailing them and they can't log in. Emails waiting on them and their partner contacts go to someone else in their department.<br>
+        <button class="primary" onclick="teamSave('remove','${esc(p.email)}')">Yes, remove</button><button onclick="document.getElementById('teamForm').innerHTML=''">Cancel</button></div>`;
+      return;
+    }
+    box.innerHTML = `<div class="c-form"><div><label>Full name</label><input id="tf-name" value="${esc(p.name)}" placeholder="e.g. Alex Rivera"></div>
+      <div><label>Email</label><input id="tf-email" value="${esc(p.email)}" placeholder="name@school.org"></div>
+      <div class="wide"><label>Nicknames (optional, comma separated)</label><input id="tf-nick" value="${esc(p.nick)}" placeholder="e.g. Alex, Al"></div>
+      <div class="wide c-actions" style="margin-top:0"><button class="primary" onclick="teamSave('${mode}','${esc(p.email)}')">${mode === 'add' ? 'Add to team' : 'Save'}</button><button onclick="document.getElementById('teamForm').innerHTML=''">Cancel</button></div></div>`;
+    document.getElementById('tf-name').focus();
+  }
+  function teamSave(mode, orig) {
+    const body = { action: 'teamSave', mode, orig };
+    if (mode !== 'remove') { body.name = document.getElementById('tf-name').value; body.email = document.getElementById('tf-email').value; body.nick = document.getElementById('tf-nick').value; }
+    save(body, 'teamMsg', mode === 'add' ? 'Added. They can log in now.' : mode === 'remove' ? 'Removed from the team.' : 'Saved.');
+  }
+  function routeForm(mode, topic) {
+    const r = (D.routing || []).find(x => x.topic === topic) || { topic: '', keywords: '', sendTo: '' };
+    const box = document.getElementById('routeForm');
+    if (mode === 'remove') {
+      box.innerHTML = `<div class="confirm" style="display:block">Remove the <b>${esc(r.topic)}</b> department? Its emails will go to Default (or the closest other department).<br>
+        <button class="primary" onclick="routeSave('remove','${esc(r.topic)}')">Yes, remove</button><button onclick="document.getElementById('routeForm').innerHTML=''">Cancel</button></div>`;
+      return;
+    }
+    const isDef = /^default/i.test(r.topic);
+    box.innerHTML = `<div class="c-form"><div><label>Department</label><input id="rf-topic" value="${esc(r.topic)}" ${isDef ? 'disabled' : ''} placeholder="e.g. Sports"></div>
+      <div><label>Send to</label><input id="rf-send" value="${esc(r.sendTo)}" placeholder="e.g. Alex, Sam"></div>
+      <div class="wide"><label>Words that point to it (comma separated)</label><textarea id="rf-kw" placeholder="e.g. football, tournament, athletes">${esc(r.keywords)}</textarea></div>
+      <div class="wide c-actions" style="margin-top:0"><button class="primary" onclick="routeSave('${mode}','${esc(r.topic)}')">${mode === 'add' ? 'Add department' : 'Save'}</button><button onclick="document.getElementById('routeForm').innerHTML=''">Cancel</button></div></div>`;
+  }
+  function routeSave(mode, orig) {
+    const body = { action: 'routingSave', mode, orig };
+    if (mode !== 'remove') { body.topic = document.getElementById('rf-topic').value || orig; body.keywords = document.getElementById('rf-kw').value; body.sendTo = document.getElementById('rf-send').value; }
+    save(body, 'routeMsg', mode === 'remove' ? 'Department removed.' : 'Saved. Chris uses it from his next check.');
+  }
+
+  // ---------- 6 Run ----------
+  function drawRun() {
+    const pend = D.pending || [];
+    document.getElementById('runBox').innerHTML = `<div class="card">${Object.keys(OPS).map(op => { const w = pend.find(p => p.op === op); return `<div class="pp-row" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0">
+      <button ${w ? 'disabled' : ''} onclick="runOp('${op}')">${OPS[op][0]}</button><span class="sub">${w ? '<b>Waiting for Chris</b> (pressed ' + esc(when(w.at)) + ' by ' + esc(first(w.by)) + ')' : OPS[op][1]}</span></div>`; }).join('')}
+      <div class="sub" style="margin-top:6px">Partners buttons (update now, check PICs, test runs) are on the <a href="partners.html" target="_self">Partners page</a>.</div>
+      <div class="c-msg" id="runMsg"></div></div>`;
+  }
+  function runOp(op) { save({ action: 'controlRun', op }, 'runMsg', 'Queued. Chris does it within about 5 minutes; the result shows in Activity.'); }
+
+  // ---------- 7 Activity ----------
+  function drawActivity() {
+    const ch = D.changes || [], act = D.activity || [], al = D.alerts || [];
+    document.getElementById('activityBox').innerHTML = `
+      <div class="card"><div class="sw-name">Changes on this page</div>
+      ${ch.length ? `<div class="scroll"><table class="c-table log" style="margin-top:6px"><tr><th>When</th><th>Who</th><th>What</th></tr>${ch.slice(0, 30).map(c => `<tr><td style="white-space:nowrap">${esc(when(c.at))}</td><td>${esc(first(c.by))}</td><td>${esc(c.what)}</td></tr>`).join('')}</table></div>` : '<div class="empty">No changes yet.</div>'}</div>
+      <div class="card" style="margin-top:14px"><div class="sw-name">Done on the website</div><div class="sub">Replies, reassigns and buttons pressed, and what Chris did with them.</div>
+      ${act.length ? `<div class="scroll" style="max-height:360px"><table class="c-table log" style="margin-top:6px"><tr><th>When</th><th>Who</th><th>What</th><th class="hide-s">Result</th></tr>${act.slice(0, 50).map(a => `<tr><td style="white-space:nowrap">${a.at ? esc(when(a.at)) : ''}</td><td>${esc(first(a.by))}</td><td>${esc(OPNAMES[a.op] || a.op)}</td><td class="hide-s sub">${esc(a.result || 'waiting for Chris')}</td></tr>`).join('')}</table></div>` : '<div class="empty">Nothing yet.</div>'}</div>
+      <div class="card" style="margin-top:14px"><div class="sw-name">Chris's alerts</div><div class="sub">The problem emails Chris sent to the alerts people. Most fix themselves on the next check.</div>
+      ${al.length ? al.slice(0, 15).map(a => `<details class="c-more" style="border-bottom:1px solid var(--line);padding-bottom:8px"><summary><span class="sub">${esc(when(a.at))}</span> · ${esc(a.subject)}</summary><div class="sub" style="margin-top:6px">${esc(a.text)}</div></details>`).join('') : '<div class="empty">No alerts.</div>'}</div>`;
+  }
+
+  function render(d) {
+    D = d;
+    document.getElementById('updated').textContent = 'Everything about Chris in one place · loaded ' + when(Date.now());
+    drawHealth(); drawSwitches(); drawSettings(); drawTeam(); drawRun(); drawActivity();
+    const l = [];
+    if (d.plannerUrl) l.push(`<a href="${esc(d.plannerUrl)}">Planner</a> (Team and Routing tabs)`);
+    if (d.teamDocUrl) l.push(`<a href="${esc(d.teamDocUrl)}">Team roles document</a>`);
+    document.getElementById('links').innerHTML = l.length ? 'Where Chris keeps his lists: ' + l.join(' · ') : '';
+  }
+  start({ title: 'Control', need: 'full', action: 'control', onData: render });
+</script>
+</body>
+</html>
