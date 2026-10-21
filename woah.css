@@ -234,3 +234,7 @@ html[data-ui="woah"] details[open] > :not(summary) { animation: w-up .35s ease b
 html[data-ui="woah"] .w-panel.open .w-seg { animation: w-up .3s ease both; }
 html[data-ui="woah"] .stat:hover, html[data-ui="woah"] .card.feat:hover { transform: translateY(-2px); box-shadow: var(--shadow-up); }
 .w-load-msg { max-width: min(380px, 86vw); text-align: center; line-height: 1.4; }
+/* while the big loader is up, the page stays hidden behind it (no peeking before 100%) */
+html.w-loading-big .wrap, html.w-boot .wrap { opacity: 0 !important; }
+html.w-loading-big .w-load, html.w-boot .w-load { background: var(--bg); }
+html.w-loading-big .w-loginbg { opacity: 0 !important; }

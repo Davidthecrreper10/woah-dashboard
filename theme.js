@@ -227,7 +227,8 @@
   }
   function tick() {
     const t = (performance.now() - Lt0) / 1000;
-    Lp = Math.max(Lp, 94 * (1 - Math.exp(-t / 2.3)));   // real calls have no progress events, so it eases towards 94% and jumps to 100% when Chris answers
+    Lp = Math.max(Lp, 94 * (1 - Math.exp(-t / 2.3)));
+    if (Lfin) { const k = Math.min(1, (performance.now() - Lfin.t) / 2000); Lp = Lfin.from + (100 - Lfin.from) * (1 - Math.pow(1 - k, 2)); }   // the extra 2 s fill the ring smoothly to 100%   // real calls have no progress events, so it eases towards 94% and jumps to 100% when Chris answers
     const m = Math.min(MSGSET.length - 1, Math.floor(t / (MSGSET === MSGS ? 1.6 : 2.2)));
     if (m !== Lmsg) { Lmsg = m; const e = L.querySelector('.w-load-msg'); e.classList.remove('w-msg-in'); void e.offsetWidth; e.textContent = MSGSET[m]; e.classList.add('w-msg-in'); }
     paint(); Lraf = requestAnimationFrame(tick);
@@ -245,15 +246,17 @@
     html.classList.toggle('w-loading-big', Lbig); html.classList.add('w-loading');
     Lraf = requestAnimationFrame(tick);
   }
-  let Lhold = 0;
+  let Lhold = 0, Lfin = null;
   function endLoad() {
     Lopen = Math.max(0, Lopen - 1); if (Lopen) return;
     if (MSGSET !== MSGS && !Lhold && Lbig) {   // logging in: stay 2 seconds longer on purpose so the jokes and facts get a turn
-      Lhold = setTimeout(() => { Lhold = 0; MSGSET = MSGS; if (!Lopen) { Lopen = 1; endLoad(); } }, 2000);
+      Lfin = { t: performance.now(), from: Lp };
+      Lhold = setTimeout(() => { Lhold = 0; Lfin = null; MSGSET = MSGS; if (!Lopen) { Lopen = 1; endLoad(); } }, 2000);
       return;
     }
     cancelAnimationFrame(Lraf); Lp = 100; if (L) paint();
     setTimeout(() => {
+      if (Lbig && bootDone) { html.classList.add('w-booted'); setTimeout(() => html.classList.remove('w-booted'), 1200); }   // the page rises in only once the loader is at 100%
       html.classList.remove('w-loading', 'w-loading-big', 'w-arrive', 'w-leaving'); Lbig = false;
       if (!bootDone) { bootDone = true; html.classList.remove('w-boot'); html.classList.add('w-booted'); setTimeout(() => html.classList.remove('w-booted'), 1200); firstRender = Date.now(); }
     }, Lbig ? 260 : 150);
