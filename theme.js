@@ -245,8 +245,13 @@
     html.classList.toggle('w-loading-big', Lbig); html.classList.add('w-loading');
     Lraf = requestAnimationFrame(tick);
   }
+  let Lhold = 0;
   function endLoad() {
     Lopen = Math.max(0, Lopen - 1); if (Lopen) return;
+    if (MSGSET !== MSGS && !Lhold && Lbig) {   // logging in: stay 2 seconds longer on purpose so the jokes and facts get a turn
+      Lhold = setTimeout(() => { Lhold = 0; MSGSET = MSGS; if (!Lopen) { Lopen = 1; endLoad(); } }, 2000);
+      return;
+    }
     cancelAnimationFrame(Lraf); Lp = 100; if (L) paint();
     setTimeout(() => {
       html.classList.remove('w-loading', 'w-loading-big', 'w-arrive', 'w-leaving'); Lbig = false;
