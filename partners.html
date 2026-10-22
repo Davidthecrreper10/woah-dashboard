@@ -70,7 +70,7 @@
 </div>
 <script src="common.js?v=5"></script>
 <script>
-  let PP = null, Q = '', F_TAB = '', F_ST = '', MINE = false, SHOW = 40;
+  let PP = null, Q = '', F_TAB = '', F_ST = '', MINE = false, SHOW = 1000;   // show every contact
   try { const s = JSON.parse(sessionStorage.getItem('ppFilters') || '{}'); Q = s.q || ''; F_TAB = s.tab || ''; F_ST = s.st || ''; MINE = !!s.mine; } catch (e) {}
   function keep() { try { sessionStorage.setItem('ppFilters', JSON.stringify({ q: Q, tab: F_TAB, st: F_ST, mine: MINE })); } catch (e) {} }
 
@@ -199,7 +199,7 @@
     box.innerHTML = `<div class="sub" style="margin-top:10px">${hits.length} of ${all.length} contacts${hits.length > SHOW ? ', showing the first ' + SHOW : ''}</div>
       ${sum ? `<div class="pp-legend">${sum}</div>` : ''}
       ${hits.length ? hits.slice(0, SHOW).map(item).join('') : '<div class="empty">Nothing matches. Try fewer words, or another tab / status.</div>'}
-      ${hits.length > SHOW ? `<div style="margin-top:10px"><button onclick="SHOW+=40;drawResults()">Show more</button></div>` : ''}`;
+      ${hits.length > SHOW ? `<div style="margin-top:10px"><button onclick="SHOW+=1000;drawResults()">Show more</button></div>` : ''}`;
     if (OPEN_PIC) { const i = (PP.rows || []).findIndex(r => keyOf(r) === OPEN_PIC); if (i >= 0 && document.getElementById('pic-' + i) && !picPending(PP.rows[i])) askPic(i, true, PIC_SEL); else OPEN_PIC = ''; }
     if (OPEN_RM) { const i = (PP.rows || []).findIndex(r => keyOf(r) === OPEN_RM); if (i >= 0 && document.getElementById('rm-' + i) && !removing(PP.rows[i])) askRemove(null, i, true); else OPEN_RM = ''; }
   }
@@ -212,10 +212,10 @@
       c.innerHTML = `<div class="pp-h">Search partners</div>
         <div class="sub" style="margin-bottom:10px">Every company and person on every tab of the Possible Partners List. Search by company, person, email, PIC or what they offer.</div>
         <div class="pp-search">
-          <input type="search" id="ppQ" placeholder="e.g. surf, Bali United, Max…" value="${esc(Q)}" oninput="Q=this.value;SHOW=40;keep();drawResults()">
-          <select id="ppTab" onchange="F_TAB=this.value;SHOW=40;keep();drawResults()"></select>
-          <select id="ppSt" onchange="F_ST=this.value;SHOW=40;keep();drawResults()"></select>
-          <label class="sub" style="display:flex;align-items:center;gap:5px"><input type="checkbox" id="ppMine" ${MINE ? 'checked' : ''} onchange="MINE=this.checked;SHOW=40;keep();drawResults()"> Only mine</label>
+          <input type="search" id="ppQ" placeholder="e.g. surf, Bali United, Max…" value="${esc(Q)}" oninput="Q=this.value;SHOW=1000;keep();drawResults()">
+          <select id="ppTab" onchange="F_TAB=this.value;SHOW=1000;keep();drawResults()"></select>
+          <select id="ppSt" onchange="F_ST=this.value;SHOW=1000;keep();drawResults()"></select>
+          <label class="sub" style="display:flex;align-items:center;gap:5px"><input type="checkbox" id="ppMine" ${MINE ? 'checked' : ''} onchange="MINE=this.checked;SHOW=1000;keep();drawResults()"> Only mine</label>
         </div>
         <div id="ppResults"></div>`;
     }
