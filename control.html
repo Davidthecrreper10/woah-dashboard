@@ -306,7 +306,7 @@
   }
   function teamSave(mode, orig) {
     const body = { action: 'teamSave', mode, orig };
-    if (mode !== 'remove') { body.name = document.getElementById('tf-name').value; body.email = document.getElementById('tf-email').value; body.nick = document.getElementById('tf-nick').value; }
+    if (mode !== 'remove') { body.name = document.getElementById('tf-name').value; body.memail = document.getElementById('tf-email').value;   // not 'email': that's the login body.nick = document.getElementById('tf-nick').value; }
     save(body, 'teamMsg', mode === 'add' ? 'Added. They can log in now.' : mode === 'remove' ? 'Removed from the team.' : 'Saved.');
   }
   function routeForm(mode, topic) {
