@@ -35,6 +35,14 @@
   .pp-test div:last-child { border-bottom: 0; }
   .pp-log td { font-size: 13px; }
   .pp-h { font-weight: 600; font-size: 16px; margin: 0 0 4px; }
+  .pp-reasons { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 8px; }
+  .pp-reason { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); cursor: pointer; font-size: 13px; }
+  .pp-reason:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); font-weight: 600; }
+  .pp-reason input { margin: 0; accent-color: var(--brand); }
+  .pp-note { font: inherit; width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .pp-item .hact button.ghost { font-size: 13px; padding: 5px 10px; border-radius: 8px; color: var(--bad); border: 1px dashed var(--line); background: transparent; }
+  button.danger { background: var(--bad) !important; border-color: var(--bad) !important; color: #fff !important; }
+  .c-msg { font-size: 13px; margin-top: 6px; } .c-msg.bad { color: var(--bad); }
 </style>
 </head>
 <body>
@@ -84,8 +92,46 @@
       <div class="pp-meta">${[r.contact, r.email].filter(Boolean).map(esc).join(' · ') || 'No contact details yet'}</div>
       ${r.progress ? `<div class="pp-prog">${esc(r.progress)}</div>` : ''}
       ${kv.length ? `<div class="pp-kv">${kv.map(([k, v]) => `<span>${k}: <b>${esc(v)}</b></span>`).join('')}</div>` : ''}
-      <div class="hact"><a href="${esc(sheetLink(r))}">Open in sheet</a>${r.email ? `<a href="${esc(mailLink(r))}">Find in my email</a>` : ''}</div>
+      <div class="hact"><a href="${esc(sheetLink(r))}">Open in sheet</a>${r.email ? `<a href="${esc(mailLink(r))}">Find in my email</a>` : ''}${PP.cfg ? (removing(r) ? '<span class="pend">Removing… waiting for Chris</span>' : `<button class="ghost" target="_self" onclick="askRemove(this, ${PP.rows.indexOf(r)})">Remove…</button>`) : ''}</div>
+      <div class="pp-rm" id="rm-${PP.rows.indexOf(r)}"></div>
     </div>`;
+  }
+  // ---------- Remove (admins): Chris moves it to the Removed tab or deletes it, within about 5 minutes ----------
+  const REASONS = ['Email not valid', 'Not interested', 'No reply', 'Duplicate', 'Other'];
+  function keyOf(r) { return (r.tab + '|' + (r.email || r.company)).toLowerCase().slice(0, 200); }
+  function removing(r) { return (PP.pending || []).some(p => p.op === 'pp_remove' && String(p.id).toLowerCase() === keyOf(r)); }
+  let OPEN_RM = '';
+  function askRemove(btn, i, again) {
+    const r = PP.rows[i], box = document.getElementById('rm-' + i);
+    if (box.innerHTML && !again) { box.innerHTML = ''; OPEN_RM = ''; return; }
+    OPEN_RM = keyOf(r);
+    box.innerHTML = `<div class="confirm" style="display:block">
+      <b>Remove ${esc(r.company || r.contact || r.email)}</b> from the ${esc(r.tab)} tab? Chris won't add them back for WOAH's own emails, only if they reply later.
+      <div class="pp-reasons">${REASONS.map(x => `<label class="pp-reason"><input type="radio" name="rr-${i}" value="${esc(x)}" onchange="document.getElementById('rmsg-${i}').textContent=''"> ${esc(x)}</label>`).join('')}</div>
+      <input id="rn-${i}" class="pp-note" placeholder="Note (optional, needed for Other)" maxlength="300">
+      <div class="pp-row" style="margin-top:8px"><button class="primary" target="_self" onclick="doRemove(${i},'archive')">Move to Removed tab</button><button target="_self" onclick="doRemove(${i},'delete',this)">Delete for good…</button><button target="_self" onclick="OPEN_RM='';this.closest('.pp-rm').innerHTML=''">Cancel</button></div>
+      <div class="sub">Removed tab = Undo any time. Delete for good = gone from the sheet.</div><div class="c-msg" id="rmsg-${i}"></div></div>`;
+  }
+  function doRemove(i, mode, btn) {
+    const r = PP.rows[i], pick = document.querySelector(`input[name="rr-${i}"]:checked`), note = document.getElementById('rn-' + i).value.trim(), msg = document.getElementById('rmsg-' + i);
+    if (!pick) { msg.className = 'c-msg bad'; msg.textContent = 'Pick a reason first.'; return; }
+    if (pick.value === 'Other' && !note) { msg.className = 'c-msg bad'; msg.textContent = 'Add a short note for "Other".'; return; }
+    if (mode === 'delete' && btn && !btn.dataset.sure) { btn.dataset.sure = '1'; btn.textContent = 'Yes, delete for good'; btn.classList.add('danger'); msg.className = 'c-msg bad'; msg.textContent = 'This deletes the row from the sheet. It can only come back from Google Sheets version history.'; return; }
+    msg.className = 'c-msg'; msg.textContent = 'Sending to Chris…';
+    call({ action: 'partnersRemove', mode, tab: r.tab, row: r.row, email: r.email, company: r.company, reason: pick.value, note }).then(d => { OPEN_RM = ''; render(d); }).catch(e => { msg.className = 'c-msg bad'; msg.textContent = e.message; });
+  }
+  function undoRemove(row, company) {
+    call({ action: 'partnersRemove', mode: 'restore', removedRow: row, company }).then(render).catch(fail);
+  }
+  function drawRemoved() {
+    const list = (PP.removed || []).slice().reverse();
+    const pend = (PP.pending || []).filter(p => p.op === 'pp_remove' && /^removed:/.test(p.id)).map(p => Number(String(p.id).split(':')[1]));
+    return `<div class="card" style="margin-top:14px"><div class="sw-name">Removed contacts <span class="sub" style="font-weight:400">· ${list.length}</span></div>
+      <div class="sw-note">Contacts moved to the sheet's Removed tab. Undo puts them back on their tab (at the bottom, with their colour). If one of them replies to WOAH, Chris puts them back by himself.</div>
+      ${list.length ? `<div class="scroll"><table class="pp-log" style="margin-top:8px"><tr><th>Company</th><th class="hide-sm">Reason</th><th class="hide-sm">Removed</th><th></th></tr>
+      ${list.map(x => `<tr><td><b>${esc(x.company || x.email)}</b><div class="sub">${esc(x.tab)}${x.email ? ' · ' + esc(x.email) : ''}</div></td><td class="hide-sm">${esc(x.reason)}${x.note ? '<div class="sub">' + esc(x.note) + '</div>' : ''}</td>
+        <td class="hide-sm" style="white-space:nowrap">${x.at ? esc(when(x.at)) : ''}${x.by ? '<div class="sub">by ' + esc(first(x.by)) + '</div>' : ''}</td>
+        <td style="text-align:right">${pend.includes(Number(x.row)) ? '<span class="pend">Putting back…</span>' : `<button target="_self" onclick="undoRemove(${Number(x.row)}, '${esc(String(x.company || '').replace(/'/g, ''))}')">Undo</button>`}</td></tr>`).join('')}</table></div>` : '<div class="empty">Nothing removed.</div>'}</div>`;
   }
   function drawResults() {
     const box = document.getElementById('ppResults'); if (!box || !PP) return;
@@ -98,6 +144,7 @@
       ${sum ? `<div class="pp-legend">${sum}</div>` : ''}
       ${hits.length ? hits.slice(0, SHOW).map(item).join('') : '<div class="empty">Nothing matches. Try fewer words, or another tab / status.</div>'}
       ${hits.length > SHOW ? `<div style="margin-top:10px"><button onclick="SHOW+=40;drawResults()">Show more</button></div>` : ''}`;
+    if (OPEN_RM) { const i = (PP.rows || []).findIndex(r => keyOf(r) === OPEN_RM); if (i >= 0 && document.getElementById('rm-' + i) && !removing(PP.rows[i])) askRemove(null, i, true); else OPEN_RM = ''; }
   }
   function drawSearch() {
     const c = document.getElementById('searchCard');
@@ -162,6 +209,7 @@
       <div class="scroll"><table class="pp-depts" style="margin-top:8px"><tr><th>Tab</th><th>Department</th></tr>
       ${tabs.map(t => `<tr><td>${esc(t.name)}</td><td><select data-tab="${esc(t.name)}"><option value="">Chris's guess${t.dept && !cfg.tabDept[t.name] ? ': ' + esc(t.dept) : ''}</option>${(PP.topics || []).map(x => `<option ${cfg.tabDept[t.name] === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></td></tr>`).join('')}
       </table></div><div class="pp-row"><button onclick="saveDepts()">Save departments</button></div></div>`;
+    h += drawRemoved();
     const log = PP.log || [];
     h += `<div class="card" style="margin-top:14px"><div class="sw-name">What Chris changed lately</div>
       ${log.length ? `<div class="scroll"><table class="pp-log" style="margin-top:8px"><tr><th>When</th><th>Company</th><th>What changed</th></tr>
