@@ -43,6 +43,9 @@
   .pp-item .hact button.ghost { font-size: 13px; padding: 5px 10px; border-radius: 8px; color: var(--bad); border: 1px dashed var(--line); background: transparent; }
   button.danger { background: var(--bad) !important; border-color: var(--bad) !important; color: #fff !important; }
   .c-msg { font-size: 13px; margin-top: 6px; } .c-msg.bad { color: var(--bad); }
+  .pp-pic { margin-top: 8px; }
+  .pp-pic .confirm.picking { display: block; }
+  .pp-item .hact button.pic-btn { font-size: 13px; padding: 5px 10px; border-radius: 8px; }
 </style>
 </head>
 <body>
@@ -62,7 +65,7 @@
   <div class="banner" id="banner"></div>
   <div class="card" id="searchCard"></div>
   <div id="control"></div>
-  <div class="card how" style="margin-top:14px">This is the <b>WOAH 2027 Possible Partners List</b>. Chris keeps it up to date from the WOAH emails: the row colour shows the status, and he fills in the latest contact, the PIC, the progress and what they offer. Search here to see where any company or person stands. To change something, press <b>Open in sheet</b>.</div>
+  <div class="card how" style="margin-top:14px">This is the <b>WOAH 2027 Possible Partners List</b>. Chris keeps it up to date from the WOAH emails: the row colour shows the status, and he fills in the latest contact, the PIC, the progress and what they offer. Search here to see where any company or person stands. To give a contact to someone else, press <b>Change PIC…</b>. To change anything else, press <b>Open in sheet</b>.</div>
   </div>
 </div>
 <script src="common.js?v=5"></script>
@@ -92,8 +95,9 @@
       <div class="pp-meta">${[r.contact, r.email].filter(Boolean).map(esc).join(' · ') || 'No contact details yet'}</div>
       ${r.progress ? `<div class="pp-prog">${esc(r.progress)}</div>` : ''}
       ${kv.length ? `<div class="pp-kv">${kv.map(([k, v]) => `<span>${k}: <b>${esc(v)}</b></span>`).join('')}</div>` : ''}
-      <div class="hact"><a href="${esc(sheetLink(r))}">Open in sheet</a>${r.email ? `<a href="${esc(mailLink(r))}">Find in my email</a>` : ''}${PP.cfg ? (removing(r) ? '<span class="pend">Removing… waiting for Chris</span>' : `<button class="ghost" target="_self" onclick="askRemove(this, ${PP.rows.indexOf(r)})">Remove…</button>`) : ''}</div>
+      <div class="hact"><a href="${esc(sheetLink(r))}">Open in sheet</a>${r.email ? `<a href="${esc(mailLink(r))}">Find in my email</a>` : ''}${canPic(r) ? (picPending(r) ? '<span class="pend">Changing PIC… waiting for Chris</span>' : `<button class="pic-btn" target="_self" onclick="askPic(${PP.rows.indexOf(r)})">Change PIC…</button>`) : ''}${PP.cfg ? (removing(r) ? '<span class="pend">Removing… waiting for Chris</span>' : `<button class="ghost" target="_self" onclick="askRemove(this, ${PP.rows.indexOf(r)})">Remove…</button>`) : ''}</div>
       <div class="pp-rm" id="rm-${PP.rows.indexOf(r)}"></div>
+      <div class="pp-pic" id="pic-${PP.rows.indexOf(r)}"></div>
     </div>`;
   }
   // ---------- Remove (admins): Chris moves it to the Removed tab or deletes it, within about 5 minutes ----------
@@ -104,7 +108,7 @@
   function askRemove(btn, i, again) {
     const r = PP.rows[i], box = document.getElementById('rm-' + i);
     if (box.innerHTML && !again) { box.innerHTML = ''; OPEN_RM = ''; return; }
-    OPEN_RM = keyOf(r);
+    OPEN_RM = keyOf(r); const pb = document.getElementById('pic-' + i); if (pb) pb.innerHTML = ''; OPEN_PIC = '';
     box.innerHTML = `<div class="confirm" style="display:block">
       <b>Remove ${esc(r.company || r.contact || r.email)}</b> from the ${esc(r.tab)} tab? Chris won't add them back for WOAH's own emails, only if they reply later.
       <div class="pp-reasons">${REASONS.map(x => `<label class="pp-reason"><input type="radio" name="rr-${i}" value="${esc(x)}" onchange="document.getElementById('rmsg-${i}').textContent=''"> ${esc(x)}</label>`).join('')}</div>
@@ -118,10 +122,62 @@
     if (pick.value === 'Other' && !note) { msg.className = 'c-msg bad'; msg.textContent = 'Add a short note for "Other".'; return; }
     if (mode === 'delete' && btn && !btn.dataset.sure) { btn.dataset.sure = '1'; btn.textContent = 'Yes, delete for good'; btn.classList.add('danger'); msg.className = 'c-msg bad'; msg.textContent = 'This deletes the row from the sheet. It can only come back from Google Sheets version history.'; return; }
     msg.className = 'c-msg'; msg.textContent = 'Sending to Chris…';
-    call({ action: 'partnersRemove', mode, tab: r.tab, row: r.row, email: r.email, company: r.company, reason: pick.value, note }).then(d => { OPEN_RM = ''; render(d); }).catch(e => { msg.className = 'c-msg bad'; msg.textContent = e.message; });
+    call({ action: 'partnersRemove', mode, tab: r.tab, row: r.row, cemail: r.email, company: r.company, reason: pick.value, note }).then(d => { OPEN_RM = ''; render(d); }).catch(e => { msg.className = 'c-msg bad'; msg.textContent = e.message; });
   }
   function undoRemove(row, company) {
     call({ action: 'partnersRemove', mode: 'restore', removedRow: row, company }).then(render).catch(fail);
+  }
+  // ---------- Change PIC (everyone): Chris writes the new name(s) into the row and emails them, within about 5 minutes ----------
+  let OPEN_PIC = '', PIC_SEL = [];
+  function canPic(r) { return (PP.team || []).length && !(PP.noPic || []).includes(r.tab); }
+  function picPending(r) { return (PP.picPending || []).some(p => String(p.id).toLowerCase() === keyOf(r)); }
+  function picShort(t) { return (t.nick || '').trim() || String(t.name || '').split(' ')[0]; }
+  function picInit(t) { const w = String(t.name || '').replace(/\([^)]*\)/g, ' ').split(/\s+/).filter(Boolean), s = picShort(t); return ((s[0] || '?') + (w.length > 1 ? w[w.length - 1][0] : '')).toUpperCase(); }
+  function picNow(r) {   // team members already named in the PIC cell
+    const p = String(r.pic || '').toLowerCase();
+    return (PP.team || []).filter(t => [picShort(t), String(t.name || '').split(' ')[0]].map(s => s.toLowerCase().replace(/[^a-z]/g, '')).filter(Boolean)
+      .some(n => new RegExp('(^|[^a-z])' + n + '([^a-z]|$)').test(p))).map(t => t.email);
+  }
+  function askPic(i, again, keep) {
+    const r = PP.rows[i], box = document.getElementById('pic-' + i);
+    if (box.innerHTML && !again) { box.innerHTML = ''; OPEN_PIC = ''; return; }
+    if (!again) { document.querySelectorAll('.pp-pic').forEach(b => { if (b !== box) b.innerHTML = ''; }); }
+    OPEN_PIC = keyOf(r);
+    const team = (PP.team || []).slice().sort((a, b) => picShort(a).localeCompare(picShort(b)));
+    const ok = new Set(team.map(t => t.email)), now = picNow(r), sel = new Set(keep || []);
+    const depts = (PP.depts || []).map(d => ({ name: d.name, members: (d.members || []).filter(e => ok.has(e)) })).filter(d => d.members.length);
+    box._depts = depts; box._on = new Set();
+    box.innerHTML = `<div class="confirm picking"><div class="pick-head"><b>New PIC for ${esc(r.company || r.contact || r.email)}</b><span class="pick-sub">Now: ${esc(r.pic || 'nobody')} · pick one or more people</span></div>
+      ${depts.length ? `<div class="pick-label">Departments</div><div class="pick-depts">${depts.map((d, k) => `<button type="button" class="dept" data-i="${k}" target="_self" onclick="picDept(${i},${k})" title="${esc(d.members.map(e => picShort(team.find(t => t.email === e))).join(', '))}">${esc(d.name)}<span>${d.members.length}</span></button>`).join('')}</div><div class="pick-label">People</div>` : ''}
+      <div class="pick">${team.map(t => `<label class="chip" title="${esc(t.name)}"><input type="checkbox" value="${esc(t.email)}" ${sel.has(t.email) ? 'checked' : ''} onchange="picCount(${i})"><span class="av">${esc(picInit(t))}</span><span class="nm">${esc(picShort(t))}<small>${esc([picShort(t).toLowerCase() !== String(t.name).split(' ')[0].toLowerCase() ? t.name : '', now.includes(t.email) ? 'PIC now' : ''].filter(Boolean).join(' · '))}</small></span><span class="tick">✓</span></label>`).join('')}</div>
+      <div class="sub" style="margin-top:10px">Chris puts their name in the sheet and emails them (David, Dom and Francis get a copy) within about 5 minutes.</div>
+      <div class="pick-foot"><button class="ghost" target="_self" onclick="OPEN_PIC='';this.closest('.pp-pic').innerHTML=''">Cancel</button><button class="primary go" target="_self" disabled onclick="doPic(${i})">Pick someone</button></div>
+      <div class="c-msg" id="pmsg-${i}"></div></div>`;
+    picCount(i);
+  }
+  function picChosen(box) { return [...new Set([...box.querySelectorAll('.pick input:checked')].map(n => n.value))]; }
+  function picDept(i, k) {
+    const box = document.getElementById('pic-' + i), d = box._depts[k]; if (!d) return;
+    const off = box._on.has(k); if (off) box._on.delete(k); else box._on.add(k);
+    const keep = new Set(off ? [...box._on].flatMap(j => box._depts[j].members) : []);
+    box.querySelectorAll('.pick input').forEach(n => { if (d.members.includes(n.value) && !keep.has(n.value)) n.checked = !off; });
+    picCount(i);
+  }
+  function picCount(i) {
+    const box = document.getElementById('pic-' + i), chosen = picChosen(box), go = box.querySelector('.go');
+    PIC_SEL = chosen;
+    go.disabled = !chosen.length; go.textContent = !chosen.length ? 'Pick someone' : chosen.length === 1 ? 'Make them PIC' : `Make ${chosen.length} people PIC`;
+    const on = new Set(chosen);
+    [...box._on].forEach(j => { if (!box._depts[j].members.every(e => on.has(e))) box._on.delete(j); });
+    box.querySelectorAll('.pick-depts .dept').forEach(b => b.classList.toggle('on', box._on.has(+b.dataset.i)));
+  }
+  function doPic(i) {
+    const r = PP.rows[i], box = document.getElementById('pic-' + i), to = picChosen(box), msg = document.getElementById('pmsg-' + i);
+    if (!to.length) return;
+    if (to.length > 6) { msg.className = 'c-msg bad'; msg.textContent = 'Pick 6 people or fewer.'; return; }
+    msg.className = 'c-msg'; msg.textContent = 'Sending to Chris…'; box.querySelector('.go').disabled = true;
+    call({ action: 'partnersPic', tab: r.tab, row: r.row, cemail: r.email, company: r.company, old: r.pic || '', to: to.join(',') })
+      .then(d => { OPEN_PIC = ''; PIC_SEL = []; render(d); }).catch(e => { msg.className = 'c-msg bad'; msg.textContent = e.message; box.querySelector('.go').disabled = false; });
   }
   function drawRemoved() {
     const list = (PP.removed || []).slice().reverse();
@@ -144,6 +200,7 @@
       ${sum ? `<div class="pp-legend">${sum}</div>` : ''}
       ${hits.length ? hits.slice(0, SHOW).map(item).join('') : '<div class="empty">Nothing matches. Try fewer words, or another tab / status.</div>'}
       ${hits.length > SHOW ? `<div style="margin-top:10px"><button onclick="SHOW+=40;drawResults()">Show more</button></div>` : ''}`;
+    if (OPEN_PIC) { const i = (PP.rows || []).findIndex(r => keyOf(r) === OPEN_PIC); if (i >= 0 && document.getElementById('pic-' + i) && !picPending(PP.rows[i])) askPic(i, true, PIC_SEL); else OPEN_PIC = ''; }
     if (OPEN_RM) { const i = (PP.rows || []).findIndex(r => keyOf(r) === OPEN_RM); if (i >= 0 && document.getElementById('rm-' + i) && !removing(PP.rows[i])) askRemove(null, i, true); else OPEN_RM = ''; }
   }
   function drawSearch() {
