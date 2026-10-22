@@ -82,10 +82,14 @@
     if (F_TAB && r.tab !== F_TAB) return false;
     if (F_ST && (F_ST === '-' ? !!r.status : r.status !== F_ST)) return false;
     if (MINE) { const p = String(r.pic || '').toLowerCase(); if (!myNames().some(n => n && new RegExp('(^|[^a-z])' + n.replace(/[^a-z]/g, '') + '([^a-z]|$)').test(p))) return false; }
+    return matchesText(r);
+  }
+  function matchesText(r) {
     if (!Q.trim()) return true;
     const hay = [r.company, r.contact, r.email, r.pic, r.progress, r.offer, r.tab, r.status].join(' ').toLowerCase();
     return Q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w));
   }
+  function clearFilters() { F_TAB = ''; F_ST = ''; MINE = false; keep(); ['ppTab', 'ppSt'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; }); const m = document.getElementById('ppMine'); if (m) m.checked = false; drawResults(); }
   function item(r) {
     const c = colorOf(r.status);
     const kv = [['Latest contact', r.latest], ['PIC', r.pic], ['Coming?', r.coming], ['Offer', r.offer]].filter(x => x[1]);
@@ -195,9 +199,12 @@
     const hits = all.filter(matches);
     const counts = {}; hits.forEach(r => { counts[r.status || '-'] = (counts[r.status || '-'] || 0) + 1; });
     const L = PP.legend || {};
+    const filtered = F_TAB || F_ST || MINE;
+    const hidden = filtered ? all.filter(r => !matches(r) && matchesText(r)).length : 0;   // matches the words, but hidden by a filter
     const sum = Object.keys(L).map(k => counts[L[k].label] ? `<span><span class="dot" style="background:${esc(L[k].color)}"></span>${esc(L[k].label)} <b>${counts[L[k].label]}</b></span>` : '').join('') + (counts['-'] ? `<span><span class="dot"></span>no status <b>${counts['-']}</b></span>` : '');
     box.innerHTML = `<div class="sub" style="margin-top:10px">${hits.length} of ${all.length} contacts${hits.length > SHOW ? ', showing the first ' + SHOW : ''}</div>
       ${sum ? `<div class="pp-legend">${sum}</div>` : ''}
+      ${filtered ? `<div class="banner warn" style="margin-top:8px">Filters on: ${esc([F_TAB, F_ST === '-' ? 'no status yet' : F_ST, MINE ? 'only mine' : ''].filter(Boolean).join(' · '))}${hidden ? ` · <b>${hidden} more</b> match${hidden === 1 ? 'es' : ''} your search outside these filters` : ''} <button target="_self" onclick="clearFilters()">Clear filters</button></div>` : ''}
       ${hits.length ? hits.slice(0, SHOW).map(item).join('') : '<div class="empty">Nothing matches. Try fewer words, or another tab / status.</div>'}
       ${hits.length > SHOW ? `<div style="margin-top:10px"><button onclick="SHOW+=1000;drawResults()">Show more</button></div>` : ''}`;
     if (OPEN_PIC) { const i = (PP.rows || []).findIndex(r => keyOf(r) === OPEN_PIC); if (i >= 0 && document.getElementById('pic-' + i) && !picPending(PP.rows[i])) askPic(i, true, PIC_SEL); else OPEN_PIC = ''; }
