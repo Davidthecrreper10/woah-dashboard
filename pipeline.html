@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WOAH Pipeline</title>
+<base target="_blank">
+<link rel="stylesheet" href="style.css?v=11">
+<link rel="icon" href="img/icon.png?v=2">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="woah.css?v=5">
+<script src="theme.js?v=7"></script>
+<style>
+  .pl-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .pl-bar input[type=search] { flex: 1 1 220px; font: inherit; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .pl-bar select { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .board { display: flex; gap: 12px; overflow-x: auto; padding: 4px 2px 14px; margin-top: 14px; align-items: flex-start; scroll-snap-type: x proximity; }
+  .col { flex: 0 0 270px; background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 10px; scroll-snap-align: start; max-height: 75vh; display: flex; flex-direction: column; }
+  .col.over { outline: 2px dashed var(--brand); outline-offset: -2px; }
+  .col-h { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 14px; padding: 2px 4px 8px; border-bottom: 3px solid var(--line); margin-bottom: 8px; }
+  .col-h .n { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); }
+  .col-b { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; min-height: 60px; }
+  .pc { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; cursor: grab; font-size: 13px; }
+  .pc:active { cursor: grabbing; }
+  .pc.dragging { opacity: .45; }
+  .pc.pending { opacity: .65; cursor: default; }
+  .pc b { font-size: 14px; }
+  .pc .m { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .pc .p { margin-top: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .pc .a { display: flex; gap: 6px; align-items: center; margin-top: 7px; flex-wrap: wrap; }
+  .pc .a a { font-size: 12px; }
+  .pc select { font: inherit; font-size: 12px; padding: 3px 6px; border-radius: 7px; border: 1px solid var(--line); background: var(--card); color: var(--ink); max-width: 150px; }
+  .col .more { font-size: 12px; color: var(--muted); text-align: center; padding: 6px; }
+  .c-msg { font-size: 13px; margin-top: 6px; } .c-msg.bad { color: var(--bad); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="login" class="card"></div>
+  <div id="app">
+  <header>
+    <div>
+      <h1><span>WOAH</span> Pipeline</h1>
+      <div class="sub" id="updated">Loading…</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><nav class="pages" id="nav"></nav><button id="refresh" onclick="load()" target="_self">Refresh</button></div>
+      <div class="who" id="who"></div>
+    </div>
+  </header>
+  <div class="banner" id="banner"></div>
+  <div class="card" id="barCard"></div>
+  <div class="board" id="board"></div>
+  <div class="card how" style="margin-top:6px">Every contact on the Possible Partners List, as a card in the column of its status (the row colour on the sheet). <b>Drag a card</b> to another column, or use its <b>Move to…</b> menu on a phone, and Chris recolours the row within about 5 minutes. Press a name to open their profile. To change the progress or offer, use <b>Edit…</b> on the <a href="partners.html" target="_self">Partners</a> page.</div>
+  </div>
+</div>
+<script src="common.js?v=6"></script>
+<script src="extras.js?v=1"></script>
+<script>
+  let PP = null, Q = '', F_TAB = '', MINE = false, MSG = '';
+  const PER_COL = 60;
+  try { const s = JSON.parse(sessionStorage.getItem('plFilters') || '{}'); Q = s.q || ''; F_TAB = s.tab || ''; MINE = !!s.mine; } catch (e) {}
+  function keep() { try { sessionStorage.setItem('plFilters', JSON.stringify({ q: Q, tab: F_TAB, mine: MINE })); } catch (e) {} }
+  function keyOf(r) { return (r.tab + '|' + (r.email || r.company)).toLowerCase().slice(0, 200); }
+  function legendKeyOf(label) { const L = (PP && PP.legend) || {}; return Object.keys(L).find(k => L[k].label === label) || ''; }
+  function pending(r) { return (PP.editPending || []).find(p => String(p.id).toLowerCase() === keyOf(r)); }
+  function myNames() { const nm = String((ME && ME.name) || ''); const paren = (nm.match(/\(([^)]+)\)/) || [])[1]; return [...new Set([...String((PP && PP.nick) || '').split(','), nm.split(' ')[0], paren].map(s => String(s || '').trim()).filter(Boolean).map(s => s.toLowerCase()))]; }
+  function matches(r) {
+    if (F_TAB && r.tab !== F_TAB) return false;
+    if (MINE) { const p = String(r.pic || '').toLowerCase(); if (!myNames().some(n => n && new RegExp('(^|[^a-z])' + n.replace(/[^a-z]/g, '') + '([^a-z]|$)').test(p))) return false; }
+    if (!Q.trim()) return true;
+    const hay = [r.company, r.contact, r.email, r.pic, r.progress, r.offer, r.tab].join(' ').toLowerCase();
+    return Q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w));
+  }
+  function cols() {
+    const L = PP.legend || {};
+    return [{ key: '', label: 'No status yet', color: '' }].concat(Object.keys(L).map(k => ({ key: k, label: L[k].label, color: L[k].color })));
+  }
+  function drawBar() {
+    const c = document.getElementById('barCard');
+    if (c.dataset.on) { const n = document.getElementById('plCount'); if (n) n.textContent = countText(); return; }
+    const tabs = [...new Set((PP.rows || []).map(r => r.tab))];
+    c.dataset.on = '1';
+    c.innerHTML = `<div class="pl-bar"><input type="search" id="plQ" placeholder="Search company, person, PIC…" value="${esc(Q)}" oninput="Q=this.value;keep();drawBoard()">
+      <select id="plTab" onchange="F_TAB=this.value;keep();drawBoard()"><option value="">All tabs</option>${tabs.map(t => `<option ${t === F_TAB ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
+      <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="plMine" ${MINE ? 'checked' : ''} onchange="MINE=this.checked;keep();drawBoard()"> Only mine</label></div>
+      <div class="sub" id="plCount" style="margin-top:8px">${countText()}</div><div class="c-msg" id="plMsg"></div>`;
+  }
+  function countText() { const n = (PP.rows || []).filter(matches).length; return n + ' of ' + (PP.rows || []).length + ' contacts'; }
+  function card(r) {
+    const i = PP.rows.indexOf(r), p = pending(r), C = cols();
+    const cur = legendKeyOf(r.status);
+    return `<div class="pc ${p ? 'pending' : ''}" ${p ? '' : `draggable="true" ondragstart="dragStart(event,${i})" ondragend="this.classList.remove('dragging')"`}>
+      <a href="profile.html?k=${encodeURIComponent(keyOf(r))}" target="_self"><b>${esc(r.company || r.contact || r.email)}</b></a>
+      <div class="m">${esc(r.tab)}${r.pic ? ' · PIC ' + esc(r.pic) : ''}</div>
+      ${r.progress ? `<div class="p">${esc(r.progress)}</div>` : ''}
+      <div class="a">${p ? '<span class="pend">Moving… waiting for Chris</span>' : `<select aria-label="Move to" onchange="move(${i}, this.value)"><option value="__">Move to…</option>${C.filter(c => c.key !== cur).map(c => `<option value="${esc(c.key)}">${esc(c.label)}</option>`).join('')}</select>`}</div>
+    </div>`;
+  }
+  let DRAG = -1;
+  function dragStart(e, i) { DRAG = i; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', String(i)); } catch (x) {} e.target.classList.add('dragging'); }
+  function over(e, el) { e.preventDefault(); el.classList.add('over'); }
+  function drop(e, el, key) { e.preventDefault(); el.classList.remove('over'); if (DRAG >= 0) move(DRAG, key); DRAG = -1; }
+  function move(i, key) {
+    if (key === '__') return;
+    const r = PP.rows[i]; if (!r || legendKeyOf(r.status) === key) return;
+    const to = key ? PP.legend[key].label : 'No status yet';
+    const m = document.getElementById('plMsg'); m.className = 'c-msg'; m.textContent = 'Moving ' + (r.company || r.email) + ' to ' + to + '…';
+    call({ action: 'partnersEdit', tab: r.tab, row: r.row, cemail: r.email, company: r.company, status: key, fields: {} })
+      .then(d => { MSG = 'Chris will move ' + (r.company || r.email) + ' to "' + to + '" within about 5 minutes.'; render(d); })
+      .catch(e => { m.className = 'c-msg bad'; m.textContent = e.message; });
+  }
+  function drawBoard() {
+    const hits = (PP.rows || []).filter(matches), b = document.getElementById('board');
+    const n = document.getElementById('plCount'); if (n) n.textContent = countText();
+    const x = b.scrollLeft;
+    b.innerHTML = cols().map(c => {
+      const list = hits.filter(r => legendKeyOf(r.status) === c.key);
+      return `<div class="col" ondragover="over(event,this)" ondragleave="this.classList.remove('over')" ondrop="drop(event,this,'${esc(c.key)}')">
+        <div class="col-h" style="${c.color ? 'border-bottom-color:' + esc(c.color) : ''}"><span>${c.color ? `<span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:${esc(c.color)}"></span>` : ''}${esc(c.label)}</span><span class="n">${list.length}</span></div>
+        <div class="col-b">${list.slice(0, PER_COL).map(card).join('') || '<div class="more">Nothing here</div>'}${list.length > PER_COL ? `<div class="more">+${list.length - PER_COL} more. Search or pick a tab to narrow it down.</div>` : ''}</div></div>`;
+    }).join('');
+    b.scrollLeft = x;
+  }
+  function render(d) {
+    PP = d;
+    document.getElementById('updated').textContent = d.at ? 'List copied from the sheet ' + when(d.at) + ' · refreshes every 10 minutes' : 'Possible Partners List';
+    if (!d.ready || !(d.rows || []).length) { document.getElementById('board').innerHTML = '<div class="card empty">Chris hasn\'t copied the partners list here yet. Press Refresh in a few minutes.</div>'; return; }
+    if (document.querySelector('.pc.dragging')) return;   // don't redraw mid-drag
+    drawBar(); drawBoard();
+    const m = document.getElementById('plMsg'); if (m && MSG) { m.className = 'c-msg'; m.textContent = MSG; MSG = ''; }
+  }
+  start({ title: 'Pipeline', need: 'handler', action: 'partners', every: 2, onData: render });
+</script>
+</body>
+</html>

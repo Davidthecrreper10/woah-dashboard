@@ -44,6 +44,20 @@
   button.danger { background: var(--bad) !important; border-color: var(--bad) !important; color: #fff !important; }
   .c-msg { font-size: 13px; margin-top: 6px; } .c-msg.bad { color: var(--bad); }
   .pp-pic { margin-top: 8px; }
+  .pp-ed { margin-top: 8px; }
+  .pp-ed .confirm { display: block; }
+  .pp-ed .f-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 8px; }
+  .pp-ed label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+  .pp-ed input, .pp-ed select, .pp-ed textarea { font: inherit; width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .pp-ed textarea { min-height: 64px; resize: vertical; }
+  .pp-ed .wide { grid-column: 1 / -1; }
+  .pp-mails { margin-top: 6px; font-size: 13px; }
+  .pp-mails a { margin-right: 10px; }
+  .pp-item .hact a.prof { font-weight: 600; }
+  .sp-table td, .sp-table th { font-size: 13px; vertical-align: middle; }
+  .sp-table select, .sp-table input { font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); max-width: 140px; }
+  .sp-sum { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--muted); margin: 6px 0 4px; }
+  .sp-sum b { color: var(--ink); }
   .pp-pic .confirm.picking { display: block; }
   .pp-item .hact button.pic-btn { font-size: 13px; padding: 5px 10px; border-radius: 8px; }
 </style>
@@ -64,14 +78,17 @@
   </header>
   <div class="banner" id="banner"></div>
   <div class="card" id="searchCard"></div>
+  <div class="card" id="sponsorsCard" style="margin-top:14px;display:none"></div>
   <div id="control"></div>
-  <div class="card how" style="margin-top:14px">This is the <b>WOAH 2027 Possible Partners List</b>. Chris keeps it up to date from the WOAH emails: the row colour shows the status, and he fills in the latest contact, the PIC, the progress and what they offer. Search here to see where any company or person stands. To give a contact to someone else, press <b>Change PIC…</b>. To change anything else, press <b>Open in sheet</b>.</div>
+  <div class="card how" style="margin-top:14px">This is the <b>WOAH 2027 Possible Partners List</b>. Chris keeps it up to date from the WOAH emails: the row colour shows the status, and he fills in the latest contact, the PIC, the progress and what they offer. Search here to see where any company or person stands. Press <b>Edit…</b> to change a contact's status, progress or offer, <b>Profile</b> for their documents, package and meeting notes, and <b>Change PIC…</b> to give them to someone else. The <a href="pipeline.html" target="_self">Pipeline</a> shows everyone as cards by status. To change anything else, press <b>Open in sheet</b>.</div>
   </div>
 </div>
-<script src="common.js?v=5"></script>
+<script src="common.js?v=6"></script>
+<script src="extras.js?v=1"></script>
 <script>
   let PP = null, Q = '', F_TAB = '', F_ST = '', MINE = false, SHOW = 1000;   // show every contact
   try { const s = JSON.parse(sessionStorage.getItem('ppFilters') || '{}'); Q = s.q || ''; F_TAB = s.tab || ''; F_ST = s.st || ''; MINE = !!s.mine; } catch (e) {}
+  try { const u = new URLSearchParams(location.search); if (u.get('q')) { Q = u.get('q'); F_TAB = ''; F_ST = ''; MINE = false; } } catch (e) {}
   function keep() { try { sessionStorage.setItem('ppFilters', JSON.stringify({ q: Q, tab: F_TAB, st: F_ST, mine: MINE })); } catch (e) {} }
 
   function colorOf(label) { const L = (PP && PP.legend) || {}; const k = Object.keys(L).find(x => L[x].label === label); return k ? L[k].color : ''; }
@@ -99,10 +116,78 @@
       <div class="pp-meta">${[r.contact, r.email].filter(Boolean).map(esc).join(' · ') || 'No contact details yet'}</div>
       ${r.progress ? `<div class="pp-prog">${esc(r.progress)}</div>` : ''}
       ${kv.length ? `<div class="pp-kv">${kv.map(([k, v]) => `<span>${k}: <b>${esc(v)}</b></span>`).join('')}</div>` : ''}
-      <div class="hact"><a href="${esc(sheetLink(r))}">Open in sheet</a>${r.email ? `<a href="${esc(mailLink(r))}">Find in my email</a>` : ''}${canPic(r) ? (picPending(r) ? '<span class="pend">Changing PIC… waiting for Chris</span>' : `<button class="pic-btn" target="_self" onclick="askPic(${PP.rows.indexOf(r)})">Change PIC…</button>`) : ''}${PP.cfg ? (removing(r) ? '<span class="pend">Removing… waiting for Chris</span>' : `<button class="ghost" target="_self" onclick="askRemove(this, ${PP.rows.indexOf(r)})">Remove…</button>`) : ''}</div>
+      ${mailsHtml(r)}
+      <div class="hact"><a class="prof" href="profile.html?k=${encodeURIComponent(keyOf(r))}" target="_self">Profile</a>${editPending(r) ? '<span class="pend">Saving your edit… waiting for Chris</span>' : `<button class="pic-btn" target="_self" onclick="askEdit(${PP.rows.indexOf(r)})">Edit…</button>`}<a href="${esc(sheetLink(r))}">Open in sheet</a>${r.email ? `<a href="${esc(mailLink(r))}">Find in my email</a>` : ''}${canPic(r) ? (picPending(r) ? '<span class="pend">Changing PIC… waiting for Chris</span>' : `<button class="pic-btn" target="_self" onclick="askPic(${PP.rows.indexOf(r)})">Change PIC…</button>`) : ''}${PP.cfg ? (removing(r) ? '<span class="pend">Removing… waiting for Chris</span>' : `<button class="ghost" target="_self" onclick="askRemove(this, ${PP.rows.indexOf(r)})">Remove…</button>`) : ''}</div>
       <div class="pp-rm" id="rm-${PP.rows.indexOf(r)}"></div>
       <div class="pp-pic" id="pic-${PP.rows.indexOf(r)}"></div>
+      <div class="pp-ed" id="ed-${PP.rows.indexOf(r)}"></div>
     </div>`;
+  }
+  // ---------- open emails with this contact (from the Email handlers page) ----------
+  function mailsHtml(r) {
+    const l = (PP.emails || {})[keyOf(r)] || [];
+    if (!l.length) return '';
+    return `<div class="pp-mails">✉ ${l.length} open email${l.length === 1 ? '' : 's'}: ${l.slice(0, 3).map(m => `<a href="email.html?id=${encodeURIComponent(m.id)}" target="_self" title="${m.kind === 'us' ? 'Waiting for us to answer' : 'Waiting for them to answer'}">${esc(m.subject || '(no subject)')}</a>`).join('')}${l.length > 3 ? ' …' : ''}</div>`;
+  }
+  // ---------- Edit (everyone): Chris writes the row within about 5 minutes ----------
+  let OPEN_ED = '';
+  function editPending(r) { return (PP.editPending || []).some(p => String(p.id).toLowerCase() === keyOf(r)); }
+  const ED_LABELS = { contact: 'Contact person', progress: 'Progress', offer: 'What they offer', coming: 'Coming?' };
+  function askEdit(i, again) {
+    const r = PP.rows[i], box = document.getElementById('ed-' + i);
+    if (box.innerHTML && !again) { box.innerHTML = ''; OPEN_ED = ''; return; }
+    OPEN_ED = keyOf(r);
+    const L = PP.legend || {}, cols = (PP.tabCols || {})[r.tab] || { progress: 'Progress', offer: 'Offer', coming: 'Coming?', contact: 'Contact' };
+    const cur = Object.keys(L).find(k => L[k].label === r.status) || '';
+    box.innerHTML = `<div class="confirm"><b>Edit ${esc(r.company || r.contact || r.email)}</b> <span class="sub">· ${esc(r.tab)}</span>
+      <div class="f-grid">
+        <div><label for="es-${i}">Status (row colour)</label><select id="es-${i}"><option value="">No status yet</option>${Object.keys(L).map(k => `<option value="${esc(k)}" ${k === cur ? 'selected' : ''}>${esc(L[k].label)}</option>`).join('')}</select></div>
+        ${['contact', 'coming'].filter(k => cols[k]).map(k => `<div><label for="ef-${k}-${i}">${esc(ED_LABELS[k])}${cols[k].toLowerCase().replace(/[^a-z]/g, '') !== ED_LABELS[k].toLowerCase().replace(/[^a-z]/g, '') ? ` <span class="sub">(${esc(cols[k])})</span>` : ''}</label><input id="ef-${k}-${i}" value="${esc(r[k] || '')}" maxlength="400"></div>`).join('')}
+        ${['progress', 'offer'].filter(k => cols[k]).map(k => `<div class="wide"><label for="ef-${k}-${i}">${esc(ED_LABELS[k])}${cols[k].toLowerCase().replace(/[^a-z]/g, '') !== ED_LABELS[k].toLowerCase().replace(/[^a-z]/g, '') ? ` <span class="sub">(${esc(cols[k])})</span>` : ''}</label><textarea id="ef-${k}-${i}" maxlength="400">${esc(r[k] || '')}</textarea></div>`).join('')}
+      </div>
+      <div class="pp-row" style="margin-top:10px"><button class="primary" target="_self" onclick="doEdit(${i})">Save</button><button target="_self" onclick="OPEN_ED='';this.closest('.pp-ed').innerHTML=''">Cancel</button><span class="sub">Chris changes the sheet within about 5 minutes.</span></div>
+      <div class="c-msg" id="emsg-${i}"></div></div>`;
+  }
+  function doEdit(i) {
+    const r = PP.rows[i], msg = document.getElementById('emsg-' + i), L = PP.legend || {};
+    const cur = Object.keys(L).find(k => L[k].label === r.status) || '';
+    const body = { action: 'partnersEdit', tab: r.tab, row: r.row, cemail: r.email, company: r.company, fields: {} };
+    const st = document.getElementById('es-' + i).value; if (st !== cur) body.status = st;
+    ['contact', 'coming', 'progress', 'offer'].forEach(k => { const el = document.getElementById('ef-' + k + '-' + i); if (el && el.value.trim() !== String(r[k] || '').trim()) body.fields[k] = el.value.trim(); });
+    if (body.status === undefined && !Object.keys(body.fields).length) { msg.className = 'c-msg'; msg.textContent = 'Nothing changed.'; return; }
+    msg.className = 'c-msg'; msg.textContent = 'Sending to Chris…';
+    call(body).then(d => { OPEN_ED = ''; render(d); }).catch(e => { msg.className = 'c-msg bad'; msg.textContent = e.message; });
+  }
+  // ---------- Confirmed sponsors ("supporting us!"): paid? (admins edit, everyone sees) ----------
+  const PAID = [['not', 'Not paid yet'], ['invoiced', 'Invoiced'], ['partly', 'Partly paid'], ['paid', 'Paid'], ['inkind', 'In-kind (not money)']];
+  const rp = n => 'Rp ' + Math.round(Number(n) || 0).toLocaleString('en-US');
+  function drawSponsors() {
+    const box = document.getElementById('sponsorsCard'); if (!box || !PP) return;
+    const L = PP.legend || {}, lab = (L.supporting || {}).label || 'supporting us!';
+    const list = (PP.rows || []).filter(r => r.status === lab);
+    if (!list.length) { box.style.display = 'none'; return; }
+    if (box.contains(document.activeElement) && document.activeElement.tagName !== 'BUTTON') return;   // don't wipe what someone is typing during auto-refresh
+    const S = PP.sponsors || {}, admin = !!PP.cfg;
+    let promised = 0, got = 0, inkind = 0;
+    list.forEach(r => { const x = S[keyOf(r)] || {}; if (x.paid === 'inkind') inkind++; else { promised += Number(x.amount) || 0; got += x.paid === 'paid' ? (Number(x.received) || Number(x.amount) || 0) : (Number(x.received) || 0); } });
+    box.style.display = 'block';
+    box.innerHTML = `<div class="pp-h">Confirmed sponsors · ${list.length}</div>
+      <div class="sub">Everyone marked <b>${esc(lab)}</b> on the sheet. ${admin ? 'Fill in what they promised and whether it has been paid.' : 'Only admins can change payments.'} Kept for WOAH's planning only, not in the school's finance sheet.</div>
+      <div class="sp-sum"><span>Promised <b>${rp(promised)}</b></span><span>Received <b>${rp(got)}</b></span><span>Still to come <b>${rp(Math.max(0, promised - got))}</b></span>${inkind ? `<span>In-kind <b>${inkind}</b></span>` : ''}</div>
+      <div class="scroll"><table class="sp-table"><tr><th>Sponsor</th><th class="hide-sm">PIC</th><th>Paid?</th><th>Promised (Rp)</th><th>Received (Rp)</th><th class="hide-sm">Note</th>${admin ? '<th></th>' : ''}</tr>
+      ${list.map(r => { const k = keyOf(r), x = S[k] || {}, id = PP.rows.indexOf(r);
+        return `<tr><td><a href="profile.html?k=${encodeURIComponent(k)}" target="_self"><b>${esc(r.company || r.email)}</b></a><div class="sub">${esc(r.tab)}</div></td><td class="hide-sm">${esc(r.pic || '')}</td>
+          ${admin ? `<td><select id="spp-${id}">${PAID.map(([v, l]) => `<option value="${v}" ${(x.paid || 'not') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
+            <td><input id="spa-${id}" inputmode="numeric" value="${x.amount ? esc(x.amount) : ''}" placeholder="0"></td><td><input id="spr-${id}" inputmode="numeric" value="${x.received ? esc(x.received) : ''}" placeholder="0"></td>
+            <td class="hide-sm"><input id="spn-${id}" value="${esc(x.note || '')}" maxlength="200"></td><td><button target="_self" onclick="saveSponsor(${id})">Save</button><div class="c-msg" id="spm-${id}"></div></td>`
+          : `<td>${esc((PAID.find(p => p[0] === (x.paid || 'not')) || PAID[0])[1])}</td><td>${x.amount ? rp(x.amount) : '–'}</td><td>${x.received ? rp(x.received) : '–'}</td><td class="hide-sm">${esc(x.note || '')}</td>`}</tr>`; }).join('')}
+      </table></div>`;
+  }
+  function saveSponsor(id) {
+    const r = PP.rows[id], m = document.getElementById('spm-' + id);
+    m.className = 'c-msg'; m.textContent = 'Saving…';
+    call({ action: 'sponsorsSet', pkey: keyOf(r), company: r.company, paid: document.getElementById('spp-' + id).value, amount: document.getElementById('spa-' + id).value, received: document.getElementById('spr-' + id).value, note: document.getElementById('spn-' + id).value })
+      .then(d => { render(d); }).catch(e => { m.className = 'c-msg bad'; m.textContent = e.message; });
   }
   // ---------- Remove (admins): Chris moves it to the Removed tab or deletes it, within about 5 minutes ----------
   const REASONS = ['Email not valid', 'Not interested', 'No reply', 'Duplicate', 'Other'];
@@ -207,6 +292,7 @@
       ${filtered ? `<div class="banner warn" style="margin-top:8px">Filters on: ${esc([F_TAB, F_ST === '-' ? 'no status yet' : F_ST, MINE ? 'only mine' : ''].filter(Boolean).join(' · '))}${hidden ? ` · <b>${hidden} more</b> match${hidden === 1 ? 'es' : ''} your search outside these filters` : ''} <button target="_self" onclick="clearFilters()">Clear filters</button></div>` : ''}
       ${hits.length ? hits.slice(0, SHOW).map(item).join('') : '<div class="empty">Nothing matches. Try fewer words, or another tab / status.</div>'}
       ${hits.length > SHOW ? `<div style="margin-top:10px"><button onclick="SHOW+=1000;drawResults()">Show more</button></div>` : ''}`;
+    if (OPEN_ED) { const i = (PP.rows || []).findIndex(r => keyOf(r) === OPEN_ED); if (i >= 0 && document.getElementById('ed-' + i) && !editPending(PP.rows[i])) askEdit(i, true); else OPEN_ED = ''; }
     if (OPEN_PIC) { const i = (PP.rows || []).findIndex(r => keyOf(r) === OPEN_PIC); if (i >= 0 && document.getElementById('pic-' + i) && !picPending(PP.rows[i])) askPic(i, true, PIC_SEL); else OPEN_PIC = ''; }
     if (OPEN_RM) { const i = (PP.rows || []).findIndex(r => keyOf(r) === OPEN_RM); if (i >= 0 && document.getElementById('rm-' + i) && !removing(PP.rows[i])) askRemove(null, i, true); else OPEN_RM = ''; }
   }
@@ -295,6 +381,7 @@
     PP = d;
     document.getElementById('updated').textContent = d.at ? 'List copied from the sheet ' + when(d.at) + ' · refreshes every 10 minutes' : 'Possible Partners List';
     drawSearch();
+    drawSponsors();
     drawControl();
   }
   start({ title: 'Partners', need: 'handler', action: 'partners', every: 2, onData: render });
