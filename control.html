@@ -132,7 +132,8 @@
   </section>
   </div>
 </div>
-<script src="common.js?v=5"></script>
+<script src="common.js?v=6"></script>
+<script src="extras.js?v=1"></script>
 <script>
   let D = null, EDIT = null;
   const FEAT = [
@@ -238,6 +239,9 @@
       ${SET_NUMS.map(([k, label, unit, lo, hi]) => `<div class="f-row"><label for="s-${k}">${label}</label><div class="f-inline"><input type="number" id="s-${k}" min="${lo}" max="${hi}" value="${esc(e[k] != null ? e[k] : '')}"><span class="sub">${unit}</span></div></div>`).join('')}
       <div class="f-row"><label for="s-senderName">Sender name<div class="sub">The name people see on Chris's emails.</div></label><input type="text" id="s-senderName" value="${esc(e.senderName || '')}"></div>
       <div class="f-row"><label for="s-signature">Signature<div class="sub">Under every email Chris writes.</div></label><input type="text" id="s-signature" value="${esc(e.signature || '')}"></div>
+      <div class="f-row"><label for="s-festivalName">Festival name<div class="sub">Shown in the countdown at the top of every page.</div></label><input type="text" id="s-festivalName" value="${esc((D.settings || {}).festivalName || 'WOAH 2027')}"></div>
+      <div class="f-row"><label for="s-festivalDate">Festival starts<div class="sub">The countdown counts down to this day.</div></label><input type="date" id="s-festivalDate" value="${esc((D.settings || {}).festivalDate || '')}"></div>
+      <div class="f-row"><label for="s-festivalEnd">Festival ends<div class="sub">Leave empty if it's one day.</div></label><input type="date" id="s-festivalEnd" value="${esc((D.settings || {}).festivalEnd || '')}"></div>
       <div class="c-actions"><button class="primary" onclick="saveSettings()">Save settings</button><button onclick="drawSettings()">Undo my edits</button><span class="sub">${D.settings && D.settings.changedAt ? 'Last saved ' + when(D.settings.changedAt) + ' by ' + esc(first(D.settings.changedBy)) : ''}</span></div>
       <div class="c-msg" id="setMsg"></div></div>`;
   }
@@ -250,6 +254,8 @@
     });
     SET_NUMS.forEach(([k]) => { const v = document.getElementById('s-' + k).value; if (v !== '' && Number(v) !== e[k]) s[k] = Number(v); });
     ['senderName', 'signature'].forEach(k => { const v = document.getElementById('s-' + k).value.trim(); if (v && v !== e[k]) s[k] = v; });
+    ['festivalName', 'festivalDate', 'festivalEnd'].forEach(k => { const v = document.getElementById('s-' + k).value.trim(); if (v !== ((D.settings || {})[k] || (k === 'festivalName' ? 'WOAH 2027' : ''))) s[k] = v; });
+    if (s.festivalDate !== undefined || s.festivalEnd !== undefined || s.festivalName !== undefined) { try { localStorage.removeItem('woahCd'); } catch (e) {} }
     if (!Object.keys(s).length) return msg('setMsg', 'Nothing changed.', true);
     save({ action: 'controlSet', settings: s }, 'setMsg');
   }

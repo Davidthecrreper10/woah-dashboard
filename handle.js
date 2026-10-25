@@ -31,6 +31,12 @@ function pendHtml(x, them) {
   const L = them ? THEM_OPS : OPS;
   return ((DATA && DATA.pending) || []).filter(a => a.id === x.id).map(a => `<div class="pend">Waiting for Chris: ${esc(L[a.op] || a.op)}${a.op === 'reassign' ? ' to ' + esc(teamNames(a.value)) : a.op === 'snooze' ? (them ? ' in ' : ' ') + esc(a.value) + ' days' : ''} (by ${esc(teamName(a.by))})</div>`).join('');
 }
+// The partner behind this email (from the Possible Partners List), linking to their profile
+function ppChip(x) {
+  const l = DATA && DATA.ppLinks && DATA.ppLinks[String(x.sender || '').toLowerCase()];
+  if (!l) return '';
+  return `<div class="meta" style="margin-top:4px">Partner: <a href="profile.html?k=${encodeURIComponent(l.key)}" target="_self"><b>${esc(l.company || 'profile')}</b></a> · ${esc(l.tab)} · ${esc(l.status || 'no status yet')}${l.pic ? ' · PIC ' + esc(l.pic) : ''}</div>`;
+}
 function flagHtml(x) {
   return (x.flags || []).length ? `<div class="flagbox"><b>Check with a teacher before replying</b> · this email ${esc(x.flags.map(f => FLAG_TIPS[f] || f).join(', '))}.</div>` : '';
 }
@@ -61,7 +67,7 @@ function item(x, me) {
   return `<div class="hitem ${u >= 7 ? 'u-bad' : u >= 3 ? 'u-warn' : ''}">
     <div class="top"><div>${subjLink(x)}${usTags(x, me)}</div>
       <div class="${ageClass(x.since, 3, 5)}" style="white-space:nowrap">${d === 0 ? 'today' : d + (d === 1 ? ' day' : ' days')}</div></div>
-    <div class="meta">${usMeta(x)}</div>
+    <div class="meta">${usMeta(x)}</div>${ppChip(x)}
     ${flagHtml(x)}${pendHtml(x, false)}${usButtons(x, me)}
     <div class="confirm" id="hc-${x.id}"></div></div>`;
 }
@@ -92,7 +98,7 @@ function themItem(x, me) {
   return `<div class="hitem ${!later && (x.nudges >= 2 || d >= 12) ? 'u-bad' : !later && d >= 7 ? 'u-warn' : ''}">
     <div class="top"><div>${subjLink(x)}${themTags(x, me)}</div>
       <div class="${ageClass(x.since, 7, 12)}" style="white-space:nowrap">${d === 0 ? 'today' : d + (d === 1 ? ' day' : ' days')}</div></div>
-    <div class="meta">${themMeta(x)}</div>
+    <div class="meta">${themMeta(x)}</div>${ppChip(x)}
     ${pendHtml(x, true)}${themButtons(x, me, false)}
     <div class="confirm" id="hc-${x.id}"></div></div>`;
 }

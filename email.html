@@ -32,8 +32,9 @@
   <div style="margin-top:16px"><a class="back btnlike" href="handlers.html" target="_self">← Back to Email handlers</a></div>
   </div>
 </div>
-<script src="common.js?v=5"></script>
-<script src="handle.js?v=11"></script>
+<script src="common.js?v=6"></script>
+<script src="extras.js?v=1"></script>
+<script src="handle.js?v=12"></script>
 <script>
   const ID = (new URLSearchParams(location.search).get('id') || '').replace(/[^0-9a-f]/gi, '');
 
@@ -54,7 +55,7 @@
     let h = `<div class="card">
       <div class="sub">${them ? 'Waiting on them · WOAH sent this and is waiting for an answer' : 'To answer · someone emailed WOAH and is waiting for us'}</div>
       <h2 class="subject">${esc(x.subject)}</h2>
-      <div class="meta">${them ? themMeta(x) : usMeta(x)} · <span class="${ageClass(x.since, them ? 7 : 3, them ? 12 : 5)}">${dd === 0 ? 'today' : dd + (dd === 1 ? ' day' : ' days')}</span></div>
+      <div class="meta">${them ? themMeta(x) : usMeta(x)} · <span class="${ageClass(x.since, them ? 7 : 3, them ? 12 : 5)}">${dd === 0 ? 'today' : dd + (dd === 1 ? ' day' : ' days')}</span></div>${ppChip(x)}
       <div style="margin-top:6px">${them ? themTags(x, me) : usTags(x, me)} <a class="mine" href="${esc(mineLink(x))}">find in my email</a></div>
       ${them ? '' : flagHtml(x)}${pendHtml(x, them)}
       ${sending(x) ? `<div class="sentlbl" style="margin-top:8px">Sent, waiting for Chris to confirm. Nothing else to do here.</div>` : them ? themButtons(x, me, true) : usButtons(x, me, true)}

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WOAH Partner profile</title>
+<base target="_blank">
+<link rel="stylesheet" href="style.css?v=11">
+<link rel="icon" href="img/icon.png?v=2">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="woah.css?v=5">
+<script src="theme.js?v=7"></script>
+<style>
+  .pf-top { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+  .pf-name { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 26px; line-height: 1.15; margin: 0; }
+  .pf-kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px 16px; margin-top: 12px; font-size: 13px; }
+  .pf-kv div span { display: block; color: var(--muted); font-size: 12px; }
+  .pf-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); margin-top: 14px; }
+  .pf-h { font-weight: 700; font-size: 16px; margin: 0 0 6px; }
+  .pf input, .pf textarea, .pf select { font: inherit; width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .pf textarea { min-height: 90px; resize: vertical; }
+  .pf .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+  .pf .row > input { flex: 1 1 160px; width: auto; }
+  .li { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .li:last-child { border-bottom: 0; }
+  .li .sub { font-size: 12px; }
+  button.x { font-size: 12px; padding: 3px 8px; border-radius: 7px; background: transparent; border: 1px dashed var(--line); color: var(--bad); }
+  .note { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-top: 10px; }
+  .note pre { white-space: pre-wrap; font: inherit; font-size: 14px; margin: 8px 0 0; max-height: 220px; overflow: auto; }
+  .tk { display: grid; grid-template-columns: 22px 1fr 120px 140px; gap: 6px; align-items: center; margin-top: 6px; }
+  .tk input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--brand); }
+  @media (max-width: 640px) { .tk { grid-template-columns: 22px 1fr; } .tk select, .tk input[type=date] { grid-column: 2; } }
+  .c-msg { font-size: 13px; margin-top: 6px; } .c-msg.bad { color: var(--bad); } .c-msg.good { color: var(--good, inherit); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="login" class="card"></div>
+  <div id="app">
+  <header>
+    <div>
+      <h1><span>WOAH</span> Partner profile</h1>
+      <div class="sub"><a href="partners.html" target="_self">← All partners</a> · <a href="pipeline.html" target="_self">Pipeline</a></div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><nav class="pages" id="nav"></nav><button id="refresh" onclick="load()" target="_self">Refresh</button></div>
+      <div class="who" id="who"></div>
+    </div>
+  </header>
+  <div class="banner" id="banner"></div>
+  <div id="pf" class="pf"></div>
+  </div>
+</div>
+<script src="common.js?v=6"></script>
+<script src="extras.js?v=1"></script>
+<script>
+  const PKEY = (new URLSearchParams(location.search).get('k') || '').toLowerCase();
+  let P = null, TASKS = {}, NOTE_OPEN = false;
+  const PAID = { not: 'Not paid yet', invoiced: 'Invoiced', partly: 'Partly paid', paid: 'Paid', inkind: 'In-kind (not money)' };
+  function teamName(e) { const t = ((P && P.team) || []).find(x => String(x.email).toLowerCase() === String(e || '').toLowerCase()); return t ? (t.nick || t.name.split(' ')[0]) : first(e || ''); }
+  function canDel(x) { return P.isAdmin || String(x.by || '').toLowerCase() === myEmail(); }
+  function msg(id, t, bad) { const m = document.getElementById(id); if (m) { m.className = 'c-msg' + (bad ? ' bad' : ''); m.textContent = t; } }
+  function save(op, extra, mid) {
+    msg(mid, 'Saving…');
+    return call(Object.assign({ action: 'profileSave', pkey: PKEY, op }, extra)).then(d => { render(d); return d; }).catch(e => { msg(mid, e.message, true); throw e; });
+  }
+  function addDoc() { const u = document.getElementById('docUrl').value.trim(), t = document.getElementById('docTitle').value.trim(); if (!u) return msg('docMsg', 'Paste a link first.', true); save('addDoc', { url: u, title: t }, 'docMsg').catch(() => {}); }
+  function delDoc(id) { if (confirm('Remove this link from the profile? (The document itself is not deleted.)')) save('delDoc', { id }, 'docMsg').catch(() => {}); }
+  function savePkg() { save('setPkg', { text: document.getElementById('pkg').value }, 'pkgMsg').catch(() => {}); }
+  function addNote() {
+    const text = document.getElementById('nText').value, title = document.getElementById('nTitle').value, date = document.getElementById('nDate').value;
+    save('addNote', { text, title, date }, 'noteMsg').then(() => { NOTE_OPEN = false; draw(); }).catch(() => {});
+  }
+  function delNote(id) { if (confirm('Delete these meeting notes?')) save('delNote', { id }, 'noteMsg').catch(() => {}); }
+  function findTasks(id) {
+    TASKS[id] = { loading: true }; draw();
+    call({ action: 'profileTasks', pkey: PKEY, id }).then(d => { TASKS[id] = { list: (d.tasks || []).map(t => Object.assign({ on: true }, t)) }; draw(); })
+      .catch(e => { TASKS[id] = { err: e.message }; draw(); });
+  }
+  function readTasks(id) {
+    const T = TASKS[id]; if (!T || !T.list) return [];
+    T.list.forEach((t, j) => {
+      const g = k => document.getElementById(`t-${k}-${id}-${j}`);
+      if (g('on')) { t.on = g('on').checked; t.task = g('task').value; t.owner = g('own').value; t.due = g('due').value; }
+    });
+    return T.list;
+  }
+  function addTasks(id) {
+    const list = readTasks(id).filter(t => t.on && t.task.trim());
+    if (!list.length) return msg('tm-' + id, 'Tick at least one task.', true);
+    msg('tm-' + id, 'Adding to the Planner…');
+    call({ action: 'profileAddTasks', pkey: PKEY, id, tasks: list.map(t => ({ task: t.task, owner: t.owner, due: t.due })) })
+      .then(d => { TASKS[id] = { done: d.added, url: d.tasksUrl }; render(d); })
+      .catch(e => msg('tm-' + id, e.message, true));
+  }
+  function addTaskRow(id) { readTasks(id); TASKS[id].list.push({ on: true, task: '', owner: '', due: '' }); draw(); }
+  function tasksBox(n) {
+    const T = TASKS[n.id];
+    if (!T) return `<div class="row"><button target="_self" onclick="findTasks('${esc(n.id)}')">Find tasks in these notes</button>${n.tasks ? `<span class="sub">${n.tasks} task${n.tasks === 1 ? '' : 's'} already added to the Planner</span>` : ''}</div>`;
+    if (T.loading) return '<div class="c-msg">Chris is reading the notes…</div>';
+    if (T.err) return `<div class="c-msg bad">${esc(T.err)}</div><div class="row"><button target="_self" onclick="findTasks('${esc(n.id)}')">Try again</button></div>`;
+    if (T.done) return `<div class="c-msg">Added ${T.done} task${T.done === 1 ? '' : 's'} to the <a href="${esc(T.url || '#')}">Partner Tasks tab in the Planner</a>.</div>`;
+    const team = (P.team || []).map(t => t.nick || t.name.split(' ')[0]);
+    return `<div style="margin-top:10px"><div class="sub">Chris found these. Untick or change anything, then add them to the Planner.</div>
+      ${T.list.length ? T.list.map((t, j) => `<div class="tk"><input type="checkbox" id="t-on-${n.id}-${j}" ${t.on ? 'checked' : ''} aria-label="Include">
+        <input id="t-task-${n.id}-${j}" value="${esc(t.task)}" maxlength="200" placeholder="Task">
+        <select id="t-own-${n.id}-${j}" aria-label="Owner"><option value="">No owner</option>${team.map(x => `<option ${x === t.owner ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
+        <input type="date" id="t-due-${n.id}-${j}" value="${esc(t.due)}" aria-label="Due date"></div>`).join('') : '<div class="c-msg">Chris didn\'t find any tasks. You can add one yourself.</div>'}
+      <div class="row"><button class="primary" target="_self" onclick="addTasks('${esc(n.id)}')">Add to Planner</button><button target="_self" onclick="addTaskRow('${esc(n.id)}')">+ Task</button><button target="_self" onclick="delete TASKS['${esc(n.id)}'];draw()">Cancel</button></div>
+      <div class="c-msg" id="tm-${n.id}"></div></div>`;
+  }
+  function draw() {
+    const box = document.getElementById('pf'), r = P.row, p = P.profile || { docs: [], notes: [], pkg: '' };
+    const keepPkg = document.getElementById('pkg') && document.activeElement && document.activeElement.id === 'pkg' ? document.getElementById('pkg').value : null;
+    const nDraft = ['nText', 'nTitle', 'nDate'].map(id => { const e = document.getElementById(id); return e ? e.value : null; });
+    Object.keys(TASKS).forEach(readTasks);
+    if (!r) { box.innerHTML = `<div class="card"><div class="pf-h">This contact isn't on the Possible Partners List any more</div><div class="sub">They may have been removed or renamed. <a href="partners.html" target="_self">Search the partners</a>.</div></div>`; return; }
+    const sp = P.sponsor;
+    box.innerHTML = `<div class="card"><div class="pf-top"><div><h2 class="pf-name">${esc(r.company || r.contact || r.email)}</h2><div class="sub">${esc(r.tab)}${r.status ? ' · <b>' + esc(r.status) + '</b>' : ' · no status yet'}</div></div>
+        <div class="hact" style="margin:0"><a class="btn" href="partners.html?q=${encodeURIComponent(r.company || r.email || '')}" target="_self">Edit on Partners page</a></div></div>
+      <div class="pf-kv">${[['Contact person', r.contact], ['Email', r.email], ['PIC', r.pic], ['Latest contact', r.latest], ['Coming?', r.coming], ['Offer', r.offer]].filter(x => x[1]).map(([k, v]) => `<div><span>${k}</span>${esc(v)}</div>`).join('')}</div>
+      ${r.progress ? `<div style="margin-top:10px;font-size:14px"><span class="sub">Progress</span><br>${esc(r.progress)}</div>` : ''}
+      ${sp ? `<div style="margin-top:10px;font-size:14px"><span class="sub">Sponsor payment</span><br>${esc(PAID[sp.paid] || sp.paid || '')}${sp.amount ? ' · promised Rp ' + Number(sp.amount).toLocaleString('en-US') : ''}${sp.received ? ' · received Rp ' + Number(sp.received).toLocaleString('en-US') : ''}</div>` : ''}
+      ${(P.emails || []).length ? `<div style="margin-top:10px;font-size:14px"><span class="sub">Open emails</span><br>${P.emails.map(m => `<a href="email.html?id=${encodeURIComponent(m.id)}" target="_self">${esc(m.subject || '(no subject)')}</a> <span class="sub">(${m.kind === 'us' ? 'waiting for us' : 'waiting for them'})</span>`).join('<br>')}</div>` : ''}
+    </div>
+    <div class="pf-grid">
+      <div class="card"><div class="pf-h">Package</div><div class="sub">What we're offering them, or what we agreed.</div>
+        <textarea id="pkg" maxlength="2000" placeholder="e.g. Gold sponsor: logo on stage banner + 2 stalls">${esc(keepPkg != null ? keepPkg : p.pkg || '')}</textarea>
+        <div class="row"><button target="_self" onclick="savePkg()">Save package</button>${p.pkgBy ? `<span class="sub">Last saved by ${esc(teamName(p.pkgBy))}${p.pkgAt ? ', ' + agoText(p.pkgAt) : ''}</span>` : ''}</div><div class="c-msg" id="pkgMsg"></div></div>
+      <div class="card"><div class="pf-h">Documents</div><div class="sub">Links to proposals, contracts, decks, photos…</div>
+        ${(p.docs || []).map(d => `<div class="li"><div><a href="${esc(d.url)}">${esc(d.title)}</a><div class="sub">${esc(teamName(d.by))} · ${agoText(d.at)}</div></div>${canDel(d) ? `<button class="x" target="_self" onclick="delDoc('${esc(d.id)}')">Remove</button>` : ''}</div>`).join('') || '<div class="empty" style="padding:8px 0">No documents yet.</div>'}
+        <div class="row"><input id="docTitle" placeholder="Name (optional)" maxlength="120"><input id="docUrl" placeholder="https://…"><button target="_self" onclick="addDoc()">Add link</button></div><div class="c-msg" id="docMsg"></div></div>
+    </div>
+    <div class="card" style="margin-top:14px"><div class="pf-top"><div><div class="pf-h">Meeting notes</div><div class="sub">Paste notes after a call or meeting. Chris can turn them into tasks in the Planner.</div></div>
+      ${NOTE_OPEN ? '' : '<button class="primary" target="_self" onclick="NOTE_OPEN=true;draw()">+ New notes</button>'}</div>
+      ${NOTE_OPEN ? `<div class="note"><div class="row" style="margin-top:0"><input id="nTitle" placeholder="Title (optional), e.g. Call with marketing team" maxlength="100"><input id="nDate" type="date" style="flex:0 0 170px"></div>
+        <textarea id="nText" maxlength="8000" placeholder="Paste or type the meeting notes" style="margin-top:8px;min-height:140px"></textarea>
+        <div class="row"><button class="primary" target="_self" onclick="addNote()">Save notes</button><button target="_self" onclick="NOTE_OPEN=false;draw()">Cancel</button></div></div>` : ''}
+      <div class="c-msg" id="noteMsg"></div>
+      ${(p.notes || []).map(n => `<div class="note"><div class="pf-top"><div><b>${esc(n.title || 'Meeting notes')}</b> <span class="sub">· ${esc(n.date)} · ${esc(teamName(n.by))}</span></div>${canDel(n) ? `<button class="x" target="_self" onclick="delNote('${esc(n.id)}')">Delete</button>` : ''}</div>
+        <pre>${esc(n.text)}</pre>${tasksBox(n)}</div>`).join('') || (NOTE_OPEN ? '' : '<div class="empty" style="padding:8px 0">No meeting notes yet.</div>')}
+    </div>`;
+    ['nText', 'nTitle', 'nDate'].forEach((id, j) => { const e = document.getElementById(id); if (e && nDraft[j] != null) e.value = nDraft[j]; });
+    const dd = document.getElementById('nDate'); if (dd && !dd.value) dd.value = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  }
+  function render(d) {
+    P = d;
+    document.title = 'WOAH · ' + ((d.row && (d.row.company || d.row.email)) || 'Partner profile');
+    draw();
+  }
+  if (!PKEY) document.addEventListener('DOMContentLoaded', () => { document.getElementById('pf').innerHTML = '<div class="card">No partner picked. <a href="partners.html" target="_self">Open the Partners page</a> and press <b>Profile</b> on someone.</div>'; });
+  start({ title: 'Partner profile', need: 'handler', action: 'profile', params: { pkey: PKEY }, onData: render });
+</script>
+</body>
+</html>
