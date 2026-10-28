@@ -214,6 +214,9 @@
           <div class="sp-meta"><b>${priceText(p)}</b>${opts ? ' · ' + opts : ''}</div></div>
         <div><span class="sp-lbl">Where in the shop</span>
           <div class="sp-sec">${Object.keys(SEC).map(s => `<button target="_self" class="${p.section === s ? 'on ' + s : ''}" onclick="setSection('${k}','${s}')" ${busy ? 'disabled' : ''}>${SEC[s]}</button>`).join('')}</div></div>
+        <div><span class="sp-lbl">Pre-orders</span>
+          <div class="sp-sec">${[['auto', 'Automatic'], ['open', 'Open'], ['closed', 'Closed']].map(([v, l]) => `<button target="_self" class="${(p.preSet || 'auto') === v ? 'on ' + (v === 'closed' ? 'hidden' : v === 'open' ? 'current' : 'preorder') : ''}" onclick="setPre('${k}','${v}')" ${busy ? 'disabled' : ''}>${l}</button>`).join('')}</div>
+          <div class="sp-meta" style="margin-top:5px">${p.preorder ? '<b>Pre-orders open</b>: people can pre-order it on the website (when it\'s in Pre-order) and on the Sell page.' : '<b>Pre-orders closed</b>: not on the Sell page\'s Pre-order tab' + (p.section === 'preorder' ? ', and the website shows "Pre-orders closed".' : '.')} Automatic = open only while it\'s in Pre-order.</div></div>
         <div><span class="sp-lbl">Description</span>
           <textarea id="desc-${k}" placeholder="What buyers see under the name: material, fit, the story behind the design…" oninput="descInput('${k}')">${esc(desc)}</textarea>
           <div class="sp-row" style="margin-top:6px"><button target="_self" id="dsave-${k}" onclick="saveDesc('${k}')" ${descChanged && !busy ? '' : 'disabled'}>Save description</button></div></div>
@@ -234,6 +237,10 @@
     setMsg(k, 'Saving…');
     return call(body).then(d => { DRAFT[k] = null; D = d; MSG[k] = { t: okText || 'Saved. The shop shows it within a few minutes.', cls: 'ok' }; draw(); })
       .catch(e => { setMsg(k, e.message, 'bad'); throw e; });
+  }
+  function setPre(k, v) {
+    const p = find(k); if (!p || (p.preSet || 'auto') === v) return;
+    save(k, { pre: v }, v === 'open' ? 'Pre-orders open.' : v === 'closed' ? 'Pre-orders closed.' : 'Pre-orders follow the section again.').catch(() => {});
   }
   function setSection(k, s) {
     const p = find(k); if (!p || p.section === s) return;
@@ -374,18 +381,19 @@
     </div>`;
   }
   // Payment taken in person (e.g. at Shanti House): marks it paid and adds it to that day's tab in the Sales Tracker, like the Sell page.
-  function odPayOpen(id) { OPAY[id] = OPAY[id] ? null : { method: '', hand: false }; drawOrdersList(); }
+  function odPayOpen(id) { OPAY[id] = OPAY[id] ? null : { method: '', hand: false, photo: false }; drawOrdersList(); }
   function odPayHTML(o) {
     const s = OPAY[o.order], id = esc(o.order);
     return `<div class="card" style="margin:0;padding:10px 12px"><b>Payment for ${rp(o.total)}</b> <span class="sub">(goes into today's Sales Tracker tab)</span>
-      <div class="sp-seg" style="margin-top:8px">${[['cash', 'Cash'], ['qris', 'QRIS'], ['xendit', 'Card (Xendit)'], ['transfer', 'Transfer']].map(([k, l]) => `<button target="_self" class="${s.method === k ? 'on' : ''}" onclick="OPAY['${id}'].method='${k}';drawOrdersList()">${l}</button>`).join('')}</div>
+      <div class="sp-seg" style="margin-top:8px">${[['cash', 'Cash'], ['qris', 'QRIS'], ['xendit', 'Card (Xendit)'], ['transfer', 'Transfer']].map(([k, l]) => `<button target="_self" class="${s.method === k ? 'on' : ''}" onclick="OPAY['${id}'].method='${k}';OPAY['${id}'].photo=false;drawOrdersList()">${l}</button>`).join('')}</div>
+      ${s.method && s.method !== 'cash' ? `<label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:14px;font-weight:600"><input type="checkbox" ${s.photo ? 'checked' : ''} onchange="OPAY['${id}'].photo=this.checked;drawOrdersList()"> I saw the payment and took a photo of it with my phone</label>` : ''}
       <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:14px"><input type="checkbox" ${s.hand ? 'checked' : ''} onchange="OPAY['${id}'].hand=this.checked"> Also hand over the items now (Collected)</label>
-      <div class="od-act" style="margin-top:8px"><button target="_self" class="main" ${s.method ? '' : 'disabled'} onclick="odPay('${id}')">Confirm payment</button><button target="_self" onclick="OPAY['${id}']=null;drawOrdersList()">Close</button></div></div>`;
+      <div class="od-act" style="margin-top:8px"><button target="_self" class="main" ${s.method && (s.method === 'cash' || s.photo) ? '' : 'disabled'} onclick="odPay('${id}')">Confirm payment</button><button target="_self" onclick="OPAY['${id}']=null;drawOrdersList()">Close</button></div></div>`;
   }
   function odPay(id, force) {
     const s = OPAY[id]; if (!s || !s.method) return;
     OBUSY[id] = 1; drawOrders();
-    call({ action: 'posCollect', order: id, take: true, pay: s.method, collect: s.hand, force: !!force }).then(() => { OBUSY[id] = 0; OPAY[id] = null; return loadOrders(); })
+    call({ action: 'posCollect', order: id, take: true, pay: s.method, photo: !!s.photo, collect: s.hand, force: !!force }).then(() => { OBUSY[id] = 0; OPAY[id] = null; return loadOrders(); })
       .catch(e => { OBUSY[id] = 0; if (/Hand over anyway/.test(e.message) && confirm(e.message)) return odPay(id, true); drawOrders(); alert(e.message); });
   }
   function odSet(id, op) {
