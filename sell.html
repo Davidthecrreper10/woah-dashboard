@@ -206,6 +206,8 @@
   TAB = ls.get('woahPosTab', 'sell'); BR = ls.get('woahPosBrand', 'all'); CART = ls.get('woahPosCart', []); PRE = ls.get('woahPosPre', []);
   let QUEUE = ls.get('woahPosQueue', []);
   { const h = location.hash.replace('#', ''); if (['sell', 'pre', 'collect', 'today'].includes(h)) TAB = h; }
+  if (TAB === 'pre') TAB = 'sell';
+  if (PRE.length) { CART = CART.concat(PRE.map(l => Object.assign({}, l, { pre: true }))); PRE = []; }   /* old separate pre-order cart */
 
   function rp(n) { return 'Rp ' + Number(n || 0).toLocaleString('id-ID'); }
   function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2600); }
@@ -217,17 +219,11 @@
   function linePrice(l) { if (l.custom) return Number(l.price) || 0; const v = variant(l); return v ? v.price : 0; }
   function lineFull(l) { return linePrice(l) * l.qty; }
   function lineNet(l) { return Math.max(0, lineFull(l) - (Number(l.discount) || 0)); }
-  function cartFor() { return TAB === 'pre' ? PRE : CART; }
+  function cartFor() { return CART; }
   function saveCarts() { ls.set('woahPosCart', CART); ls.set('woahPosPre', PRE); }
   function totalOf(c) { return c.reduce((a, l) => a + lineNet(l), 0); }
   function countOf(c) { return c.reduce((a, l) => a + l.qty, 0); }
   /* stock left after this phone's own cart and unsent sales */
-  function usedHere(item) {
-    let n = 0;
-    CART.forEach(l => { const v = variant(l); if (v && v.item === item) n += l.qty; });
-    QUEUE.forEach(q => (q.sale.lines || []).forEach(l => { const v = variant(l); if (v && v.item === item) n += l.qty; }));
-    return n;
-  }
   function left(v) { return (Number(v.stock) || 0) - usedHere(v.item); }
   function stockOf(p) { return p.variants.reduce((a, v) => a + Math.max(0, left(v)), 0); }
   function priceOf(p) { const ps = p.variants.map(v => v.price).filter(Boolean); if (!ps.length) return 'No price'; const lo = Math.min.apply(null, ps), hi = Math.max.apply(null, ps); return lo === hi ? rp(lo) : 'from ' + rp(lo); }
@@ -238,112 +234,21 @@
     D = d;
     if (d.day) DAY = d.day;
     document.getElementById('updated').textContent = 'Items and prices from Dom\'s sheet · ' + when(d.at) + ' · today: ' + d.today;
-    PRE = PRE.filter(l => { const p = prod(l.key); return p && p.preorder; }); saveCarts();
+    CART = CART.filter(l => !l.pre || (prod(l.key) || {}).preorder); saveCarts();
     drawTabs(); drawQueue(); draw();
     if (TAB === 'collect') loadOrders(); else if (TAB === 'today') loadDay(DAYSEL);
     syncSoon();
   }
-  function drawTabs() {
-    const tabs = [['sell', 'Sell'], ['pre', 'Pre-order'], ['collect', 'Collect'], ['today', 'Sales & check']];
-    document.getElementById('tabs').innerHTML = tabs.map(([k, l]) => {
-      const n = k === 'sell' ? countOf(CART) : k === 'pre' ? countOf(PRE) : 0;
-      return `<button target="_self" class="${TAB === k ? 'on' : ''}" onclick="setTab('${k}')">${l}${n ? `<span class="n">${n}</span>` : ''}</button>`;
-    }).join('');
-  }
   function setTab(t) { TAB = t; ls.set('woahPosTab', t); drawTabs(); draw(); window.scrollTo(0, 0); if (t === 'collect') loadOrders(); if (t === 'today') loadDay(DAYSEL); }
-  function draw() {
-    if (!D) return;
-    const shop = TAB === 'sell' || TAB === 'pre';
-    document.getElementById('layout').className = 'ps-layout' + (shop ? ' side' : '');
-    document.getElementById('side').style.display = shop ? '' : 'none';
-    if (shop) { drawShop(); drawSide(); }
-    else if (TAB === 'collect') drawCollect();
-    else drawToday();
-  }
-  /* after any cart change */
   function cartChanged() { saveCarts(); drawTabs(); drawShop(); drawSide(); if (SHEET === 'cart') drawCart(); }
 
   /* ---------- catalogue ---------- */
-  function cardHTML(p, pre) {
-    const s = stockOf(p), soap = brandOf(p.name) === 'soap';
-    const sizes = pre ? '' : `<div class="sz">${p.sizes.map(z => { const n = p.variants.filter(v => v.size === z).reduce((a, v) => a + Math.max(0, left(v)), 0); return `<span class="${n > 0 ? '' : 'z'}">${esc(z)}${n > 0 ? ' ' + n : ''}</span>`; }).join('')}</div>`;
-    return `<button target="_self" class="ps-p ${!pre && s <= 0 ? 'out' : ''}" onclick="openPick('${esc(p.key)}')">
-      <div class="im ${soap ? 'soap' : ''}">${p.photo ? `<img src="${esc(p.photo)}" alt="" loading="lazy">` : `<div class="nm">${esc(p.name)}</div>`}
-        <div class="tg">${soap ? '<span class="soap">SOAP</span>' : ''}${pre ? '<span class="pre">PRE-ORDER</span>' : ''}</div></div>
-      <div class="bd"><div class="t">${esc(p.name)}</div><div class="m"><b>${priceOf(p)}</b>${pre ? '' : `<span>${s > 0 ? s + ' in stock' : 'none in stock'}</span>`}</div>${sizes}</div></button>`;
-  }
-  function drawShop() {
-    const pre = TAB === 'pre', q = SQ.toLowerCase().trim();
-    let ps = D.products.filter(p => (BR === 'all' || brandOf(p.name) === BR) && (!q || p.name.toLowerCase().includes(q)));
-    let body = '';
-    if (pre) {
-      const open = ps.filter(p => p.preorder).sort((a, b) => a.name.localeCompare(b.name));
-      body = open.length ? `<div class="ps-h">Open for pre-orders <b>${open.length}</b><span class="line"></span></div><div class="ps-grid">${open.map(p => cardHTML(p, true)).join('')}</div>`
-        : `<div class="card" style="margin-top:14px">No items are open for pre-orders${q || BR !== 'all' ? ' with this filter' : ''}. An admin can open pre-orders per item in <b>Shop → Products → Pre-orders</b>.</div>`;
-      body += '<p class="ps-note">Pre-orders: the buyer orders now and collects when the stock arrives. Only items marked "Pre-orders open" are shown here.</p>';
-    } else {
-      const inS = ps.filter(p => stockOf(p) > 0).sort((a, b) => a.name.localeCompare(b.name));
-      const out = ps.filter(p => stockOf(p) <= 0).sort((a, b) => a.name.localeCompare(b.name));
-      body = `<div class="ps-h">In stock <b>${inS.length}</b><span class="line"></span></div>
-        ${inS.length ? `<div class="ps-grid">${inS.map(p => cardHTML(p, false)).join('')}</div>` : '<div class="ps-note">Nothing in stock with this filter.</div>'}
-        ${out.length ? `<div class="ps-h">Stock says 0 <b>${out.length}</b><span class="line"></span></div><div class="ps-grid">${out.map(p => cardHTML(p, false)).join('')}</div>
-          <p class="ps-note">The stock numbers are being recounted. If you have one of these in your hands you can still sell it.</p>` : ''}`;
-    }
-    const c = cartFor(), n = countOf(c);
-    const v = document.getElementById('view'), had = document.activeElement && document.activeElement.id === 'sq';
-    v.innerHTML = `<div class="ps-tool"><input class="ps-in search" id="sq" type="search" placeholder="Search items" value="${esc(SQ)}" oninput="SQ=this.value;drawShop()">
-        <div class="bseg">${[['all', 'All'], ['woah', 'WOAH'], ['soap', 'SOAP']].map(([k, l]) => `<button target="_self" class="${BR === k ? 'on' : ''}" onclick="setBrand('${k}')">${l}</button>`).join('')}</div>
-        ${pre ? '' : '<button target="_self" onclick="openCustom()">+ Other item</button>'}</div>
-      ${body}
-      <div class="ps-bar"><div class="sum">${n ? `${n} item${n > 1 ? 's' : ''}<b>${rp(totalOf(c))}</b>` : `<span class="sub">${pre ? 'Pre-order cart' : 'Cart'} is empty</span>`}</div>
-        <button target="_self" class="btn-main" ${n ? '' : 'disabled'} onclick="openCart()">${pre ? 'Pre-order' : 'Checkout'} ›</button></div>`;
-    if (had) { const s = document.getElementById('sq'); s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
-  }
   function setBrand(b) { BR = b; ls.set('woahPosBrand', b); drawShop(); }
   /* cart panel on wide screens */
-  function drawSide() {
-    const pre = TAB === 'pre', c = cartFor(), n = countOf(c);
-    document.getElementById('side').innerHTML = `<h3>${pre ? 'Pre-order' : 'Cart'} <small>${n ? n + ' item' + (n > 1 ? 's' : '') : ''}</small></h3>
-      ${n ? c.map((l, i) => lineHTML(l, i, true)).join('') + `<div class="side-tot"><span>Total</span><b>${rp(totalOf(c))}</b></div>
-        <button target="_self" class="btn-main" onclick="openCart()">${pre ? 'Buyer & payment' : 'Checkout'} ›</button>
-        <div style="text-align:center;margin-top:10px"><button target="_self" class="lnk" onclick="clearCart()">Empty the ${pre ? 'pre-order ' : ''}cart</button></div>`
-      : `<div class="empty">Tap an item to add it.</div>`}`;
-  }
-  function clearCart() { if (!confirm('Empty the cart?')) return; if (TAB === 'pre') PRE = []; else CART = []; PAY = null; cartChanged(); }
 
   /* ---------- picker ---------- */
-  function openPick(key) {
-    const p = prod(key); if (!p) return;
-    PICK = { key, colour: p.colours.length === 1 ? p.colours[0] : '', fit: p.fits.length === 1 ? p.fits[0] : '', size: p.sizes.length === 1 ? p.sizes[0] : '', qty: 1 };
-    SHEET = 'pick'; drawPick(); openSheet();
-  }
-  function drawPick() {
-    const p = prod(PICK.key), pre = TAB === 'pre';
-    const match = (v, k, val) => (v[k] || '') === val;
-    const avail = (k, val) => p.variants.filter(v => match(v, k, val) && ['colour', 'fit', 'size'].every(o => o === k || !PICK[o] || match(v, o, PICK[o])));
-    const chips = (k, list) => list.map(val => {
-      const vs = avail(k, val), st = vs.reduce((a, v) => a + left(v), 0);
-      return `<button target="_self" class="chip ${PICK[k] === val ? 'on' : ''} ${!pre && st <= 0 ? 'zero' : ''}" ${vs.length ? '' : 'disabled'} onclick="pickSet('${k}','${esc(val)}')">${esc(val)}${pre || k !== 'size' ? '' : `<small>${st > 0 ? st + ' left' : '0'}</small>`}</button>`;
-    }).join('');
-    const v = p.variants.find(x => ['colour', 'fit', 'size'].every(o => (x[o] || '') === (PICK[o] || '')));
-    const st = v ? left(v) : null;
-    const missing = ['colour', 'fit', 'size'].filter(o => p[o === 'colour' ? 'colours' : o + 's'].length && !PICK[o]);
-    document.getElementById('sheet').innerHTML = sheetHead(esc(p.name), (pre ? 'Pre-order' : p.section === 'hidden' ? 'Not on the website' : 'Also on the website') + (brandOf(p.name) === 'soap' ? ' · SOAP' : ''))
-      + `<div class="bigprice">${v ? rp(v.price) : priceOf(p)}</div>
-      ${p.colours.length ? `<div class="ps-lbl">Colour</div><div class="chips">${chips('colour', p.colours)}</div>` : ''}
-      ${p.fits.length ? `<div class="ps-lbl">Fit</div><div class="chips">${chips('fit', p.fits)}</div>` : ''}
-      ${p.sizes.length ? `<div class="ps-lbl">Size</div><div class="chips">${chips('size', p.sizes)}</div>` : ''}
-      ${v && !pre && st < PICK.qty ? `<div class="warnline">Stock says ${Math.max(0, st)} left. The stock is still being recounted, so add it if you have it in your hands.</div>` : ''}
-      <div class="sh-f"><div class="qty"><button target="_self" onclick="pickQty(-1)">−</button><span>${PICK.qty}</span><button target="_self" onclick="pickQty(1)">+</button></div>
-        <button target="_self" class="btn-main" ${v ? '' : 'disabled'} onclick="pickAdd()">${v ? `Add · ${rp(v.price * PICK.qty)}` : 'Pick ' + missing.join(', ')}</button></div>`;
-  }
   function pickSet(k, val) { PICK[k] = PICK[k] === val ? '' : val; drawPick(); }
   function pickQty(d) { PICK.qty = Math.max(1, Math.min(50, PICK.qty + d)); drawPick(); }
-  function pickAdd() {
-    const c = cartFor(), same = c.find(l => !l.custom && l.key === PICK.key && l.colour === PICK.colour && l.fit === PICK.fit && l.size === PICK.size);
-    if (same) same.qty += PICK.qty; else c.push({ key: PICK.key, colour: PICK.colour, fit: PICK.fit, size: PICK.size, qty: PICK.qty });
-    const name = prod(PICK.key).name; closeSheet(); cartChanged(); toast('Added ' + name);
-  }
   function openCustom() {
     SHEET = 'custom';
     document.getElementById('sheet').innerHTML = sheetHead('Other item', 'Something that isn\'t in Dom\'s sheet. It\'s saved with this name, so tell Dom afterwards.')
@@ -364,39 +269,6 @@
   /* ---------- cart + checkout ---------- */
   function newPay() { return { method: '', got: '', photo: false, owes: '', reason: '', helper: ls.get('woahPosHelper', ''), note: '', buyer: { name: '', phone: '', cemail: '', role: 'Student' }, collect: '', err: '' }; }
   function openCart() { PAY = PAY || newPay(); SHEET = 'cart'; drawCart(); openSheet(); }
-  function lineHTML(l, i, side) {
-    const p = l.custom ? null : prod(l.key), name = l.custom ? l.custom : p ? p.name : '(gone from Dom\'s sheet)';
-    const full = lineFull(l), net = lineNet(l), pre = TAB === 'pre';
-    return `<div class="cl"><div class="ln"><b>${esc(name)}</b>${l.custom ? ' <span class="pill">not in Dom\'s sheet</span>' : ''}<div class="o">${esc(optText(l))}${optText(l) ? ' · ' : ''}${rp(linePrice(l))} each</div>
-        <div class="ctl"><span class="qty sm"><button target="_self" onclick="lineQty(${i},-1)">−</button><span>${l.qty}</span><button target="_self" onclick="lineQty(${i},1)">+</button></span>
-        ${pre ? '' : `<button target="_self" class="lnk" onclick="lineDisc(${i})">${l.discount ? 'Change discount' : 'Discount'}</button>`}<button target="_self" class="lnk" onclick="lineDel(${i})">Remove</button></div>
-        ${l.dopen && !side ? `<div class="disc"><input class="ps-in" inputmode="numeric" placeholder="Rp off" value="${l.discount || ''}" oninput="discSet(${i},'discount',this.value)"><input class="ps-in" placeholder="Reason (e.g. small stain)" value="${esc(l.reason || '')}" oninput="discSet(${i},'reason',this.value)"></div>` : l.discount ? `<div class="o">−${rp(l.discount)}: ${esc(l.reason || 'no reason yet')}</div>` : ''}</div>
-      <div class="pr">${l.discount ? `<s>${rp(full)}</s>` : ''}${rp(net)}</div></div>`;
-  }
-  function drawCart() {
-    const pre = TAB === 'pre', c = cartFor(), tot = totalOf(c);
-    if (!c.length) { closeSheet(); return; }
-    const m = PAY.method;
-    const methods = pre ? [['cash', 'Cash'], ['qris', 'QRIS'], ['xendit', 'Card (Xendit)'], ['transfer', 'Transfer'], ['later', 'Pays later']] : PAYS;
-    const sc = document.getElementById('sheet').scrollTop;
-    document.getElementById('sheet').innerHTML = sheetHead(pre ? 'Pre-order' : 'Checkout', countOf(c) + ' item' + (countOf(c) > 1 ? 's' : ''))
-      + `<div class="sh-sec" style="border-top:0;margin-top:4px;padding-top:0">${c.map((l, i) => lineHTML(l, i, false)).join('')}</div>
-      ${pre ? `<div class="sh-sec"><div class="lbl">Buyer</div>
-        <input class="ps-in" placeholder="Name" value="${esc(PAY.buyer.name)}" oninput="PAY.buyer.name=this.value">
-        <div class="ps-row2" style="margin-top:6px"><input class="ps-in" inputmode="tel" placeholder="Phone (WhatsApp)" value="${esc(PAY.buyer.phone)}" oninput="PAY.buyer.phone=this.value"><input class="ps-in" type="email" placeholder="Email (optional)" value="${esc(PAY.buyer.cemail)}" oninput="PAY.buyer.cemail=this.value"></div>
-        <div class="chips" style="margin-top:8px">${['Student', 'Parent', 'Staff', 'Other'].map(r => `<button target="_self" class="chip ${PAY.buyer.role === r ? 'on' : ''}" onclick="PAY.buyer.role='${r}';drawCart()">${r}</button>`).join('')}</div>
-        <div class="ps-lbl">They collect at</div><div class="chips">${Object.keys(D.settings.collect).map(k => `<button target="_self" class="chip ${PAY.collect === k ? 'on' : ''}" onclick="PAY.collect='${k}';drawCart()">${esc(D.settings.collect[k])}</button>`).join('')}</div></div>` : ''}
-      <div class="sh-sec"><div class="lbl">${pre ? 'Payment' : 'How do they pay?'}</div>
-        <div class="pays">${methods.map(([k, l]) => `<button target="_self" class="${m === k ? 'on' : ''}" onclick="setPay('${k}')">${l}</button>`).join('')}</div>
-        ${payBox(m, m === 'foc' ? 0 : tot)}</div>
-      <div class="sh-sec"><div class="lbl">Extra</div>
-        ${pre ? '' : `<input class="ps-in" placeholder="Selling with (optional), e.g. Nila" value="${esc(PAY.helper)}" oninput="PAY.helper=this.value" style="margin-bottom:6px">`}
-        <input class="ps-in" placeholder="Note (optional)" value="${esc(PAY.note)}" oninput="PAY.note=this.value"></div>
-      <div class="badline" id="ckErr">${esc(PAY.err || '')}</div>
-      <div class="sh-f"><div class="tot">Total<b id="ckTot">${rp(m === 'foc' ? 0 : tot)}</b></div>
-        <button target="_self" class="btn-main" ${BUSY ? 'disabled' : ''} onclick="${pre ? 'finishPre()' : 'finishSale()'}">${BUSY ? 'Saving…' : pre ? 'Save pre-order' : 'Finish sale'}</button></div>`;
-    document.getElementById('sheet').scrollTop = sc;
-  }
   function photoBox(obj) {
     return `<label class="photo ${obj.photo ? 'ok' : ''}"><input type="checkbox" ${obj.photo ? 'checked' : ''} onchange="${obj === PAY ? 'PAY' : 'COL'}.photo=this.checked;this.parentNode.classList.toggle('ok',this.checked)">
       <span>I saw the payment go through and took a photo of it with my phone<small>Required. Keep the photo until the payment is checked.</small></span></label>`;
@@ -415,8 +287,8 @@
       return `<div class="payinfo">${same ? `<img src="${XENDIT_IMG}" alt="Xendit payment QR">` : `<div class="bank">Open this link on their phone:<br><b>${esc(D.settings.xendit)}</b></div>`}${amt}<div class="sub">Card or e-wallet. They type this amount on the Xendit page.</div>${photoBox(PAY)}</div>`;
     }
     if (m === 'transfer') return `<div class="payinfo">${D.settings.bank ? `<div class="bank">${esc(D.settings.bank)}</div>` : '<div class="warnline">No bank details yet (Settings tab of the WOAH Shop sheet).</div>'}${amt}${photoBox(PAY)}</div>`;
-    if (m === 'later') return TAB === 'pre' ? '<div class="ps-note">They pay when they collect (or any time from the Collect tab).</div>'
-      : `<div class="ps-lbl">Who still has to pay?</div><input class="ps-in" placeholder="Name and phone" value="${esc(PAY.owes)}" oninput="PAY.owes=this.value"><div class="ps-note">It shows as "Outstanding" in the Sales Tracker.</div>`;
+    if (m === 'later') return !CART.some(l => !l.pre) ? '<div class="ps-note">They pay when they collect the pre-order (or any time from the Collect tab).</div>'
+      : `<div class="ps-lbl">Who still has to pay?</div><input class="ps-in" placeholder="Name and phone" value="${esc(PAY.owes)}" oninput="PAY.owes=this.value"><div class="ps-note">It shows as "Outstanding" in the Sales Tracker.${CART.some(l => l.pre) ? ' The pre-order is marked not paid; they pay when they collect it.' : ''}</div>`;
     if (m === 'foc') return `<div class="ps-lbl">Why is it free?</div><input class="ps-in" placeholder="e.g. prize for the surf contest" value="${esc(PAY.reason)}" oninput="PAY.reason=this.value">`;
     return '';
   }
@@ -436,44 +308,173 @@
     PAY.err = ''; saveCarts(); document.getElementById('ckTot').textContent = rp(PAY.method === 'foc' ? 0 : totalOf(cartFor())); drawSide(); drawShop();
   }
   function ckErr(t) { PAY.err = t; const e = document.getElementById('ckErr'); if (e) { e.textContent = t; e.scrollIntoView({ block: 'nearest' }); } return false; }
-  function checkPay(pre) {
-    const m = PAY.method;
+
+  function drawTabs() {
+    const tabs = [['sell', 'Sell'], ['collect', 'Collect'], ['today', 'Sales & check']];
+    document.getElementById('tabs').innerHTML = tabs.map(([k, l]) => {
+      const n = k === 'sell' ? countOf(CART) : 0;
+      return `<button target="_self" class="${TAB === k ? 'on' : ''}" onclick="setTab('${k}')">${l}${n ? `<span class="n">${n}</span>` : ''}</button>`;
+    }).join('');
+  }
+  function draw() {
+    if (!D) return;
+    const shop = TAB === 'sell';
+    document.getElementById('layout').className = 'ps-layout' + (shop ? ' side' : '');
+    document.getElementById('side').style.display = shop ? '' : 'none';
+    if (shop) { drawShop(); drawSide(); }
+    else if (TAB === 'collect') drawCollect();
+    else drawToday();
+  }
+  function usedHere(item) {
+    let n = 0;
+    CART.forEach(l => { if (l.pre) return; const v = variant(l); if (v && v.item === item) n += l.qty; });
+    QUEUE.forEach(q => (q.sale.lines || []).forEach(l => { if (l.pre) return; const v = variant(l); if (v && v.item === item) n += l.qty; }));
+    return n;
+  }
+  function cardHTML(p) {
+    const s = stockOf(p), soap = brandOf(p.name) === 'soap', open = !!p.preorder;
+    const sizes = s > 0 ? `<div class="sz">${p.sizes.map(z => { const n = p.variants.filter(v => v.size === z).reduce((a, v) => a + Math.max(0, left(v)), 0); return `<span class="${n > 0 ? '' : 'z'}">${esc(z)}${n > 0 ? ' ' + n : ''}</span>`; }).join('')}</div>` : '';
+    return `<button target="_self" class="ps-p ${s <= 0 && !open ? 'out' : ''}" onclick="openPick('${esc(p.key)}')">
+      <div class="im ${soap ? 'soap' : ''}">${p.photo ? `<img src="${esc(p.photo)}" alt="" loading="lazy">` : `<div class="nm">${esc(p.name)}</div>`}
+        <div class="tg">${soap ? '<span class="soap">SOAP</span>' : ''}${open ? '<span class="pre">PRE-ORDER</span>' : ''}</div></div>
+      <div class="bd"><div class="t">${esc(p.name)}</div><div class="m"><b>${priceOf(p)}</b><span>${s > 0 ? s + ' in stock' + (open ? ' · can pre-order' : '') : open ? 'Pre-order only' : 'none in stock'}</span></div>${sizes}</div></button>`;
+  }
+  function drawShop() {
+    const q = SQ.toLowerCase().trim();
+    const ps = D.products.filter(p => (BR === 'all' || brandOf(p.name) === BR) && (!q || p.name.toLowerCase().includes(q))).sort((a, b) => a.name.localeCompare(b.name));
+    const inS = ps.filter(p => stockOf(p) > 0), preOnly = ps.filter(p => stockOf(p) <= 0 && p.preorder), out = ps.filter(p => stockOf(p) <= 0 && !p.preorder);
+    const sec = (t, list) => list.length ? `<div class="ps-h">${t} <b>${list.length}</b><span class="line"></span></div><div class="ps-grid">${list.map(cardHTML).join('')}</div>` : '';
+    const body = (inS.length ? sec('In stock', inS) : '<div class="ps-h">In stock <b>0</b><span class="line"></span></div><div class="ps-note">Nothing in stock with this filter.</div>')
+      + sec('Pre-order only', preOnly)
+      + (out.length ? sec('Stock says 0', out) + '<p class="ps-note">The stock numbers are being recounted. If you have one of these in your hands you can still sell it.</p>' : '')
+      + '<p class="ps-note">Items marked PRE-ORDER can be pre-ordered: tap them and choose "Pre-order". A buyer can take some things now and pre-order others, and pay once.</p>';
+    const n = countOf(CART);
+    const v = document.getElementById('view'), had = document.activeElement && document.activeElement.id === 'sq';
+    v.innerHTML = `<div class="ps-tool"><input class="ps-in search" id="sq" type="search" placeholder="Search items" value="${esc(SQ)}" oninput="SQ=this.value;drawShop()">
+        <div class="bseg">${[['all', 'All'], ['woah', 'WOAH'], ['soap', 'SOAP']].map(([k, l]) => `<button target="_self" class="${BR === k ? 'on' : ''}" onclick="setBrand('${k}')">${l}</button>`).join('')}</div>
+        <button target="_self" onclick="openCustom()">+ Other item</button></div>
+      ${body}
+      <div class="ps-bar"><div class="sum">${n ? `${n} item${n > 1 ? 's' : ''}<b>${rp(totalOf(CART))}</b>` : '<span class="sub">Cart is empty</span>'}</div>
+        <button target="_self" class="btn-main" ${n ? '' : 'disabled'} onclick="openCart()">Checkout ›</button></div>`;
+    if (had) { const s = document.getElementById('sq'); s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
+  }
+  function drawSide() {
+    const n = countOf(CART);
+    document.getElementById('side').innerHTML = `<h3>Cart <small>${n ? n + ' item' + (n > 1 ? 's' : '') : ''}</small></h3>
+      ${n ? CART.map((l, i) => lineHTML(l, i, true)).join('') + `<div class="side-tot"><span>Total</span><b>${rp(totalOf(CART))}</b></div>
+        <button target="_self" class="btn-main" onclick="openCart()">Checkout ›</button>
+        <div style="text-align:center;margin-top:10px"><button target="_self" class="lnk" onclick="clearCart()">Empty the cart</button></div>`
+      : '<div class="empty">Tap an item to add it.</div>'}`;
+  }
+  function clearCart() { if (!confirm('Empty the cart?')) return; CART = []; PAY = null; cartChanged(); }
+  function openPick(key) {
+    const p = prod(key); if (!p) return;
+    PICK = { key, colour: p.colours.length === 1 ? p.colours[0] : '', fit: p.fits.length === 1 ? p.fits[0] : '', size: p.sizes.length === 1 ? p.sizes[0] : '', qty: 1, mode: stockOf(p) > 0 || !p.preorder ? 'now' : 'pre' };
+    SHEET = 'pick'; drawPick(); openSheet();
+  }
+  function drawPick() {
+    const p = prod(PICK.key), pre = PICK.mode === 'pre';
+    const match = (v, k, val) => (v[k] || '') === val;
+    const avail = (k, val) => p.variants.filter(v => match(v, k, val) && ['colour', 'fit', 'size'].every(o => o === k || !PICK[o] || match(v, o, PICK[o])));
+    const chips = (k, list) => list.map(val => {
+      const vs = avail(k, val), st = vs.reduce((a, v) => a + left(v), 0);
+      return `<button target="_self" class="chip ${PICK[k] === val ? 'on' : ''} ${!pre && st <= 0 ? 'zero' : ''}" ${vs.length ? '' : 'disabled'} onclick="pickSet('${k}','${esc(val)}')">${esc(val)}${pre || k !== 'size' ? '' : `<small>${st > 0 ? st + ' left' : '0'}</small>`}</button>`;
+    }).join('');
+    const v = p.variants.find(x => ['colour', 'fit', 'size'].every(o => (x[o] || '') === (PICK[o] || '')));
+    const st = v ? left(v) : null;
+    const missing = ['colour', 'fit', 'size'].filter(o => p[o === 'colour' ? 'colours' : o + 's'].length && !PICK[o]);
+    const mode = p.preorder ? `<div class="ps-lbl">Take it now or pre-order?</div><div class="bseg" style="display:flex"><button target="_self" style="flex:1" class="${pre ? '' : 'on'}" onclick="PICK.mode='now';drawPick()">Take now</button><button target="_self" style="flex:1" class="${pre ? 'on' : ''}" onclick="PICK.mode='pre';drawPick()">Pre-order</button></div>
+      <div class="ps-note">${pre ? 'Pre-order: they pay now (or later) and collect when it arrives. We\'ll ask for their name and phone at checkout.' : 'Take now: they get it from the stall today.'}</div>` : '';
+    document.getElementById('sheet').innerHTML = sheetHead(esc(p.name), (p.section === 'hidden' ? 'Not on the website' : 'Also on the website') + (brandOf(p.name) === 'soap' ? ' · SOAP' : ''))
+      + `<div class="bigprice">${v ? rp(v.price) : priceOf(p)}</div>${mode}
+      ${p.colours.length ? `<div class="ps-lbl">Colour</div><div class="chips">${chips('colour', p.colours)}</div>` : ''}
+      ${p.fits.length ? `<div class="ps-lbl">Fit</div><div class="chips">${chips('fit', p.fits)}</div>` : ''}
+      ${p.sizes.length ? `<div class="ps-lbl">Size</div><div class="chips">${chips('size', p.sizes)}</div>` : ''}
+      ${v && !pre && st < PICK.qty ? `<div class="warnline">Stock says ${Math.max(0, st)} left. The stock is still being recounted, so add it if you have it in your hands${p.preorder ? ', or switch to Pre-order' : ''}.</div>` : ''}
+      <div class="sh-f"><div class="qty"><button target="_self" onclick="pickQty(-1)">−</button><span>${PICK.qty}</span><button target="_self" onclick="pickQty(1)">+</button></div>
+        <button target="_self" class="btn-main" ${v ? '' : 'disabled'} onclick="pickAdd()">${v ? `${pre ? 'Pre-order' : 'Add'} · ${rp(v.price * PICK.qty)}` : 'Pick ' + missing.join(', ')}</button></div>`;
+  }
+  function pickAdd() {
+    const pre = PICK.mode === 'pre';
+    const same = CART.find(l => !l.custom && !!l.pre === pre && l.key === PICK.key && l.colour === PICK.colour && l.fit === PICK.fit && l.size === PICK.size);
+    if (same) same.qty += PICK.qty; else CART.push(Object.assign({ key: PICK.key, colour: PICK.colour, fit: PICK.fit, size: PICK.size, qty: PICK.qty }, pre ? { pre: true } : {}));
+    const name = prod(PICK.key).name; closeSheet(); cartChanged(); toast((pre ? 'Pre-order added: ' : 'Added ') + name);
+  }
+  function lineHTML(l, i, side) {
+    const p = l.custom ? null : prod(l.key), name = l.custom ? l.custom : p ? p.name : '(gone from Dom\'s sheet)';
+    const full = lineFull(l), net = lineNet(l), pre = !!l.pre;
+    return `<div class="cl"><div class="ln"><b>${esc(name)}</b>${pre ? ' <span class="pill warn">pre-order</span>' : ''}${l.custom ? ' <span class="pill">not in Dom\'s sheet</span>' : ''}<div class="o">${esc(optText(l))}${optText(l) ? ' · ' : ''}${rp(linePrice(l))} each</div>
+        <div class="ctl"><span class="qty sm"><button target="_self" onclick="lineQty(${i},-1)">−</button><span>${l.qty}</span><button target="_self" onclick="lineQty(${i},1)">+</button></span>
+        ${pre ? '' : `<button target="_self" class="lnk" onclick="lineDisc(${i})">${l.discount ? 'Change discount' : 'Discount'}</button>`}<button target="_self" class="lnk" onclick="lineDel(${i})">Remove</button></div>
+        ${l.dopen && !side && !pre ? `<div class="disc"><input class="ps-in" inputmode="numeric" placeholder="Rp off" value="${l.discount || ''}" oninput="discSet(${i},'discount',this.value)"><input class="ps-in" placeholder="Reason (e.g. small stain)" value="${esc(l.reason || '')}" oninput="discSet(${i},'reason',this.value)"></div>` : l.discount && !pre ? `<div class="o">−${rp(l.discount)}: ${esc(l.reason || 'no reason yet')}</div>` : ''}</div>
+      <div class="pr">${l.discount && !pre ? `<s>${rp(full)}</s>` : ''}${rp(net)}</div></div>`;
+  }
+  function drawCart() {
+    const tot = totalOf(CART);
+    if (!CART.length) { closeSheet(); return; }
+    const hasPre = CART.some(l => l.pre), hasNow = CART.some(l => !l.pre);
+    if (hasPre && PAY.method === 'foc') PAY.method = '';
+    const m = PAY.method, methods = hasPre ? PAYS.filter(x => x[0] !== 'foc') : PAYS;
+    const group = (want, title) => { const ls = CART.map((l, i) => [l, i]).filter(([l]) => !!l.pre === want); return ls.length ? (hasPre && hasNow ? `<div class="ps-lbl">${title}</div>` : '') + ls.map(([l, i]) => lineHTML(l, i, false)).join('') : ''; };
+    const sc = document.getElementById('sheet').scrollTop;
+    document.getElementById('sheet').innerHTML = sheetHead('Checkout', countOf(CART) + ' item' + (countOf(CART) > 1 ? 's' : '') + (hasPre ? ' · includes a pre-order' : ''))
+      + `<div class="sh-sec" style="border-top:0;margin-top:4px;padding-top:0">${group(false, 'Take now')}${group(true, 'Pre-order (collect when it arrives)')}</div>
+      ${hasPre ? `<div class="sh-sec"><div class="lbl">Buyer (for the pre-order)</div>
+        <input class="ps-in" placeholder="Name" value="${esc(PAY.buyer.name)}" oninput="PAY.buyer.name=this.value">
+        <div class="ps-row2" style="margin-top:6px"><input class="ps-in" inputmode="tel" placeholder="Phone (WhatsApp)" value="${esc(PAY.buyer.phone)}" oninput="PAY.buyer.phone=this.value"><input class="ps-in" type="email" placeholder="Email (optional)" value="${esc(PAY.buyer.cemail)}" oninput="PAY.buyer.cemail=this.value"></div>
+        <div class="chips" style="margin-top:8px">${['Student', 'Parent', 'Staff', 'Other'].map(r => `<button target="_self" class="chip ${PAY.buyer.role === r ? 'on' : ''}" onclick="PAY.buyer.role='${r}';drawCart()">${r}</button>`).join('')}</div>
+        <div class="ps-lbl">They collect the pre-order at</div><div class="chips">${Object.keys(D.settings.collect).map(k => `<button target="_self" class="chip ${PAY.collect === k ? 'on' : ''}" onclick="PAY.collect='${k}';drawCart()">${esc(D.settings.collect[k])}</button>`).join('')}</div></div>` : ''}
+      <div class="sh-sec"><div class="lbl">How do they pay?${hasPre && hasNow ? ' (one payment for everything)' : ''}</div>
+        <div class="pays">${methods.map(([k, l]) => `<button target="_self" class="${m === k ? 'on' : ''}" onclick="setPay('${k}')">${l}</button>`).join('')}</div>
+        ${payBox(m, m === 'foc' ? 0 : tot)}</div>
+      <div class="sh-sec"><div class="lbl">Extra</div>
+        <input class="ps-in" placeholder="Selling with (optional), e.g. Nila" value="${esc(PAY.helper)}" oninput="PAY.helper=this.value" style="margin-bottom:6px">
+        <input class="ps-in" placeholder="Note (optional)" value="${esc(PAY.note)}" oninput="PAY.note=this.value"></div>
+      <div class="badline" id="ckErr">${esc(PAY.err || '')}</div>
+      <div class="sh-f"><div class="tot">Total<b id="ckTot">${rp(m === 'foc' ? 0 : tot)}</b></div>
+        <button target="_self" class="btn-main" ${BUSY ? 'disabled' : ''} onclick="finishSale()">${BUSY ? 'Saving…' : 'Finish sale'}</button></div>`;
+    document.getElementById('sheet').scrollTop = sc;
+  }
+  function checkPay() {
+    const m = PAY.method, hasPre = CART.some(l => l.pre), hasNow = CART.some(l => !l.pre);
+    if (hasPre) {
+      const b = PAY.buyer;
+      if (b.name.trim().length < 2) return ckErr('Type the buyer\'s name (for the pre-order).');
+      if (b.phone.replace(/\D/g, '').length < 8 && !/@/.test(b.cemail)) return ckErr('Type their phone (or email), so we can tell them when the pre-order arrives.');
+      if (!PAY.collect) return ckErr('Pick where they collect the pre-order.');
+    }
     if (!m) return ckErr('Pick how they pay.');
     if (PHOTO.includes(m) && !PAY.photo) return ckErr('Take a photo of the payment with your phone and tick the box.');
-    if (m === 'cash' && PAY.got && (Number(String(PAY.got).replace(/\D/g, '')) || 0) < totalOf(cartFor())) return ckErr('The cash received is less than the total.');
-    if (!pre && m === 'later' && PAY.owes.trim().length < 2) return ckErr('Type who still has to pay.');
-    if (!pre && m === 'foc' && PAY.reason.trim().length < 2) return ckErr('Say why it\'s free.');
-    if (!pre && m !== 'foc') { const bad = CART.find(l => l.discount > 0 && !(l.reason || '').trim()); if (bad) return ckErr('Give a reason for each discount.'); }
+    if (m === 'cash' && PAY.got && (Number(String(PAY.got).replace(/\D/g, '')) || 0) < totalOf(CART)) return ckErr('The cash received is less than the total.');
+    if (m === 'later' && hasNow && PAY.owes.trim().length < 2) return ckErr('Type who still has to pay.');
+    if (m === 'foc' && PAY.reason.trim().length < 2) return ckErr('Say why it\'s free.');
+    if (m !== 'foc') { const bad = CART.find(l => !l.pre && l.discount > 0 && !(l.reason || '').trim()); if (bad) return ckErr('Give a reason for each discount.'); }
     return true;
   }
   function finishSale() {
-    if (!checkPay(false)) return;
-    const sale = { id: uid('S'), at: Date.now(), pay: PAY.method, photo: !!PAY.photo, helper: PAY.helper.trim(), note: PAY.note.trim(), owes: PAY.owes.trim(), reason: PAY.reason.trim(),
-      lines: CART.map(l => l.custom ? { custom: l.custom, price: l.price, qty: l.qty } : { key: l.key, colour: l.colour, fit: l.fit, size: l.size, qty: l.qty, discount: l.discount || 0, reason: l.reason || '' }) };
-    const shown = { total: PAY.method === 'foc' ? 0 : totalOf(CART), items: CART.map(l => ({ name: l.custom || (prod(l.key) || {}).name, opt: optText(l), qty: l.qty, net: lineNet(l) })), by: (ME ? ME.name : '') + (sale.helper ? ' + ' + sale.helper : '') };
-    QUEUE.push({ sale, shown, err: '' }); ls.set('woahPosQueue', QUEUE); ls.set('woahPosHelper', PAY.helper.trim());
-    CART = []; PAY = null; closeSheet(); cartChanged(); drawQueue();
-    toast('Sale saved · ' + rp(shown.total)); sync();
-  }
-  function finishPre() {
+    if (!checkPay()) return;
+    const hasPre = CART.some(l => l.pre);
+    if (hasPre && !navigator.onLine) return ckErr('A pre-order needs internet (to get an order number). Try again when you\'re online, or take the pre-order items out.');
     const b = PAY.buyer;
-    if (b.name.trim().length < 2) return ckErr('Type the buyer\'s name.');
-    if (b.phone.replace(/\D/g, '').length < 8 && !/@/.test(b.cemail)) return ckErr('Type their phone (or email), so we can tell them when it arrives.');
-    if (!PAY.collect) return ckErr('Pick where they collect.');
-    if (!checkPay(true)) return;
-    if (!navigator.onLine) return ckErr('Pre-orders need internet (to get an order number). Try again when you\'re online.');
-    BUSY = true; PAY.cid = PAY.cid || uid('P'); drawCart();
-    call({ action: 'posPreorder', id: PAY.cid, buyer: { name: b.name.trim(), phone: b.phone.trim(), cemail: b.cemail.trim(), role: b.role }, collect: PAY.collect, pay: PAY.method, photo: !!PAY.photo, note: PAY.note.trim(),
-      lines: PRE.map(l => ({ key: l.key, colour: l.colour, fit: l.fit, size: l.size, qty: l.qty })) })
-      .then(r => {
-        BUSY = false; PRE = []; PAY = null; saveCarts(); drawTabs(); drawShop(); drawSide(); if (r.day) DAY = r.day;
-        SHEET = 'done';
-        document.getElementById('sheet').innerHTML = sheetHead('Pre-order saved', 'Tell ' + esc(r.name) + ' their order number:') + `<div class="done-no">${esc(r.order)}</div>
-          ${r.items.map(i => `<div class="cl"><div class="ln">${i.qty} × ${esc(i.product)} <span class="o">${esc(optText(i))}</span></div><div class="pr">${rp(i.price * i.qty)}</div></div>`).join('')}
-          <div class="ps-note">${r.paid ? 'Paid: ' + esc(r.payText) : 'Not paid yet: they pay when they collect.'} · Collect at ${esc(r.collect)}. It's in Shop → Orders now.</div>
-          <div class="sh-f"><div class="tot">Total<b>${rp(r.total)}</b></div><button target="_self" class="btn-main" onclick="closeSheet()">Done</button></div>`;
-      })
-      .catch(e => { BUSY = false; PAY.err = e.message; drawCart(); });
+    const sale = { id: PAY.sid || uid('S'), at: Date.now(), pay: PAY.method, photo: !!PAY.photo, helper: PAY.helper.trim(), note: PAY.note.trim(), owes: PAY.owes.trim(), reason: PAY.reason.trim(),
+      lines: CART.map(l => l.custom ? { custom: l.custom, price: l.price, qty: l.qty } : Object.assign({ key: l.key, colour: l.colour, fit: l.fit, size: l.size, qty: l.qty }, l.pre ? { pre: true } : { discount: l.discount || 0, reason: l.reason || '' })) };
+    if (hasPre) { sale.buyer = { name: b.name.trim(), phone: b.phone.trim(), cemail: b.cemail.trim(), role: b.role }; sale.collect = PAY.collect; }
+    const shown = { total: PAY.method === 'foc' ? 0 : totalOf(CART), items: CART.map(l => ({ name: (l.custom || (prod(l.key) || {}).name) + (l.pre ? ' (pre-order)' : ''), opt: optText(l), qty: l.qty, net: lineNet(l) })), by: (ME ? ME.name : '') + (sale.helper ? ' + ' + sale.helper : '') };
+    ls.set('woahPosHelper', PAY.helper.trim());
+    if (!hasPre) {
+      QUEUE.push({ sale, shown, err: '' }); ls.set('woahPosQueue', QUEUE);
+      CART = []; PAY = null; closeSheet(); cartChanged(); drawQueue();
+      toast('Sale saved · ' + rp(shown.total)); sync(); return;
+    }
+    PAY.sid = sale.id; BUSY = true; drawCart();
+    call({ action: 'posSale', sale }).then(r => {
+      BUSY = false; if (r.day) DAY = r.day;
+      CART = []; PAY = null; cartChanged(); SHEET = 'done';
+      document.getElementById('sheet').innerHTML = sheetHead('Sale saved', 'Tell ' + esc(r.buyer || 'the buyer') + ' their pre-order number:') + `<div class="done-no">${esc(r.order || '')}</div>
+        ${shown.items.map(i => `<div class="cl"><div class="ln">${i.qty} × ${esc(i.name)} <span class="o">${esc(i.opt)}</span></div><div class="pr">${rp(i.net)}</div></div>`).join('')}
+        <div class="ps-note">${r.paidNow ? 'Paid in this sale.' : 'Not paid yet: they pay when they collect.'} Pre-order collect at ${esc(r.collect || '')}. It's in Shop → Orders now.</div>
+        <div class="sh-f"><div class="tot">Total<b>${rp(shown.total)}</b></div><button target="_self" class="btn-main" onclick="closeSheet()">Done</button></div>`;
+    }).catch(e => { BUSY = false; PAY.err = e.message; drawCart(); });
   }
 
   /* ---------- sending sales (works with bad wifi) ---------- */
