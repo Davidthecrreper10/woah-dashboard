@@ -111,6 +111,15 @@
   .warnline { font-size: 13.5px; color: var(--warn); background: var(--warn-soft); border-radius: 10px; padding: 8px 10px; margin-top: 10px; }
   .badline { font-size: 14px; color: var(--bad); font-weight: 600; margin-top: 8px; min-height: 1em; }
   /* cart lines */
+  .ps-prac { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; padding: 12px 14px; border-radius: 14px; font-weight: 700; font-size: 14px; color: #3a2a00; background: repeating-linear-gradient(-45deg, #FFD166 0 14px, #FFC53D 14px 28px); border: 2px solid #E0A100; }
+  .ps-prac b { font-size: 16px; letter-spacing: .04em; } .ps-prac span { font-weight: 600; flex: 1; min-width: 200px; }
+  html body .ps-prac button { font-size: 13px; padding: 6px 12px; background: #3a2a00; color: #FFD166; border: 0; border-radius: 10px; }
+  html body .ps-tabs button.prac { margin-left: auto; font-size: 13px; color: var(--muted); }
+  body.practice .ps-sh { border-top: 6px solid #FFC53D; }
+  .pk-img { margin: 4px 0 10px; border-radius: 14px; overflow: hidden; background: #0E3A4A; aspect-ratio: 16 / 10; }
+  .pk-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cl .th { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 9px; overflow: hidden; background: #0E3A4A; }
+  .cl .th img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .cl { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: flex-start; }
   .cl:last-child { border-bottom: 0; }
   .cl .ln { flex: 1; min-width: 0; font-size: 14.5px; } .cl .ln .o { font-size: 12.5px; color: var(--muted); }
@@ -184,6 +193,7 @@
     </div>
   </header>
   <div class="banner" id="banner"></div>
+  <div class="ps-prac" id="prac" style="display:none"></div>
   <div class="ps-q" id="queue"></div>
   <div class="ps-tabs" id="tabs"></div>
   <div class="ps-layout" id="layout"><div id="view"></div><aside class="ps-side" id="side" style="display:none"></aside></div>
@@ -193,6 +203,7 @@
 <div class="toast" id="toast"></div>
 <script src="common.js?v=8"></script>
 <script src="extras.js?v=1"></script>
+<script src="practice.js?v=1"></script>
 <script>
   /* ---------- state ---------- */
   const PAYS = [['cash', 'Cash'], ['qris', 'QRIS'], ['xendit', 'Card (Xendit)'], ['transfer', 'Transfer'], ['later', 'Not paid yet'], ['foc', 'FOC (free)']];
@@ -202,7 +213,8 @@
   const COUNTED = ['CASH', 'QRIS', 'CARD (XENDIT)', 'TRANSFER'];
   const QRIS_IMG = '../woah-shop/img/qris.png', XENDIT_IMG = 'img/xendit-qr.png', XENDIT_LINK = 'https://checkout.xendit.co/od/25-26-HS-WOAH-Merchandise';
   let D = null, TAB = 'sell', BR = 'all', SQ = '', CART = [], PRE = [], PAY = null, DAY = null, DAYS = [], DAYSEL = '', ORD = null, OQ = '', BUSY = false, PICK = null, CK = {}, SHEET = '';
-  const ls = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+  const pk = k => PRACTICE ? 'P.' + k : k;
+  const ls = { get(k, d) { try { const v = localStorage.getItem(pk(k)); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(pk(k), JSON.stringify(v)); } catch (e) {} } };
   TAB = ls.get('woahPosTab', 'sell'); BR = ls.get('woahPosBrand', 'all'); CART = ls.get('woahPosCart', []); PRE = ls.get('woahPosPre', []);
   let QUEUE = ls.get('woahPosQueue', []);
   { const h = location.hash.replace('#', ''); if (['sell', 'pre', 'collect', 'today'].includes(h)) TAB = h; }
@@ -235,7 +247,7 @@
     if (d.day) DAY = d.day;
     document.getElementById('updated').textContent = 'Items and prices from Dom\'s sheet · ' + when(d.at) + ' · today: ' + d.today;
     CART = CART.filter(l => !l.pre || (prod(l.key) || {}).preorder); saveCarts();
-    drawTabs(); drawQueue(); draw();
+    drawPractice(); drawTabs(); drawQueue(); draw();
     if (TAB === 'collect') loadOrders(); else if (TAB === 'today') loadDay(DAYSEL);
     syncSoon();
   }
@@ -314,7 +326,11 @@
     document.getElementById('tabs').innerHTML = tabs.map(([k, l]) => {
       const n = k === 'sell' ? countOf(CART) : 0;
       return `<button target="_self" class="${TAB === k ? 'on' : ''}" onclick="setTab('${k}')">${l}${n ? `<span class="n">${n}</span>` : ''}</button>`;
-    }).join('');
+    }).join('') + (PRACTICE ? '' : `<button target="_self" class="prac" onclick="setPractice(true)">Practice mode</button>`);
+  }
+  function drawPractice() {
+    const el = document.getElementById('prac'); el.style.display = PRACTICE ? '' : 'none'; document.body.classList.toggle('practice', PRACTICE);
+    if (PRACTICE) el.innerHTML = `<b>PRACTICE MODE</b><span>Real products and prices, but nothing here is real: sales, orders and payments stay on this phone only.</span><button target="_self" onclick="resetPractice()">Reset</button><button target="_self" onclick="setPractice(false)">Leave practice</button>`;
   }
   function draw() {
     if (!D) return;
@@ -326,7 +342,7 @@
     else drawToday();
   }
   function usedHere(item) {
-    let n = 0;
+    let n = PRACTICE ? SIM.used(item) : 0;
     CART.forEach(l => { if (l.pre) return; const v = variant(l); if (v && v.item === item) n += l.qty; });
     QUEUE.forEach(q => (q.sale.lines || []).forEach(l => { if (l.pre) return; const v = variant(l); if (v && v.item === item) n += l.qty; }));
     return n;
@@ -386,7 +402,7 @@
     const mode = p.preorder ? `<div class="ps-lbl">Take it now or pre-order?</div><div class="bseg" style="display:flex"><button target="_self" style="flex:1" class="${pre ? '' : 'on'}" onclick="PICK.mode='now';drawPick()">Take now</button><button target="_self" style="flex:1" class="${pre ? 'on' : ''}" onclick="PICK.mode='pre';drawPick()">Pre-order</button></div>
       <div class="ps-note">${pre ? 'Pre-order: they pay now (or later) and collect when it arrives. We\'ll ask for their name and phone at checkout.' : 'Take now: they get it from the stall today.'}</div>` : '';
     document.getElementById('sheet').innerHTML = sheetHead(esc(p.name), (p.section === 'hidden' ? 'Not on the website' : 'Also on the website') + (brandOf(p.name) === 'soap' ? ' · SOAP' : ''))
-      + `<div class="bigprice">${v ? rp(v.price) : priceOf(p)}</div>${mode}
+      + `${p.photo ? `<div class="pk-img"><img src="${esc(p.photo)}" alt=""></div>` : ''}<div class="bigprice">${v ? rp(v.price) : priceOf(p)}</div>${mode}
       ${p.colours.length ? `<div class="ps-lbl">Colour</div><div class="chips">${chips('colour', p.colours)}</div>` : ''}
       ${p.fits.length ? `<div class="ps-lbl">Fit</div><div class="chips">${chips('fit', p.fits)}</div>` : ''}
       ${p.sizes.length ? `<div class="ps-lbl">Size</div><div class="chips">${chips('size', p.sizes)}</div>` : ''}
@@ -403,7 +419,7 @@
   function lineHTML(l, i, side) {
     const p = l.custom ? null : prod(l.key), name = l.custom ? l.custom : p ? p.name : '(gone from Dom\'s sheet)';
     const full = lineFull(l), net = lineNet(l), pre = !!l.pre;
-    return `<div class="cl"><div class="ln"><b>${esc(name)}</b>${pre ? ' <span class="pill warn">pre-order</span>' : ''}${l.custom ? ' <span class="pill">not in Dom\'s sheet</span>' : ''}<div class="o">${esc(optText(l))}${optText(l) ? ' · ' : ''}${rp(linePrice(l))} each</div>
+    return `<div class="cl">${p && p.photo ? `<div class="th"><img src="${esc(p.photo)}" alt="" loading="lazy"></div>` : ''}<div class="ln"><b>${esc(name)}</b>${pre ? ' <span class="pill warn">pre-order</span>' : ''}${l.custom ? ' <span class="pill">not in Dom\'s sheet</span>' : ''}<div class="o">${esc(optText(l))}${optText(l) ? ' · ' : ''}${rp(linePrice(l))} each</div>
         <div class="ctl"><span class="qty sm"><button target="_self" onclick="lineQty(${i},-1)">−</button><span>${l.qty}</span><button target="_self" onclick="lineQty(${i},1)">+</button></span>
         ${pre ? '' : `<button target="_self" class="lnk" onclick="lineDisc(${i})">${l.discount ? 'Change discount' : 'Discount'}</button>`}<button target="_self" class="lnk" onclick="lineDel(${i})">Remove</button></div>
         ${l.dopen && !side && !pre ? `<div class="disc"><input class="ps-in" inputmode="numeric" placeholder="Rp off" value="${l.discount || ''}" oninput="discSet(${i},'discount',this.value)"><input class="ps-in" placeholder="Reason (e.g. small stain)" value="${esc(l.reason || '')}" oninput="discSet(${i},'reason',this.value)"></div>` : l.discount && !pre ? `<div class="o">−${rp(l.discount)}: ${esc(l.reason || 'no reason yet')}</div>` : ''}</div>
@@ -472,7 +488,7 @@
       CART = []; PAY = null; cartChanged(); SHEET = 'done';
       document.getElementById('sheet').innerHTML = sheetHead('Sale saved', 'Tell ' + esc(r.buyer || 'the buyer') + ' their pre-order number:') + `<div class="done-no">${esc(r.order || '')}</div>
         ${shown.items.map(i => `<div class="cl"><div class="ln">${i.qty} × ${esc(i.name)} <span class="o">${esc(i.opt)}</span></div><div class="pr">${rp(i.net)}</div></div>`).join('')}
-        <div class="ps-note">${r.paidNow ? 'Paid in this sale.' : 'Not paid yet: they pay when they collect.'} Pre-order collect at ${esc(r.collect || '')}. It's in Shop → Orders now.</div>
+        <div class="ps-note">${r.paidNow ? 'Paid in this sale.' : 'Not paid yet: they pay when they collect.'} Pre-order collect at ${esc(r.collect || '')}. ${PRACTICE ? 'Practice: you can find it in the Collect tab.' : 'It\'s in Shop → Orders now.'}</div>
         <div class="sh-f"><div class="tot">Total<b>${rp(shown.total)}</b></div><button target="_self" class="btn-main" onclick="closeSheet()">Done</button></div>`;
     }).catch(e => { BUSY = false; PAY.err = e.message; drawCart(); });
   }
@@ -590,7 +606,7 @@
     if (!day) { document.getElementById('view').innerHTML = `<div class="ps-tool">${days}</div>${pend ? `<div class="ps-list" style="margin-bottom:12px">${pend}</div>` : ''}<div class="card">No sales yet ${DAYSEL && DAYSEL !== D.today ? 'that day' : 'today'}. The day's tab in the Sales Tracker is made with the first sale.</div>`; return; }
     const s = day.sum;
     document.getElementById('view').innerHTML = `
-      <div class="ps-tool">${days}<span style="flex:1"></span><a class="pill" href="${esc(day.url)}">Open in the Sales Tracker ↗</a></div>
+      <div class="ps-tool">${days}<span style="flex:1"></span>${day.url ? `<a class="pill" href="${esc(day.url)}">Open in the Sales Tracker ↗</a>` : '<span class="pill warn">Practice: not in the Sales Tracker</span>'}</div>
       <div class="ps-h">${esc(day.name)}<span class="line"></span></div>
       <div class="stats">
         <div class="stat"><b>${day.count}</b>stall sales</div><div class="stat"><b>${rp(day.paid)}</b>paid</div><div class="stat"><b>${rp(day.owed)}</b>not paid yet</div>
