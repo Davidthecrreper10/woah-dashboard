@@ -68,6 +68,35 @@
   .sp-tbl td.neg { color: var(--bad); font-weight: 700; }
   .c-msg { font-size: 13px; } .c-msg.bad { color: var(--bad); } .c-msg.ok { color: var(--ok); }
   .sp-gone { font-size: 13px; }
+  .sp-tabs { display: flex; gap: 0; margin: 4px 0 14px; border-bottom: 2px solid var(--line); }
+  .sp-tabs button { background: none; border: 0; border-bottom: 3px solid transparent; margin-bottom: -2px; padding: 10px 18px; font-size: 15px; font-weight: 700; color: var(--muted); border-radius: 0; }
+  .sp-tabs button.on { color: var(--ink); border-bottom-color: var(--brand); }
+  .sp-tabs .n { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var(--brand); color: var(--on-brand, #fff); border-radius: 999px; padding: 1px 7px; margin-left: 6px; }
+  .od-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+  .od-bar input { flex: 1 1 220px; font: inherit; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .od-list { display: grid; gap: 12px; margin-top: 14px; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
+  @media (max-width: 420px) { .od-list { grid-template-columns: 1fr; } }
+  .od { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .od.done { opacity: .72; }
+  .od-h { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+  .od-h b { font-family: 'JetBrains Mono', monospace; font-size: 15px; }
+  .od .who { font-size: 14px; } .od .who a { font-size: 13px; margin-right: 8px; }
+  .od-it { font-size: 13.5px; display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dashed var(--line); padding: 3px 0; }
+  .od-tot { display: flex; justify-content: space-between; font-weight: 700; }
+  .od-kv { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12.5px; }
+  .od-kv span { border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; }
+  .od-kv .paid { background: var(--ok-soft); color: var(--ok); border-color: transparent; font-weight: 700; }
+  .od-kv .unpaid { background: var(--bad-soft); color: var(--bad); border-color: transparent; font-weight: 700; }
+  .od-kv .proof { background: var(--warn-soft); color: var(--warn); border-color: transparent; font-weight: 700; }
+  .od-st { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--bg); white-space: nowrap; }
+  .od-st.s-ready-to-collect { background: var(--sea-soft, var(--ok-soft)); color: var(--sea, var(--ok)); } .od-st.s-collected { background: var(--ok-soft); color: var(--ok); } .od-st.s-cancelled { background: var(--bad-soft); color: var(--bad); } .od-st.s-waiting-for-stock { background: var(--warn-soft); color: var(--warn); }
+  .od-act { display: flex; gap: 6px; flex-wrap: wrap; }
+  .od-act button { font-size: 12.5px; padding: 6px 10px; }
+  .od-note { font-size: 13px; color: var(--muted); }
+  .need { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 8px; }
+  .need td, .need th { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+  .need td.n { font-family: 'JetBrains Mono', monospace; font-weight: 700; text-align: right; }
+
 </style>
 </head>
 <body>
@@ -85,6 +114,9 @@
     </div>
   </header>
   <div class="banner" id="banner"></div>
+  <div class="sp-tabs" id="tabs"></div>
+  <div id="ordersView" style="display:none"></div>
+  <div id="productsView">
   <div class="card" id="topCard"></div>
   <div class="sp-seg" id="seg"></div>
   <div class="sp-grid" id="grid"></div>
@@ -95,6 +127,7 @@
     Name new rows like <code>Model Colour Adult/Kids (Size)</code>, e.g. <code>Moonstone T-Shirt White Kids (M)</code>, so Chris groups them into one product.
     Here you only choose where each product goes (<b>Current merch</b> = buy now, limited by stock · <b>Pre-order</b> = order now, no stock limit · <b>Not in shop</b>), write a description and add photos.
     The first photo is the cover. Photos are saved in the "WOAH Shop photos" Drive folder.
+  </div>
   </div>
   </div>
 </div>
@@ -246,7 +279,104 @@
     else draw();
   }
 
-  start({ title: 'Shop', need: 'full', action: 'shopAdmin', onData: render });
+  // ---------- Orders tab ----------
+  let TAB = 'products', OD = null, OF = 'todo', OQ = '', OBUSY = {};
+  try { TAB = localStorage.getItem('woahShopTab') || 'products'; OF = localStorage.getItem('woahShopOF') || 'todo'; } catch (e) {}
+  function drawTabs() {
+    const open = OD ? OD.orders.filter(o => o.status !== 'Collected' && o.status !== 'Cancelled').length : 0;
+    document.getElementById('tabs').innerHTML = `<button target="_self" class="${TAB === 'products' ? 'on' : ''}" onclick="setTab('products')">Products</button><button target="_self" class="${TAB === 'orders' ? 'on' : ''}" onclick="setTab('orders')">Orders${open ? `<span class="n">${open}</span>` : ''}</button>`;
+    document.getElementById('productsView').style.display = TAB === 'products' ? '' : 'none';
+    document.getElementById('ordersView').style.display = TAB === 'orders' ? '' : 'none';
+  }
+  function setTab(t) { TAB = t; try { localStorage.setItem('woahShopTab', t); } catch (e) {} drawTabs(); if (t === 'orders') loadOrders(); }
+  function loadOrders() {
+    if (!OD) document.getElementById('ordersView').innerHTML = '<div class="card">Loading orders…</div>';
+    return call({ action: 'shopOrders' }).then(d => { OD = d; drawOrders(); drawTabs(); }).catch(e => { document.getElementById('ordersView').innerHTML = `<div class="card bad">${esc(e.message)}</div>`; });
+  }
+  function opt(i) { return [i.colour, i.fit, i.size].filter(Boolean).join(' · '); }
+  function waLink(ph) { const d = String(ph || '').replace(/\D/g, ''); return d ? 'https://wa.me/' + d : ''; }
+  function sCls(s) { return 's-' + String(s).toLowerCase().replace(/[^a-z]+/g, '-'); }
+  function setOF(k) { OF = k; try { localStorage.setItem('woahShopOF', k); } catch (e) {} drawOrders(); }
+  function drawOrders() {
+    const os = OD.orders, st = OD.settings || {};
+    const live = os.filter(o => o.status !== 'Cancelled');
+    const todo = live.filter(o => o.status !== 'Collected');
+    const unpaid = todo.filter(o => o.paid !== 'Yes');
+    const proofs = todo.filter(o => o.paid === 'Proof sent');
+    const ready = todo.filter(o => o.status === 'Ready to collect');
+    // how many pre-order items to get, per product + option (not cancelled, not collected)
+    const need = {};
+    todo.forEach(o => o.items.forEach(i => { if (i.type !== 'Pre-order' || i.status === 'Cancelled' || i.status === 'Collected') return; const k = i.product + '|' + opt(i); need[k] = (need[k] || 0) + i.qty; }));
+    const needRows = Object.keys(need).sort().map(k => { const [p, o] = k.split('|'); return `<tr><td>${esc(p)}</td><td>${esc(o || '–')}</td><td class="n">${need[k]}</td></tr>`; }).join('');
+    const filters = [['todo', 'To do', todo.length], ['unpaid', 'Not paid', unpaid.length], ['proof', 'Check payment', proofs.length], ['ready', 'Ready to collect', ready.length], ['collected', 'Collected', os.filter(o => o.status === 'Collected').length], ['cancelled', 'Cancelled', os.filter(o => o.status === 'Cancelled').length], ['all', 'All', os.length]];
+    const list = odFiltered();
+    const warn = [];
+    if (!st.open) warn.push('Ordering is <b>closed</b> (Settings tab → Ordering open = FALSE).');
+    if (!st.bank) warn.push('No <b>bank transfer details</b> yet, so the shop hides "Bank transfer". Add them in the Settings tab of the WOAH Shop sheet.');
+    document.getElementById('ordersView').innerHTML = `
+      ${warn.length ? `<div class="banner warn" style="display:block">${warn.join('<br>')}</div>` : ''}
+      <div class="card"><div class="sp-top"><div class="sp-stats">
+        <div class="sp-stat"><b>${todo.length}</b>Open orders</div>
+        <div class="sp-stat"><b>${unpaid.length}</b>Not paid</div>
+        <div class="sp-stat" style="${proofs.length ? 'border-color:var(--warn)' : ''}"><b>${proofs.length}</b>Payment to check</div>
+        <div class="sp-stat"><b>${ready.length}</b>Ready to collect</div></div>
+        <div class="sp-links"><a href="${esc(OD.sheetUrl)}">WOAH Shop sheet ↗</a><button target="_self" onclick="loadOrders()">Refresh</button></div></div>
+        ${needRows ? `<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700">Pre-orders to get: ${Object.values(need).reduce((a, b) => a + b, 0)} items</summary><table class="need"><tr><th>Product</th><th>Option</th><th style="text-align:right">Qty</th></tr>${needRows}</table></details>` : ''}
+        <div class="od-bar"><input type="search" placeholder="Search name, order number, email or phone" value="${esc(OQ)}" oninput="OQ=this.value;drawOrdersList()"></div>
+        <div class="sp-seg">${filters.map(([k, l, c]) => `<button target="_self" class="${OF === k ? 'on' : ''}" onclick="setOF('${k}')">${l} · ${c}</button>`).join('')}</div>
+      </div>
+      <div class="od-list" id="odList"></div>
+      <div class="card how" style="margin-top:14px"><b>How orders work.</b> Orders from the shop land here and in the Orders tab of the WOAH Shop sheet. Check the payment (screenshot link, QRIS/Xendit/bank app), then press <b>Mark paid</b>.
+        Pre-orders wait until the stock arrives; press <b>Ready to collect</b> and message the buyer (WhatsApp/email links on each order). When they pick it up press <b>Collected</b>,
+        then add the sale to Dom's <i>Daily Sales</i> tab, because in-stock items hold their stock only until they're collected.</div>`;
+    drawOrdersList(list);
+  }
+  function odFiltered() {
+    const os = OD.orders, q = OQ.toLowerCase();
+    const isTodo = o => o.status !== 'Cancelled' && o.status !== 'Collected';
+    return os.filter(o => OF === 'all' ? true : OF === 'todo' ? isTodo(o) : OF === 'unpaid' ? isTodo(o) && o.paid !== 'Yes' : OF === 'proof' ? isTodo(o) && o.paid === 'Proof sent' : OF === 'ready' ? isTodo(o) && o.status === 'Ready to collect' : OF === 'collected' ? o.status === 'Collected' : o.status === 'Cancelled')
+      .filter(o => !q || [o.order, o.name, o.email, o.phone].join(' ').toLowerCase().includes(q));
+  }
+  function drawOrdersList(list) {
+    list = list || odFiltered();
+    document.getElementById('odList').innerHTML = list.length ? list.map(odHTML).join('') : '<div class="card">No orders here.</div>';
+  }
+  function odHTML(o) {
+    const done = o.status === 'Collected' || o.status === 'Cancelled', b = OBUSY[o.order];
+    const wa = waLink(o.phone);
+    const pay = o.paid === 'Yes' ? '<span class="paid">Paid</span>' : o.paid === 'Proof sent' ? '<span class="proof">Screenshot sent</span>' : /cash/i.test(o.pay) ? '<span>Pays at pick-up</span>' : '<span class="unpaid">Not paid</span>';
+    return `<div class="od ${done ? 'done' : ''}">
+      <div class="od-h"><div><b>${esc(o.order)}</b> <span class="sub">${when(o.placed)}</span></div><span class="od-st ${sCls(o.status)}">${esc(o.status)}</span></div>
+      <div class="who"><b>${esc(o.name)}</b> <span class="sub">${esc(o.role)}${o.account === 'Yes' ? ' · has account' : ''}</span><br>
+        ${wa ? `<a href="${esc(wa)}">WhatsApp +${esc(o.phone)}</a>` : ''}${o.email ? `<a href="mailto:${esc(o.email)}?subject=${encodeURIComponent('Your WOAH order ' + o.order)}">${esc(o.email)}</a>` : ''}</div>
+      <div>${o.items.map(i => `<div class="od-it"><span>${i.qty} × ${esc(i.product)} <span class="sub">${esc(opt(i))}</span>${i.type === 'Pre-order' ? ' <span class="tag">pre-order</span>' : ''}</span><span>${Number(i.price * i.qty).toLocaleString('id-ID')}</span></div>`).join('')}
+        <div class="od-tot"><span>Total</span><span>Rp ${Number(o.total).toLocaleString('id-ID')}</span></div></div>
+      <div class="od-kv">${pay}<span>${esc(o.pay)}</span><span>${esc(o.collect)}</span>${o.proof ? `<a href="${esc(o.proof)}">Payment screenshot ↗</a>` : ''}</div>
+      ${o.notes ? `<div class="od-note"><b>Note:</b> ${esc(o.notes)}</div>` : ''}
+      <div class="od-act">${b ? '<span class="sub">Saving…</span>' : done ? `<button target="_self" onclick="odSet('${esc(o.order)}','reopen')">Reopen</button>` : `
+        ${o.paid === 'Yes' ? `<button target="_self" onclick="odSet('${esc(o.order)}','unpaid')">Undo paid</button>` : `<button target="_self" onclick="odSet('${esc(o.order)}','paid')">Mark paid</button>`}
+        ${o.status !== 'Ready to collect' ? `<button target="_self" onclick="odSet('${esc(o.order)}','ready')">Ready to collect</button>` : ''}
+        <button target="_self" onclick="odSet('${esc(o.order)}','collected')">Collected</button>
+        <button target="_self" onclick="odSet('${esc(o.order)}','cancel')">Cancel</button>`}
+        <button target="_self" onclick="odNote('${esc(o.order)}')">Note</button></div>
+    </div>`;
+  }
+  function odSet(id, op) {
+    const o = OD.orders.find(x => x.order === id);
+    if (op === 'cancel' && !confirm('Cancel order ' + id + ' for ' + o.name + '? Any stock it held goes back to the shop.')) return;
+    if (op === 'collected' && !confirm('Mark ' + id + ' as collected?' + (o.paid !== 'Yes' && !/cash/i.test(o.pay) ? '\n\nIt isn\'t marked paid yet.' : '') + '\n\nAfter this, add the sale to Dom\'s Daily Sales.')) return;
+    OBUSY[id] = 1; drawOrders();
+    call({ action: 'shopOrderSet', order: id, op }).then(d => { OBUSY[id] = 0; OD = d; drawOrders(); drawTabs(); })
+      .catch(e => { OBUSY[id] = 0; drawOrders(); alert(e.message); });
+  }
+  function odNote(id) {
+    const o = OD.orders.find(x => x.order === id), t = prompt('Note for ' + id + ' (only the team sees it):', o.notes || '');
+    if (t === null) return;
+    OBUSY[id] = 1; drawOrders();
+    call({ action: 'shopOrderSet', order: id, op: 'note', note: t }).then(d => { OBUSY[id] = 0; OD = d; drawOrders(); }).catch(e => { OBUSY[id] = 0; drawOrders(); alert(e.message); });
+  }
+
+  start({ title: 'Shop', need: 'full', action: 'shopAdmin', onData: d => { render(d); drawTabs(); if (TAB === 'orders') loadOrders(); } });
 </script>
 </body>
 </html>
