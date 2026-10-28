@@ -71,6 +71,12 @@
   .sp-tabs { display: flex; gap: 0; margin: 4px 0 14px; border-bottom: 2px solid var(--line); }
   .sp-tabs button { background: none; border: 0; border-bottom: 3px solid transparent; margin-bottom: -2px; padding: 10px 18px; font-size: 15px; font-weight: 700; color: var(--muted); border-radius: 0; }
   .sp-tabs button.on { color: var(--ink); border-bottom-color: var(--brand); }
+  .sp-tabs .sp-brand { margin-left: auto; display: flex; gap: 4px; align-items: center; padding-bottom: 6px; }
+  .sp-tabs .sp-brand button { font-size: 13px; font-weight: 600; padding: 5px 12px; border: 1px solid var(--line); border-radius: 999px; margin: 0; color: var(--ink); background: var(--card); }
+  @media (max-width: 480px) { .sp-tabs button { padding: 10px 12px; } .sp-tabs .sp-brand button { padding: 5px 9px; } }
+  .sp-tabs .sp-brand button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .sp-badge.soap { background: #DDEBFF; color: #1F4E8C; }
+  html body .tag.soap { background: #DDEBFF; color: #1F4E8C; }
   .sp-tabs .n { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var(--brand); color: var(--on-brand, #fff); border-radius: 999px; padding: 1px 7px; margin-left: 6px; }
   .od-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
   .od-bar input { flex: 1 1 220px; font: inherit; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
@@ -136,8 +142,12 @@
 <script>
   const SHOP_URL = 'https://davidthecrreper10.github.io/woah-shop/';
   const SEC = { current: 'Current merch', preorder: 'Pre-order', hidden: 'Not in shop' };
-  let D = null, FILTER = 'all', DRAFT = {}, BUSY = {}, MSG = {};
-  try { FILTER = localStorage.getItem('woahShopFilter') || 'all'; } catch (e) {}
+  let D = null, FILTER = 'all', DRAFT = {}, BUSY = {}, MSG = {}, BR = 'all';
+  try { FILTER = localStorage.getItem('woahShopFilter') || 'all'; BR = localStorage.getItem('woahShopBrand') || 'all'; } catch (e) {}
+  // same rule as the shop website: SOAP in the name = SOAP merch, everything else = WOAH merch
+  function brandOf(name) { return /soap/i.test(name || '') ? 'soap' : 'woah'; }
+  function inBrand(name) { return BR === 'all' || brandOf(name) === BR; }
+  function setBrand(b) { BR = b; try { localStorage.setItem('woahShopBrand', b); } catch (e) {} drawTabs(); draw(); if (OD) drawOrders(); }
 
   function rp(n) { return 'Rp ' + Number(n || 0).toLocaleString('id-ID'); }
   function priceText(p) { return !p.priceFrom ? 'No price yet' : p.priceFrom === p.priceTo ? rp(p.priceFrom) : rp(p.priceFrom) + ' – ' + rp(p.priceTo); }
@@ -151,7 +161,7 @@
   }
   function draw() {
     if (!D) return;
-    const ps = D.products || [];
+    const ps = (D.products || []).filter(p => inBrand(p.name));
     const n = s => ps.filter(p => p.section === s).length, nNew = ps.filter(p => p.isNew).length;
     document.getElementById('topCard').innerHTML = `<div class="sp-top">
       <div class="sp-stats">
@@ -197,7 +207,7 @@
     const descChanged = desc !== p.desc;
     return `<div class="sp-card ${p.section === 'hidden' ? 'hidden-p' : ''}" id="card-${k}">
       <div class="sp-cover">${cover ? `<img src="${esc(cover.url)}" alt="" loading="lazy">` : '<div class="none">No photo yet<br>Add one below</div>'}
-        <div class="sp-badges">${p.isNew ? '<span class="sp-badge new">NEW</span>' : ''}<span class="sp-badge ${p.section}">${SEC[p.section].toUpperCase()}</span></div></div>
+        <div class="sp-badges">${p.isNew ? '<span class="sp-badge new">NEW</span>' : ''}${brandOf(p.name) === 'soap' ? '<span class="sp-badge soap">SOAP</span>' : ''}<span class="sp-badge ${p.section}">${SEC[p.section].toUpperCase()}</span></div></div>
       <div class="sp-body">
         <div><h2 class="sp-name">${esc(p.name)}</h2>
           <div class="sp-meta"><b>${priceText(p)}</b>${opts ? ' · ' + opts : ''}</div></div>
@@ -283,8 +293,8 @@
   let TAB = 'products', OD = null, OF = 'todo', OQ = '', OBUSY = {};
   try { TAB = localStorage.getItem('woahShopTab') || 'products'; OF = localStorage.getItem('woahShopOF') || 'todo'; } catch (e) {}
   function drawTabs() {
-    const open = OD ? OD.orders.filter(o => o.status !== 'Collected' && o.status !== 'Cancelled').length : 0;
-    document.getElementById('tabs').innerHTML = `<button target="_self" class="${TAB === 'products' ? 'on' : ''}" onclick="setTab('products')">Products</button><button target="_self" class="${TAB === 'orders' ? 'on' : ''}" onclick="setTab('orders')">Orders${open ? `<span class="n">${open}</span>` : ''}</button>`;
+    const open = OD ? OD.orders.filter(o => o.items.some(i => inBrand(i.product)) && o.status !== 'Collected' && o.status !== 'Cancelled').length : 0;
+    document.getElementById('tabs').innerHTML = `<button target="_self" class="${TAB === 'products' ? 'on' : ''}" onclick="setTab('products')">Products</button><button target="_self" class="${TAB === 'orders' ? 'on' : ''}" onclick="setTab('orders')">Orders${open ? `<span class="n">${open}</span>` : ''}</button><div class="sp-brand">${[['all', 'All'], ['woah', 'WOAH'], ['soap', 'SOAP']].map(([k, l]) => `<button target="_self" class="${BR === k ? 'on' : ''}" onclick="setBrand('${k}')">${l}</button>`).join('')}</div>`;
     document.getElementById('productsView').style.display = TAB === 'products' ? '' : 'none';
     document.getElementById('ordersView').style.display = TAB === 'orders' ? '' : 'none';
   }
@@ -298,7 +308,7 @@
   function sCls(s) { return 's-' + String(s).toLowerCase().replace(/[^a-z]+/g, '-'); }
   function setOF(k) { OF = k; try { localStorage.setItem('woahShopOF', k); } catch (e) {} drawOrders(); }
   function drawOrders() {
-    const os = OD.orders, st = OD.settings || {};
+    const os = OD.orders.filter(o => o.items.some(i => inBrand(i.product))), st = OD.settings || {};
     const live = os.filter(o => o.status !== 'Cancelled');
     const todo = live.filter(o => o.status !== 'Collected');
     const unpaid = todo.filter(o => o.paid !== 'Yes');
@@ -306,7 +316,7 @@
     const ready = todo.filter(o => o.status === 'Ready to collect');
     // how many pre-order items to get, per product + option (not cancelled, not collected)
     const need = {};
-    todo.forEach(o => o.items.forEach(i => { if (i.type !== 'Pre-order' || i.status === 'Cancelled' || i.status === 'Collected') return; const k = i.product + '|' + opt(i); need[k] = (need[k] || 0) + i.qty; }));
+    todo.forEach(o => o.items.forEach(i => { if (i.type !== 'Pre-order' || i.status === 'Cancelled' || i.status === 'Collected' || !inBrand(i.product)) return; const k = i.product + '|' + opt(i); need[k] = (need[k] || 0) + i.qty; }));
     const needRows = Object.keys(need).sort().map(k => { const [p, o] = k.split('|'); return `<tr><td>${esc(p)}</td><td>${esc(o || '–')}</td><td class="n">${need[k]}</td></tr>`; }).join('');
     const filters = [['todo', 'To do', todo.length], ['unpaid', 'Not paid', unpaid.length], ['proof', 'Check payment', proofs.length], ['ready', 'Ready to collect', ready.length], ['collected', 'Collected', os.filter(o => o.status === 'Collected').length], ['cancelled', 'Cancelled', os.filter(o => o.status === 'Cancelled').length], ['all', 'All', os.length]];
     const list = odFiltered();
@@ -332,7 +342,7 @@
     drawOrdersList(list);
   }
   function odFiltered() {
-    const os = OD.orders, q = OQ.toLowerCase();
+    const os = OD.orders.filter(o => o.items.some(i => inBrand(i.product))), q = OQ.toLowerCase();
     const isTodo = o => o.status !== 'Cancelled' && o.status !== 'Collected';
     return os.filter(o => OF === 'all' ? true : OF === 'todo' ? isTodo(o) : OF === 'unpaid' ? isTodo(o) && o.paid !== 'Yes' : OF === 'proof' ? isTodo(o) && o.paid === 'Proof sent' : OF === 'ready' ? isTodo(o) && o.status === 'Ready to collect' : OF === 'collected' ? o.status === 'Collected' : o.status === 'Cancelled')
       .filter(o => !q || [o.order, o.name, o.email, o.phone].join(' ').toLowerCase().includes(q));
@@ -349,7 +359,7 @@
       <div class="od-h"><div><b>${esc(o.order)}</b> <span class="sub">${when(o.placed)}</span></div><span class="od-st ${sCls(o.status)}">${esc(o.status)}</span></div>
       <div class="who"><b>${esc(o.name)}</b> <span class="sub">${esc(o.role)}${o.account === 'Yes' ? ' · has account' : ''}</span><br>
         ${wa ? `<a href="${esc(wa)}">WhatsApp +${esc(o.phone)}</a>` : ''}${o.email ? `<a href="mailto:${esc(o.email)}?subject=${encodeURIComponent('Your WOAH order ' + o.order)}">${esc(o.email)}</a>` : ''}</div>
-      <div>${o.items.map(i => `<div class="od-it"><span>${i.qty} × ${esc(i.product)} <span class="sub">${esc(opt(i))}</span>${i.type === 'Pre-order' ? ' <span class="tag">pre-order</span>' : ''}</span><span>${Number(i.price * i.qty).toLocaleString('id-ID')}</span></div>`).join('')}
+      <div>${o.items.map(i => `<div class="od-it"><span>${i.qty} × ${esc(i.product)} <span class="sub">${esc(opt(i))}</span>${brandOf(i.product) === 'soap' ? ' <span class="tag soap">SOAP</span>' : ''}${i.type === 'Pre-order' ? ' <span class="tag">pre-order</span>' : ''}</span><span>${Number(i.price * i.qty).toLocaleString('id-ID')}</span></div>`).join('')}
         <div class="od-tot"><span>Total</span><span>Rp ${Number(o.total).toLocaleString('id-ID')}</span></div></div>
       <div class="od-kv">${pay}<span>${esc(o.pay)}</span><span>${esc(o.collect)}</span>${o.proof ? `<a href="${esc(o.proof)}">Payment screenshot ↗</a>` : ''}</div>
       ${o.notes ? `<div class="od-note"><b>Note:</b> ${esc(o.notes)}</div>` : ''}
