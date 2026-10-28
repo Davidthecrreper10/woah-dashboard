@@ -99,6 +99,7 @@
   .od-act { display: flex; gap: 6px; flex-wrap: wrap; }
   .od-act button { font-size: 12.5px; padding: 6px 10px; }
   .od-note { font-size: 13px; color: var(--muted); }
+  .od-act button.main { background: var(--brand); color: var(--on-brand, #fff); border-color: var(--brand); font-weight: 700; } .od-act button.main:disabled { opacity: .45; }
   .need { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 8px; }
   .need td, .need th { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: left; }
   .need td.n { font-family: 'JetBrains Mono', monospace; font-weight: 700; text-align: right; }
@@ -137,7 +138,7 @@
   </div>
   </div>
 </div>
-<script src="common.js?v=7"></script>
+<script src="common.js?v=8"></script>
 <script src="extras.js?v=1"></script>
 <script>
   const SHOP_URL = 'https://davidthecrreper10.github.io/woah-shop/';
@@ -290,7 +291,7 @@
   }
 
   // ---------- Orders tab ----------
-  let TAB = 'products', OD = null, OF = 'todo', OQ = '', OBUSY = {};
+  let TAB = 'products', OD = null, OF = 'todo', OQ = '', OBUSY = {}, OPAY = {};
   try { TAB = localStorage.getItem('woahShopTab') || 'products'; OF = localStorage.getItem('woahShopOF') || 'todo'; } catch (e) {}
   function drawTabs() {
     const open = OD ? OD.orders.filter(o => o.items.some(i => inBrand(i.product)) && o.status !== 'Collected' && o.status !== 'Cancelled').length : 0;
@@ -364,12 +365,28 @@
       <div class="od-kv">${pay}<span>${esc(o.pay)}</span><span>${esc(o.collect)}</span>${o.proof ? `<a href="${esc(o.proof)}">Payment screenshot ↗</a>` : ''}</div>
       ${o.notes ? `<div class="od-note"><b>Note:</b> ${esc(o.notes)}</div>` : ''}
       <div class="od-act">${b ? '<span class="sub">Saving…</span>' : done ? `<button target="_self" onclick="odSet('${esc(o.order)}','reopen')">Reopen</button>` : `
-        ${o.paid === 'Yes' ? `<button target="_self" onclick="odSet('${esc(o.order)}','unpaid')">Undo paid</button>` : `<button target="_self" onclick="odSet('${esc(o.order)}','paid')">Mark paid</button>`}
+        ${o.paid === 'Yes' ? `<button target="_self" onclick="odSet('${esc(o.order)}','unpaid')">Undo paid</button>` : `<button target="_self" onclick="odSet('${esc(o.order)}','paid')">Mark paid</button><button target="_self" onclick="odPayOpen('${esc(o.order)}')">Take payment</button>`}
         ${o.status !== 'Ready to collect' ? `<button target="_self" onclick="odSet('${esc(o.order)}','ready')">Ready to collect</button>` : ''}
         <button target="_self" onclick="odSet('${esc(o.order)}','collected')">Collected</button>
         <button target="_self" onclick="odSet('${esc(o.order)}','cancel')">Cancel</button>`}
         <button target="_self" onclick="odNote('${esc(o.order)}')">Note</button></div>
+      ${OPAY[o.order] && !done && o.paid !== 'Yes' ? odPayHTML(o) : ''}
     </div>`;
+  }
+  // Payment taken in person (e.g. at Shanti House): marks it paid and adds it to that day's tab in the Sales Tracker, like the Sell page.
+  function odPayOpen(id) { OPAY[id] = OPAY[id] ? null : { method: '', hand: false }; drawOrdersList(); }
+  function odPayHTML(o) {
+    const s = OPAY[o.order], id = esc(o.order);
+    return `<div class="card" style="margin:0;padding:10px 12px"><b>Payment for ${rp(o.total)}</b> <span class="sub">(goes into today's Sales Tracker tab)</span>
+      <div class="sp-seg" style="margin-top:8px">${[['cash', 'Cash'], ['qris', 'QRIS'], ['xendit', 'Card (Xendit)'], ['transfer', 'Transfer']].map(([k, l]) => `<button target="_self" class="${s.method === k ? 'on' : ''}" onclick="OPAY['${id}'].method='${k}';drawOrdersList()">${l}</button>`).join('')}</div>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:14px"><input type="checkbox" ${s.hand ? 'checked' : ''} onchange="OPAY['${id}'].hand=this.checked"> Also hand over the items now (Collected)</label>
+      <div class="od-act" style="margin-top:8px"><button target="_self" class="main" ${s.method ? '' : 'disabled'} onclick="odPay('${id}')">Confirm payment</button><button target="_self" onclick="OPAY['${id}']=null;drawOrdersList()">Close</button></div></div>`;
+  }
+  function odPay(id, force) {
+    const s = OPAY[id]; if (!s || !s.method) return;
+    OBUSY[id] = 1; drawOrders();
+    call({ action: 'posCollect', order: id, take: true, pay: s.method, collect: s.hand, force: !!force }).then(() => { OBUSY[id] = 0; OPAY[id] = null; return loadOrders(); })
+      .catch(e => { OBUSY[id] = 0; if (/Hand over anyway/.test(e.message) && confirm(e.message)) return odPay(id, true); drawOrders(); alert(e.message); });
   }
   function odSet(id, op) {
     const o = OD.orders.find(x => x.order === id);

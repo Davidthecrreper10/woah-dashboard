@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="WOAH Sell">
+<title>WOAH Sell</title>
+<base target="_blank">
+<link rel="stylesheet" href="style.css?v=11">
+<link rel="icon" href="img/icon.png?v=2">
+<link rel="apple-touch-icon" href="img/icon.png?v=2">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="woah.css?v=5">
+<script src="theme.js?v=7"></script>
+<style>
+  .ps-tabs { display: flex; gap: 0; margin: 4px 0 12px; border-bottom: 2px solid var(--line); overflow-x: auto; }
+  .ps-tabs button { background: none; border: 0; border-bottom: 3px solid transparent; margin-bottom: -2px; padding: 10px 16px; font-size: 15px; font-weight: 700; color: var(--muted); border-radius: 0; white-space: nowrap; }
+  .ps-tabs button.on { color: var(--ink); border-bottom-color: var(--brand); }
+  .ps-tabs .n { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var(--brand); color: var(--on-brand, #fff); border-radius: 999px; padding: 1px 7px; margin-left: 6px; }
+  .ps-q { display: none; margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: var(--warn-soft); color: var(--warn); font-size: 14px; font-weight: 600; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .ps-q.on { display: flex; }
+  .ps-q button { font-size: 13px; padding: 5px 10px; }
+  .ps-seg { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .ps-seg button { font-size: 13px; padding: 6px 12px; border-radius: 999px; background: var(--card); color: var(--ink); border: 1px solid var(--line); }
+  .ps-seg button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .ps-seg .grow { flex: 1; }
+  .ps-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  @media (max-width: 420px) { .ps-grid { grid-template-columns: 1fr 1fr; gap: 8px; } }
+  .ps-p { text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 0; overflow: hidden; display: flex; flex-direction: column; color: var(--ink); cursor: pointer; font: inherit; }
+  .ps-p:active { transform: scale(.98); }
+  .ps-p.out { opacity: .55; }
+  .ps-p .im { aspect-ratio: 4 / 3; background: var(--bg); display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+  .ps-p .im img { width: 100%; height: 100%; object-fit: cover; }
+  .ps-p .im .nm { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 17px; padding: 10px; text-align: center; color: var(--muted); }
+  .ps-p .tg { position: absolute; top: 6px; left: 6px; display: flex; gap: 4px; }
+  .ps-p .tg span { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 999px; background: var(--card); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  .ps-p .tg .soap { background: #DDEBFF; color: #1F4E8C; } .ps-p .tg .pre { background: var(--warn-soft); color: var(--warn); }
+  .ps-p .bd { padding: 8px 10px 10px; }
+  .ps-p .t { font-weight: 700; font-size: 14.5px; line-height: 1.2; }
+  .ps-p .m { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+  .ps-p.add .im { border-bottom: 1px dashed var(--line); }
+  /* cart bar + panels */
+  .ps-bar { position: sticky; bottom: 0; z-index: 20; margin: 14px -4px 0; padding: 10px 64px 10px 12px calc(10px + env(safe-area-inset-bottom)); background: var(--card); border: 1px solid var(--line); border-radius: 16px 16px 0 0; box-shadow: 0 -6px 20px rgba(0,0,0,.12); display: flex; align-items: center; gap: 10px; }
+  @media (min-width: 700px) { .ps-bar { padding-right: 170px; } }
+  .ps-bar .sum { flex: 1; font-size: 14px; } .ps-bar .sum b { font-family: 'JetBrains Mono', monospace; font-size: 17px; display: block; }
+  .ps-bar button { font-size: 15px; padding: 12px 18px; }
+  html body .btn-main { background: var(--brand); color: var(--on-brand, #fff); border-color: var(--brand); font-weight: 700; }
+  html body .btn-main:disabled { opacity: .45; }
+  .ps-ov { position: fixed; inset: 0; background: rgba(4,33,47,.55); z-index: 1000; display: none; align-items: flex-end; justify-content: center; }
+  .ps-ov.on { display: flex; }
+  .ps-sh { background: var(--card); color: var(--ink); width: 100%; max-width: 620px; max-height: 92vh; overflow-y: auto; border-radius: 20px 20px 0 0; padding: 16px 16px calc(18px + env(safe-area-inset-bottom)); box-shadow: 0 -10px 40px rgba(0,0,0,.25); }
+  @media (min-width: 700px) { .ps-ov { align-items: center; } .ps-sh { border-radius: 20px; } }
+  .ps-sh h2 { font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; margin: 0 0 4px; }
+  .ps-sh .x { float: right; font-size: 14px; padding: 6px 12px; }
+  .ps-lbl { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 14px 0 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 15px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--ink); min-width: 52px; }
+  .chip small { display: block; font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+  .chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); } .chip.on small { color: inherit; opacity: .8; }
+  .chip.zero small { color: var(--bad); }
+  .chip:disabled { opacity: .35; }
+  .qty { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .qty button { border: 0; border-radius: 0; width: 42px; height: 40px; font-size: 18px; padding: 0; background: var(--bg); color: var(--ink); }
+  .qty span { min-width: 38px; text-align: center; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+  .ps-in { font: inherit; font-size: 16px; width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .ps-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .warnline { font-size: 13.5px; color: var(--warn); background: var(--warn-soft); border-radius: 10px; padding: 8px 10px; margin-top: 10px; }
+  .badline { font-size: 13.5px; color: var(--bad); margin-top: 8px; min-height: 1em; }
+  .cl { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: flex-start; }
+  .cl .ln { flex: 1; font-size: 14.5px; } .cl .ln .o { font-size: 12.5px; color: var(--muted); }
+  .cl .pr { font-family: 'JetBrains Mono', monospace; font-weight: 700; text-align: right; white-space: nowrap; }
+  .cl .pr s { color: var(--muted); font-weight: 500; display: block; font-size: 12px; }
+  .cl .lnk { background: none; border: 0; padding: 0; color: var(--sea, var(--brand)); font-size: 13px; text-decoration: underline; margin-right: 10px; }
+  .disc { display: grid; grid-template-columns: 120px 1fr; gap: 6px; margin-top: 6px; }
+  .tot { display: flex; justify-content: space-between; font-size: 18px; font-weight: 800; padding: 12px 0 4px; }
+  .tot b { font-family: 'JetBrains Mono', monospace; }
+  .pays { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .pays button { font-size: 14.5px; padding: 12px 6px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font-weight: 600; }
+  .pays button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .payinfo { margin-top: 12px; text-align: center; }
+  .payinfo img { width: min(260px, 70vw); border-radius: 12px; background: #fff; padding: 8px; border: 1px solid var(--line); }
+  .payinfo .amt { font-family: 'JetBrains Mono', monospace; font-size: 26px; font-weight: 700; margin: 8px 0 2px; }
+  .payinfo .bank { white-space: pre-line; text-align: left; background: var(--bg); border-radius: 10px; padding: 10px 12px; font-size: 14.5px; }
+  .change { font-size: 15px; margin-top: 8px; } .change b { font-family: 'JetBrains Mono', monospace; font-size: 24px; display: block; }
+  .change.bad b { color: var(--bad); }
+  .quick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; } .quick button { font-size: 13px; padding: 6px 10px; }
+  .saw { display: flex; gap: 10px; align-items: center; margin-top: 12px; font-size: 15px; font-weight: 600; justify-content: center; }
+  .saw input { width: 22px; height: 22px; }
+  .bigbtn { width: 100%; font-size: 17px; padding: 14px; margin-top: 14px; }
+  .done-no { font-family: 'JetBrains Mono', monospace; font-size: 34px; font-weight: 700; text-align: center; margin: 10px 0; }
+  /* lists */
+  .ps-list { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
+  @media (max-width: 420px) { .ps-list { grid-template-columns: 1fr; } }
+  .oc { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+  .oc.cx { opacity: .6; } .oc.cx .it { text-decoration: line-through; }
+  .oc .h { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+  .oc .h b { font-family: 'JetBrains Mono', monospace; }
+  .oc .it { font-size: 13.5px; display: flex; justify-content: space-between; gap: 8px; }
+  .oc .ft { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12.5px; align-items: center; }
+  .pill { border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; font-size: 12px; white-space: nowrap; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; font-weight: 700; }
+  .pill.bad { background: var(--bad-soft); color: var(--bad); border-color: transparent; font-weight: 700; }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; font-weight: 700; }
+  .pill.soap { background: #DDEBFF; color: #1F4E8C; border-color: transparent; }
+  .oc .acts { display: flex; gap: 6px; flex-wrap: wrap; } .oc .acts button { font-size: 13px; padding: 6px 10px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 13px; }
+  .stat b { display: block; font-family: 'JetBrains Mono', monospace; font-size: 17px; }
+  .ck { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .ck td, .ck th { padding: 7px 6px; border-bottom: 1px solid var(--line); text-align: right; }
+  .ck td:first-child, .ck th:first-child { text-align: left; }
+  .ck { table-layout: fixed; } .ck th { font-size: 11px; } .ck td { font-size: 13px; overflow-wrap: anywhere; }
+  .ck input { width: 100%; box-sizing: border-box; max-width: 140px; text-align: right; font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .ck .diff.bad { color: var(--bad); font-weight: 700; } .ck .diff.ok { color: var(--ok); font-weight: 700; }
+  .toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 12px; z-index: 1100; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .25s; max-width: calc(100% - 32px); }
+  .toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="login" class="card"></div>
+  <div id="app">
+  <header>
+    <div>
+      <h1><span>WOAH</span> Sell</h1>
+      <div class="sub" id="updated">Loading…</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><nav class="pages" id="nav"></nav><button id="refresh" onclick="load()" target="_self">Refresh</button></div>
+      <div class="who" id="who"></div>
+    </div>
+  </header>
+  <div class="banner" id="banner"></div>
+  <div class="ps-q" id="queue"></div>
+  <div class="ps-tabs" id="tabs"></div>
+  <div id="view"></div>
+  </div>
+</div>
+<div class="ps-ov" id="ov" onclick="if(event.target===this)closeSheet()"><div class="ps-sh" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+<script src="common.js?v=8"></script>
+<script src="extras.js?v=1"></script>
+<script>
+  /* ---------- state ---------- */
+  const PAYS = [['cash', 'Cash'], ['qris', 'QRIS'], ['xendit', 'Card (Xendit)'], ['transfer', 'Transfer'], ['later', 'Not paid yet'], ['foc', 'FOC (free)']];
+  const PAY_LABEL = { cash: 'CASH', qris: 'QRIS', xendit: 'CARD (XENDIT)', transfer: 'TRANSFER', later: 'NOT YET PAID', foc: 'FOC' };
+  const METHODS = ['CASH', 'QRIS', 'CARD (XENDIT)', 'TRANSFER', 'NOT YET PAID', 'FOC'];
+  const COUNTED = ['CASH', 'QRIS', 'CARD (XENDIT)', 'TRANSFER'];
+  const QRIS_IMG = '../woah-shop/img/qris.png', XENDIT_IMG = 'img/xendit-qr.png', XENDIT_LINK = 'https://checkout.xendit.co/od/25-26-HS-WOAH-Merchandise';
+  let D = null, TAB = 'sell', BR = 'all', CART = [], PRE = [], PAY = null, DAY = null, DAYS = [], DAYSEL = '', ORD = null, OQ = '', BUSY = false, PICK = null, CK = {};
+  const ls = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+  TAB = ls.get('woahPosTab', 'sell'); BR = ls.get('woahPosBrand', 'all'); CART = ls.get('woahPosCart', []); PRE = ls.get('woahPosPre', []);
+  let QUEUE = ls.get('woahPosQueue', []);
+  { const h = location.hash.replace('#', ''); if (['sell', 'pre', 'collect', 'today'].includes(h)) TAB = h; }
+
+  function rp(n) { return 'Rp ' + Number(n || 0).toLocaleString('id-ID'); }
+  function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2600); }
+  function uid(p) { return p + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7); }
+  function brandOf(name) { return /soap/i.test(name || '') ? 'soap' : 'woah'; }
+  function optText(l) { return [l.colour, l.fit, l.size].filter(Boolean).join(' · '); }
+  function prod(k) { return D && D.products.find(p => p.key === k); }
+  function variant(l) { const p = prod(l.key); return p && p.variants.find(v => (v.colour || '') === (l.colour || '') && (v.fit || '') === (l.fit || '') && (v.size || '') === (l.size || '')); }
+  function linePrice(l) { if (l.custom) return Number(l.price) || 0; const v = variant(l); return v ? v.price : 0; }
+  function lineFull(l) { return linePrice(l) * l.qty; }
+  function lineNet(l) { return Math.max(0, lineFull(l) - (Number(l.discount) || 0)); }
+  function cartFor() { return TAB === 'pre' ? PRE : CART; }
+  function saveCarts() { ls.set('woahPosCart', CART); ls.set('woahPosPre', PRE); }
+  function totalOf(c) { return c.reduce((a, l) => a + lineNet(l), 0); }
+  /* stock left after this phone's own cart and unsent sales */
+  function usedHere(item) {
+    let n = 0;
+    CART.forEach(l => { const v = variant(l); if (v && v.item === item) n += l.qty; });
+    QUEUE.forEach(q => (q.sale.lines || []).forEach(l => { const v = variant(l); if (v && v.item === item) n += l.qty; }));
+    return n;
+  }
+  function left(v) { return (Number(v.stock) || 0) - usedHere(v.item); }
+
+  /* ---------- page ---------- */
+  function render(d) {
+    D = d;
+    if (d.day) { DAY = d.day; }
+    document.getElementById('updated').textContent = 'Items and prices from Dom\'s sheet · ' + when(d.at) + ' · today: ' + d.today;
+    drawTabs(); drawQueue(); draw();
+    if (TAB === 'collect') loadOrders(); else if (TAB === 'today') loadDay(DAYSEL);
+    syncSoon();
+  }
+  function drawTabs() {
+    const tabs = [['sell', 'Sell'], ['pre', 'Pre-order'], ['collect', 'Collect'], ['today', 'Sales & check']];
+    document.getElementById('tabs').innerHTML = tabs.map(([k, l]) => {
+      const n = k === 'sell' ? CART.length : k === 'pre' ? PRE.length : 0;
+      return `<button target="_self" class="${TAB === k ? 'on' : ''}" onclick="setTab('${k}')">${l}${n ? `<span class="n">${n}</span>` : ''}</button>`;
+    }).join('');
+  }
+  function setTab(t) { TAB = t; ls.set('woahPosTab', t); drawTabs(); draw(); window.scrollTo(0, 0); if (t === 'collect') loadOrders(); if (t === 'today') loadDay(DAYSEL); }
+  function draw() {
+    if (!D) return;
+    if (TAB === 'sell' || TAB === 'pre') drawShop();
+    else if (TAB === 'collect') drawCollect();
+    else drawToday();
+  }
+
+  /* ---------- product grid ---------- */
+  function drawShop() {
+    const pre = TAB === 'pre';
+    let ps = D.products.filter(p => BR === 'all' || brandOf(p.name) === BR);
+    const stockOf = p => p.variants.reduce((a, v) => a + Math.max(0, left(v)), 0);
+    if (pre) ps.sort((a, b) => (a.section !== 'preorder') - (b.section !== 'preorder') || a.name.localeCompare(b.name));
+    else ps.sort((a, b) => (stockOf(b) > 0) - (stockOf(a) > 0) || (a.section === 'preorder') - (b.section === 'preorder') || a.name.localeCompare(b.name));
+    const c = cartFor(), n = c.reduce((a, l) => a + l.qty, 0);
+    document.getElementById('view').innerHTML = `
+      <div class="ps-seg">${[['all', 'All'], ['woah', 'WOAH'], ['soap', 'SOAP']].map(([k, l]) => `<button target="_self" class="${BR === k ? 'on' : ''}" onclick="setBrand('${k}')">${l}</button>`).join('')}
+        <span class="grow"></span><span class="sub">${pre ? 'Pre-order: order now, collect when it arrives' : 'Tap an item to add it'}</span></div>
+      <div class="ps-grid">${ps.map(p => {
+        const s = stockOf(p), prices = p.variants.map(v => v.price).filter(Boolean), lo = Math.min.apply(null, prices), hi = Math.max.apply(null, prices);
+        const pr = prices.length ? (lo === hi ? rp(lo) : rp(lo) + '+') : 'No price';
+        return `<button target="_self" class="ps-p ${!pre && s <= 0 ? 'out' : ''}" onclick="openPick('${esc(p.key)}')">
+          <div class="im">${p.photo ? `<img src="${esc(p.photo)}" alt="" loading="lazy">` : `<div class="nm">${esc(p.name)}</div>`}
+            <div class="tg">${brandOf(p.name) === 'soap' ? '<span class="soap">SOAP</span>' : ''}${p.section === 'preorder' ? '<span class="pre">PRE-ORDER</span>' : ''}</div></div>
+          <div class="bd"><div class="t">${esc(p.name)}</div><div class="m">${pr}${pre ? '' : ` · ${s > 0 ? s + ' in stock' : 'stock 0'}`}</div></div></button>`;
+      }).join('')}
+      ${pre ? '' : `<button target="_self" class="ps-p add" onclick="openCustom()"><div class="im"><div class="nm">+ Other item</div></div><div class="bd"><div class="t">Not in the list</div><div class="m">Type name + price</div></div></button>`}</div>
+      <div class="ps-bar"><div class="sum">${n ? `${n} item${n > 1 ? 's' : ''}<b>${rp(totalOf(c))}</b>` : `<span class="sub">${pre ? 'Pre-order cart' : 'Cart'} is empty</span>`}</div>
+        <button target="_self" class="btn-main" ${n ? '' : 'disabled'} onclick="openCart()">${pre ? 'Pre-order' : 'Checkout'} ›</button></div>`;
+  }
+  function setBrand(b) { BR = b; ls.set('woahPosBrand', b); draw(); }
+
+  /* ---------- picker ---------- */
+  function openPick(key) {
+    const p = prod(key); if (!p) return;
+    PICK = { key, colour: p.colours.length === 1 ? p.colours[0] : '', fit: p.fits.length === 1 ? p.fits[0] : '', size: p.sizes.length === 1 ? p.sizes[0] : '', qty: 1 };
+    if (!p.colours.length) PICK.colour = ''; if (!p.fits.length) PICK.fit = ''; if (!p.sizes.length) PICK.size = '';
+    drawPick(); openSheet();
+  }
+  function drawPick() {
+    const p = prod(PICK.key), pre = TAB === 'pre';
+    const match = (v, k, val) => (v[k] || '') === val;
+    const avail = (k, val) => p.variants.filter(v => match(v, k, val) && ['colour', 'fit', 'size'].every(o => o === k || !PICK[o] || match(v, o, PICK[o])));
+    const chips = (k, list) => list.map(val => {
+      const vs = avail(k, val), st = vs.reduce((a, v) => a + left(v), 0);
+      return `<button target="_self" class="chip ${PICK[k] === val ? 'on' : ''} ${!pre && st <= 0 ? 'zero' : ''}" ${vs.length ? '' : 'disabled'} onclick="pickSet('${k}','${esc(val)}')">${esc(val)}${pre || k !== 'size' ? '' : `<small>${st > 0 ? st + ' left' : '0 left'}</small>`}</button>`;
+    }).join('');
+    const v = p.variants.find(x => ['colour', 'fit', 'size'].every(o => (x[o] || '') === (PICK[o] || '')));
+    const st = v ? left(v) : null;
+    document.getElementById('sheet').innerHTML = `
+      <button target="_self" class="x" onclick="closeSheet()">Close</button>
+      <h2>${esc(p.name)}</h2><div class="sub">${p.section === 'preorder' ? 'Pre-order item' : p.section === 'hidden' ? 'Not on the website' : 'On the website too'}${brandOf(p.name) === 'soap' ? ' · SOAP' : ''}</div>
+      ${p.colours.length ? `<div class="ps-lbl">Colour</div><div class="chips">${chips('colour', p.colours)}</div>` : ''}
+      ${p.fits.length ? `<div class="ps-lbl">Fit</div><div class="chips">${chips('fit', p.fits)}</div>` : ''}
+      ${p.sizes.length ? `<div class="ps-lbl">Size</div><div class="chips">${chips('size', p.sizes)}</div>` : ''}
+      <div class="ps-lbl">How many</div><div class="qty"><button target="_self" onclick="pickQty(-1)">−</button><span>${PICK.qty}</span><button target="_self" onclick="pickQty(1)">+</button></div>
+      ${v && !pre && st < PICK.qty ? `<div class="warnline">Stock says ${Math.max(0, st)} left. The stock numbers are still being recounted, so you can still add it if you have it in your hands.</div>` : ''}
+      <button target="_self" class="btn-main bigbtn" ${v ? '' : 'disabled'} onclick="pickAdd()">${v ? `Add · ${rp(v.price * PICK.qty)}` : 'Pick ' + ['colour', 'fit', 'size'].filter(o => p[o === 'colour' ? 'colours' : o + 's'].length && !PICK[o]).join(', ')}</button>`;
+  }
+  function pickSet(k, val) { PICK[k] = PICK[k] === val ? '' : val; drawPick(); }
+  function pickQty(d) { PICK.qty = Math.max(1, Math.min(50, PICK.qty + d)); drawPick(); }
+  function pickAdd() {
+    const c = cartFor(), same = c.find(l => !l.custom && l.key === PICK.key && l.colour === PICK.colour && l.fit === PICK.fit && l.size === PICK.size);
+    if (same) same.qty += PICK.qty; else c.push({ key: PICK.key, colour: PICK.colour, fit: PICK.fit, size: PICK.size, qty: PICK.qty });
+    saveCarts(); closeSheet(); drawTabs(); draw(); toast('Added ' + prod(PICK.key).name);
+  }
+  function openCustom() {
+    document.getElementById('sheet').innerHTML = `<button target="_self" class="x" onclick="closeSheet()">Close</button><h2>Other item</h2>
+      <div class="sub">Something that isn't in Dom's sheet. It's saved with this name, so tell Dom afterwards.</div>
+      <div class="ps-lbl">Name</div><input class="ps-in" id="cuN" placeholder="e.g. Old poster">
+      <div class="ps-row2"><div><div class="ps-lbl">Price each (Rp)</div><input class="ps-in" id="cuP" inputmode="numeric" placeholder="50000"></div><div><div class="ps-lbl">How many</div><input class="ps-in" id="cuQ" inputmode="numeric" value="1"></div></div>
+      <div class="badline" id="cuE"></div><button target="_self" class="btn-main bigbtn" onclick="addCustom()">Add</button>`;
+    openSheet(); setTimeout(() => document.getElementById('cuN').focus(), 50);
+  }
+  function addCustom() {
+    const n = document.getElementById('cuN').value.trim(), p = Math.round(Number(String(document.getElementById('cuP').value).replace(/\D/g, ''))), q = Math.max(1, Math.floor(Number(document.getElementById('cuQ').value) || 1));
+    if (!n || !(p >= 0)) { document.getElementById('cuE').textContent = 'Type a name and a price.'; return; }
+    CART.push({ custom: n, price: p, qty: q }); saveCarts(); closeSheet(); drawTabs(); draw();
+  }
+  function openSheet() { document.getElementById('ov').classList.add('on'); document.body.style.overflow = 'hidden'; }
+  function closeSheet() { document.getElementById('ov').classList.remove('on'); document.body.style.overflow = ''; }
+
+  /* ---------- cart + checkout ---------- */
+  function openCart() { PAY = PAY || { method: '', got: '', saw: false, owes: '', reason: '', helper: ls.get('woahPosHelper', ''), note: '', buyer: { name: '', phone: '', cemail: '', role: 'Student' }, collect: '', err: '' }; drawCart(); openSheet(); }
+  function lineHTML(l, i) {
+    const p = l.custom ? null : prod(l.key), name = l.custom ? l.custom : p ? p.name : '(gone from Dom\'s sheet)';
+    const full = lineFull(l), net = lineNet(l), pre = TAB === 'pre';
+    return `<div class="cl"><div class="ln"><b>${esc(name)}</b>${l.custom ? ' <span class="pill">not in Dom\'s sheet</span>' : ''}<div class="o">${esc(optText(l))}${optText(l) ? ' · ' : ''}${rp(linePrice(l))} each</div>
+        <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="qty"><button target="_self" onclick="lineQty(${i},-1)">−</button><span>${l.qty}</span><button target="_self" onclick="lineQty(${i},1)">+</button></span>
+        ${pre ? '' : `<button target="_self" class="lnk" onclick="lineDisc(${i})">${l.discount ? 'Change discount' : 'Discount'}</button>`}<button target="_self" class="lnk" onclick="lineDel(${i})">Remove</button></div>
+        ${l.dopen ? `<div class="disc"><input class="ps-in" inputmode="numeric" placeholder="Rp off" value="${l.discount || ''}" oninput="discSet(${i},'discount',this.value)"><input class="ps-in" placeholder="Reason (e.g. small stain)" value="${esc(l.reason || '')}" oninput="discSet(${i},'reason',this.value)"></div>` : l.discount ? `<div class="o">−${rp(l.discount)}: ${esc(l.reason || 'no reason yet')}</div>` : ''}</div>
+      <div class="pr">${l.discount ? `<s>${rp(full)}</s>` : ''}${rp(net)}</div></div>`;
+  }
+  function drawCart() {
+    const pre = TAB === 'pre', c = cartFor(), tot = totalOf(c);
+    if (!c.length) { closeSheet(); draw(); return; }
+    const m = PAY.method;
+    const methods = pre ? [['cash', 'Cash'], ['qris', 'QRIS'], ['xendit', 'Card (Xendit)'], ['transfer', 'Transfer'], ['later', 'Pays later']] : PAYS;
+    document.getElementById('sheet').innerHTML = `<button target="_self" class="x" onclick="closeSheet()">Close</button>
+      <h2>${pre ? 'Pre-order' : 'Checkout'}</h2>
+      ${c.map(lineHTML).join('')}
+      <div class="tot"><span>Total</span><b id="ckTot">${rp(m === 'foc' ? 0 : tot)}</b></div>
+      ${pre ? `<div class="ps-lbl">Buyer</div>
+        <input class="ps-in" placeholder="Name" value="${esc(PAY.buyer.name)}" oninput="PAY.buyer.name=this.value">
+        <div class="ps-row2" style="margin-top:6px"><input class="ps-in" inputmode="tel" placeholder="Phone (WhatsApp)" value="${esc(PAY.buyer.phone)}" oninput="PAY.buyer.phone=this.value"><input class="ps-in" type="email" placeholder="Email (optional)" value="${esc(PAY.buyer.cemail)}" oninput="PAY.buyer.cemail=this.value"></div>
+        <div class="chips" style="margin-top:6px">${['Student', 'Parent', 'Staff', 'Other'].map(r => `<button target="_self" class="chip ${PAY.buyer.role === r ? 'on' : ''}" onclick="PAY.buyer.role='${r}';drawCart()">${r}</button>`).join('')}</div>
+        <div class="ps-lbl">They collect at</div><div class="chips">${Object.keys(D.settings.collect).map(k => `<button target="_self" class="chip ${PAY.collect === k ? 'on' : ''}" onclick="PAY.collect='${k}';drawCart()">${esc(D.settings.collect[k])}</button>`).join('')}</div>` : ''}
+      <div class="ps-lbl">${pre ? 'Payment' : 'How do they pay?'}</div>
+      <div class="pays">${methods.map(([k, l]) => `<button target="_self" class="${m === k ? 'on' : ''}" onclick="setPay('${k}')">${l}</button>`).join('')}</div>
+      <div id="payBox">${payBox(m, tot)}</div>
+      ${pre ? '' : `<div class="ps-lbl">Selling with (optional)</div><input class="ps-in" placeholder="e.g. Nila" value="${esc(PAY.helper)}" oninput="PAY.helper=this.value">`}
+      <div class="ps-lbl">Note (optional)</div><input class="ps-in" value="${esc(PAY.note)}" oninput="PAY.note=this.value">
+      <div class="badline" id="ckErr">${esc(PAY.err || '')}</div>
+      <button target="_self" class="btn-main bigbtn" ${BUSY ? 'disabled' : ''} onclick="${pre ? 'finishPre()' : 'finishSale()'}">${BUSY ? 'Saving…' : pre ? 'Save pre-order' : 'Finish sale'}</button>`;
+  }
+  function payBox(m, tot) {
+    if (!m) return '';
+    const amt = `<div class="amt">${rp(tot)}</div>`;
+    const saw = `<label class="saw"><input type="checkbox" ${PAY.saw ? 'checked' : ''} onchange="PAY.saw=this.checked"> I saw the payment go through</label>`;
+    if (m === 'cash') {
+      const got = Number(String(PAY.got).replace(/\D/g, '')) || 0, ch = got - tot;
+      const quick = [tot, 50000, 100000, 200000, 500000, 1000000].filter((x, i, a) => x >= tot && a.indexOf(x) === i).slice(0, 5);
+      return `<div class="ps-lbl">Cash received (optional)</div><input class="ps-in" inputmode="numeric" placeholder="${tot}" value="${esc(PAY.got)}" oninput="PAY.got=this.value;document.getElementById('chg').outerHTML=changeHTML(${tot})">
+        <div class="quick">${quick.map(x => `<button target="_self" onclick="PAY.got='${x}';drawCart()">${x === tot ? 'Exact' : rp(x)}</button>`).join('')}</div>${changeHTML(tot)}`;
+    }
+    if (m === 'qris') return `<div class="payinfo"><img src="${QRIS_IMG}" alt="WOAH QRIS code">${amt}<div class="sub">They scan with any banking / e-wallet app and type this amount.</div>${saw}</div>`;
+    if (m === 'xendit') {
+      const same = !D.settings.xendit || D.settings.xendit === XENDIT_LINK;
+      return `<div class="payinfo">${same ? `<img src="${XENDIT_IMG}" alt="Xendit payment QR">` : `<div class="bank">Open this link on their phone:<br><b>${esc(D.settings.xendit)}</b></div>`}${amt}<div class="sub">Card or e-wallet. They type this amount on the Xendit page.</div>${saw}</div>`;
+    }
+    if (m === 'transfer') return `<div class="payinfo">${D.settings.bank ? `<div class="bank">${esc(D.settings.bank)}</div>` : '<div class="warnline">No bank details yet (Settings tab of the WOAH Shop sheet). Check the transfer some other way.</div>'}${amt}${saw}</div>`;
+    if (m === 'later') return TAB === 'pre' ? '<div class="sub" style="margin-top:8px">They pay when they collect (or anywhere later, from the Collect tab).</div>'
+      : `<div class="ps-lbl">Who still has to pay?</div><input class="ps-in" placeholder="Name and phone" value="${esc(PAY.owes)}" oninput="PAY.owes=this.value"><div class="sub" style="margin-top:6px">It shows as "Outstanding" in the Sales Tracker.</div>`;
+    if (m === 'foc') return `<div class="ps-lbl">Why is it free?</div><input class="ps-in" placeholder="e.g. prize for the surf contest" value="${esc(PAY.reason)}" oninput="PAY.reason=this.value">`;
+    return '';
+  }
+  function changeHTML(tot) {
+    const got = Number(String(PAY.got).replace(/\D/g, '')) || 0;
+    if (!got) return '<div class="change" id="chg"></div>';
+    const ch = got - tot;
+    return `<div class="change ${ch < 0 ? 'bad' : ''}" id="chg">${ch < 0 ? 'Still missing' : 'Change to give back'}<b>${rp(Math.abs(ch))}</b></div>`;
+  }
+  function setPay(k) { PAY.method = k; PAY.saw = false; PAY.err = ''; drawCart(); }
+  function lineQty(i, d) { const c = cartFor(); c[i].qty = Math.max(1, Math.min(50, c[i].qty + d)); if (c[i].discount > lineFull(c[i])) c[i].discount = lineFull(c[i]); saveCarts(); drawCart(); drawTabs(); }
+  function lineDel(i) { cartFor().splice(i, 1); saveCarts(); drawTabs(); drawCart(); }
+  function lineDisc(i) { const l = cartFor()[i]; l.dopen = !l.dopen; drawCart(); }
+  function discSet(i, k, val) {
+    const l = cartFor()[i];
+    if (k === 'discount') l.discount = Math.min(lineFull(l), Number(String(val).replace(/\D/g, '')) || 0); else l.reason = val;
+    PAY.err = ''; saveCarts(); document.getElementById('ckTot').textContent = rp(PAY.method === 'foc' ? 0 : totalOf(cartFor()));
+  }
+  function ckErr(t) { PAY.err = t; const e = document.getElementById('ckErr'); if (e) e.textContent = t; return false; }
+  function checkPay(pre) {
+    const m = PAY.method;
+    if (!m) return ckErr('Pick how they pay.');
+    if (['qris', 'xendit', 'transfer'].includes(m) && !PAY.saw) return ckErr('Tick "I saw the payment go through" first.');
+    if (m === 'cash' && PAY.got && (Number(String(PAY.got).replace(/\D/g, '')) || 0) < totalOf(cartFor())) return ckErr('The cash received is less than the total.');
+    if (!pre && m === 'later' && PAY.owes.trim().length < 2) return ckErr('Type who still has to pay.');
+    if (!pre && m === 'foc' && PAY.reason.trim().length < 2) return ckErr('Say why it\'s free.');
+    if (!pre && m !== 'foc') { const bad = CART.find(l => l.discount > 0 && !(l.reason || '').trim()); if (bad) return ckErr('Give a reason for each discount.'); }
+    return true;
+  }
+  function finishSale() {
+    if (!checkPay(false)) return;
+    const sale = { id: uid('S'), at: Date.now(), pay: PAY.method, helper: PAY.helper.trim(), note: PAY.note.trim(), owes: PAY.owes.trim(), reason: PAY.reason.trim(),
+      lines: CART.map(l => l.custom ? { custom: l.custom, price: l.price, qty: l.qty } : { key: l.key, colour: l.colour, fit: l.fit, size: l.size, qty: l.qty, discount: l.discount || 0, reason: l.reason || '' }) };
+    const shown = { total: PAY.method === 'foc' ? 0 : totalOf(CART), items: CART.map(l => ({ name: l.custom || (prod(l.key) || {}).name, opt: optText(l), qty: l.qty, net: lineNet(l) })), by: (ME ? ME.name : '') + (sale.helper ? ' + ' + sale.helper : '') };
+    QUEUE.push({ sale, shown, err: '' }); ls.set('woahPosQueue', QUEUE); ls.set('woahPosHelper', PAY.helper.trim());
+    CART = []; PAY = null; saveCarts(); closeSheet(); drawTabs(); drawQueue(); draw();
+    toast('Sale saved · ' + rp(shown.total)); sync();
+  }
+  function finishPre() {
+    const b = PAY.buyer;
+    if (b.name.trim().length < 2) return ckErr('Type the buyer\'s name.');
+    if (b.phone.replace(/\D/g, '').length < 8 && !/@/.test(b.cemail)) return ckErr('Type their phone (or email), so we can tell them when it arrives.');
+    if (!PAY.collect) return ckErr('Pick where they collect.');
+    if (!checkPay(true)) return;
+    if (!navigator.onLine) return ckErr('Pre-orders need internet (to get an order number). Try again when you\'re online.');
+    BUSY = true; PAY.cid = PAY.cid || uid('P'); drawCart();
+    call({ action: 'posPreorder', id: PAY.cid, buyer: { name: b.name.trim(), phone: b.phone.trim(), cemail: b.cemail.trim(), role: b.role }, collect: PAY.collect, pay: PAY.method, note: PAY.note.trim(),
+      lines: PRE.map(l => ({ key: l.key, colour: l.colour, fit: l.fit, size: l.size, qty: l.qty })) })
+      .then(r => {
+        BUSY = false; PRE = []; PAY = null; saveCarts(); drawTabs(); draw(); if (r.day) DAY = r.day;
+        document.getElementById('sheet').innerHTML = `<h2>Pre-order saved</h2><div class="sub">Tell ${esc(r.name)} their order number:</div><div class="done-no">${esc(r.order)}</div>
+          ${r.items.map(i => `<div class="cl"><div class="ln">${i.qty} × ${esc(i.product)} <span class="o">${esc(optText(i))}</span></div><div class="pr">${rp(i.price * i.qty)}</div></div>`).join('')}
+          <div class="tot"><span>Total</span><b>${rp(r.total)}</b></div><div class="sub">${r.paid ? 'Paid: ' + esc(r.payText) : 'Not paid yet: they pay when they collect.'} · Collect at ${esc(r.collect)}. It's in the Orders tab now.</div>
+          <button target="_self" class="btn-main bigbtn" onclick="closeSheet()">Done</button>`;
+      })
+      .catch(e => { BUSY = false; PAY.err = e.message; drawCart(); });
+  }
+
+  /* ---------- sending sales (works with bad wifi) ---------- */
+  let SYNCING = false;
+  function drawQueue() {
+    const q = document.getElementById('queue'), bad = QUEUE.filter(x => x.err);
+    q.className = 'ps-q' + (QUEUE.length ? ' on' : '');
+    q.innerHTML = QUEUE.length ? `${QUEUE.length} sale${QUEUE.length > 1 ? 's' : ''} saved on this phone, not sent yet${bad.length ? ' · <span style="color:var(--bad)">' + esc(bad[0].err) + '</span>' : navigator.onLine ? '' : ' (no internet)'}
+      <button target="_self" onclick="sync(true)">${SYNCING ? 'Sending…' : 'Send now'}</button>${bad.length ? `<button target="_self" onclick="dropBad()">Delete the one with the problem</button>` : ''}` : '';
+  }
+  function dropBad() {
+    const i = QUEUE.findIndex(x => x.err); if (i < 0) return;
+    if (!confirm('Delete this unsent sale? It will NOT be in the Sales Tracker.')) return;
+    QUEUE.splice(i, 1); ls.set('woahPosQueue', QUEUE); drawQueue(); draw();
+  }
+  function syncSoon() { clearTimeout(syncSoon.t); syncSoon.t = setTimeout(sync, 300); }
+  function sync(manual) {
+    if (SYNCING || !QUEUE.length || !KEY) { drawQueue(); return; }
+    SYNCING = true; drawQueue();
+    const q = QUEUE[0];
+    call({ action: 'posSale', sale: q.sale }).then(r => {
+      QUEUE.shift(); ls.set('woahPosQueue', QUEUE); if (r.day) DAY = r.day; DAYSEL = DAY ? DAY.name : DAYSEL;
+      SYNCING = false; drawQueue(); if (TAB === 'today') drawToday();
+      if (QUEUE.length) sync(); else if (manual) toast('All sales sent');
+    }).catch(e => {
+      SYNCING = false;
+      const net = e instanceof TypeError || /fetch|network|load failed/i.test(e.message || '');
+      if (!net && !e.auth) q.err = e.message;
+      ls.set('woahPosQueue', QUEUE); drawQueue();
+      if (manual && net) toast('No connection. It will send by itself.');
+    });
+  }
+  setInterval(() => { if (QUEUE.length && !QUEUE[0].err) sync(); }, 15000);
+  window.addEventListener('online', () => sync());
+  window.addEventListener('offline', drawQueue);
+
+  /* ---------- collect shop orders (also for paying at Shanti House) ---------- */
+  function loadOrders() {
+    if (!ORD) document.getElementById('view').innerHTML = '<div class="card">Loading orders…</div>';
+    return call({ action: 'posOrders' }).then(d => { ORD = d.orders; if (TAB === 'collect') drawCollect(); }).catch(e => { document.getElementById('view').innerHTML = `<div class="card bad">${esc(e.message)}</div>`; });
+  }
+  function drawCollect() {
+    if (!ORD) { document.getElementById('view').innerHTML = '<div class="card">Loading orders…</div>'; return; }
+    const q = OQ.toLowerCase().trim();
+    const list = ORD.filter(o => !q || [o.order, o.name, o.email, o.phone].join(' ').toLowerCase().includes(q));
+    document.getElementById('view').innerHTML = `
+      <div class="ps-seg"><input class="ps-in" type="search" style="flex:1 1 240px" placeholder="Search name, order number or phone" value="${esc(OQ)}" oninput="OQ=this.value;drawCollectList()"><button target="_self" onclick="ORD=null;loadOrders()">Refresh</button></div>
+      <div class="sub" style="margin-bottom:10px">Open orders from the shop website and stall pre-orders. Take the payment and/or hand the items over. Works anywhere, e.g. at Shanti House.</div>
+      <div class="ps-list" id="oList"></div>`;
+    drawCollectList(list);
+  }
+  function drawCollectList(list) {
+    if (!list) { const q = OQ.toLowerCase().trim(); list = ORD.filter(o => !q || [o.order, o.name, o.email, o.phone].join(' ').toLowerCase().includes(q)); }
+    document.getElementById('oList').innerHTML = list.length ? list.map(o => {
+      const paid = o.paid === 'Yes', wait = o.items.some(i => i.status === 'Waiting for stock');
+      return `<div class="oc"><div class="h"><div><b>${esc(o.order)}</b> · ${esc(o.name)}<div class="sub">${o.phone ? '+' + esc(o.phone) + ' · ' : ''}${esc(o.collect)}</div></div>
+          <span class="pill ${o.status === 'Ready to collect' ? 'ok' : wait ? 'warn' : ''}">${esc(o.status)}</span></div>
+        ${o.items.filter(i => i.status !== 'Cancelled').map(i => `<div class="it"><span>${i.qty} × ${esc(i.product)} <span class="sub">${esc(optText(i))}</span>${i.type === 'Pre-order' ? ' <span class="pill warn">pre-order</span>' : ''}</span><span>${rp(i.price * i.qty)}</span></div>`).join('')}
+        <div class="ft"><b>${rp(o.total)}</b><span class="pill ${paid ? 'ok' : o.paid === 'Proof sent' ? 'warn' : 'bad'}">${paid ? 'Paid' : o.paid === 'Proof sent' ? 'Screenshot sent, check it' : 'Not paid'}</span><span class="sub">${esc(o.pay)}</span>${o.proof ? `<a href="${esc(o.proof)}">Screenshot ↗</a>` : ''}</div>
+        <div class="acts"><button target="_self" class="btn-main" onclick="openCollect('${esc(o.order)}')">${paid ? 'Hand over' : 'Take payment / hand over'}</button></div></div>`;
+    }).join('') : '<div class="card">No open orders here.</div>';
+  }
+  let COL = null;
+  function openCollect(id) {
+    const o = ORD.find(x => x.order === id); if (!o) return;
+    const paid = o.paid === 'Yes', wait = o.items.some(i => i.status === 'Waiting for stock');
+    COL = { o, take: !paid, hand: !wait, method: '', got: '', saw: false, err: '' };
+    drawCollectSheet(); openSheet();
+  }
+  function drawCollectSheet() {
+    const o = COL.o, paid = o.paid === 'Yes', tot = o.total;
+    const m = COL.method;
+    const saw = `<label class="saw"><input type="checkbox" ${COL.saw ? 'checked' : ''} onchange="COL.saw=this.checked"> I saw the payment go through</label>`;
+    let box = '';
+    if (COL.take && m === 'cash') { const got = Number(String(COL.got).replace(/\D/g, '')) || 0, ch = got - tot; box = `<div class="ps-lbl">Cash received (optional)</div><input class="ps-in" inputmode="numeric" value="${esc(COL.got)}" oninput="COL.got=this.value;drawCollectSheet()">${got ? `<div class="change ${ch < 0 ? 'bad' : ''}">${ch < 0 ? 'Still missing' : 'Change to give back'}<b>${rp(Math.abs(ch))}</b></div>` : ''}`; }
+    if (COL.take && m === 'qris') box = `<div class="payinfo"><img src="${QRIS_IMG}" alt="WOAH QRIS"><div class="amt">${rp(tot)}</div>${saw}</div>`;
+    if (COL.take && m === 'xendit') box = `<div class="payinfo"><img src="${XENDIT_IMG}" alt="Xendit QR"><div class="amt">${rp(tot)}</div>${saw}</div>`;
+    if (COL.take && m === 'transfer') box = `<div class="payinfo">${D.settings.bank ? `<div class="bank">${esc(D.settings.bank)}</div>` : ''}<div class="amt">${rp(tot)}</div>${saw}</div>`;
+    document.getElementById('sheet').innerHTML = `<button target="_self" class="x" onclick="closeSheet()">Close</button>
+      <h2>${esc(o.order)} · ${esc(o.name)}</h2><div class="sub">${esc(o.collect)} · ${rp(tot)} · ${paid ? 'already paid (' + esc(o.pay) + ')' : 'not paid yet'}</div>
+      ${o.items.filter(i => i.status !== 'Cancelled').map(i => `<div class="cl"><div class="ln">${i.qty} × ${esc(i.product)} <span class="o">${esc(optText(i))} · ${esc(i.status)}</span></div><div class="pr">${rp(i.price * i.qty)}</div></div>`).join('')}
+      ${paid ? '' : `<label class="saw" style="justify-content:flex-start"><input type="checkbox" ${COL.take ? 'checked' : ''} onchange="COL.take=this.checked;drawCollectSheet()"> Take payment now</label>`}
+      ${COL.take && !paid ? `<div class="pays" style="margin-top:8px">${[['cash', 'Cash'], ['qris', 'QRIS'], ['xendit', 'Card (Xendit)'], ['transfer', 'Transfer']].map(([k, l]) => `<button target="_self" class="${m === k ? 'on' : ''}" onclick="COL.method='${k}';COL.saw=false;drawCollectSheet()">${l}</button>`).join('')}</div>${box}` : ''}
+      <label class="saw" style="justify-content:flex-start"><input type="checkbox" ${COL.hand ? 'checked' : ''} onchange="COL.hand=this.checked;drawCollectSheet()"> Hand over the items now (Collected)</label>
+      ${COL.hand && o.items.some(i => i.status === 'Waiting for stock') ? '<div class="warnline">Some items are still "Waiting for stock". Only tick this if you\'re really giving them the items.</div>' : ''}
+      <div class="badline">${esc(COL.err)}</div>
+      <button target="_self" class="btn-main bigbtn" ${BUSY ? 'disabled' : ''} onclick="doCollect()">${BUSY ? 'Saving…' : 'Confirm'}</button>`;
+  }
+  function doCollect(force) {
+    const paid = COL.o.paid === 'Yes', take = COL.take && !paid;
+    if (!take && !COL.hand) { COL.err = 'Tick "Take payment" or "Hand over".'; drawCollectSheet(); return; }
+    if (take && !COL.method) { COL.err = 'Pick how they paid.'; drawCollectSheet(); return; }
+    if (take && COL.method !== 'cash' && !COL.saw) { COL.err = 'Tick "I saw the payment go through" first.'; drawCollectSheet(); return; }
+    BUSY = true; COL.err = ''; drawCollectSheet();
+    call({ action: 'posCollect', order: COL.o.order, take, pay: COL.method, collect: COL.hand, force: !!force }).then(r => {
+      BUSY = false; if (r.day) DAY = r.day; closeSheet();
+      toast(r.order + (r.took ? ' paid' : '') + (r.took && r.handed ? ' and' : '') + (r.handed ? ' handed over' : ''));
+      ORD = null; loadOrders();
+    }).catch(e => {
+      BUSY = false;
+      if (/Hand over anyway/.test(e.message) && confirm(e.message)) return doCollect(true);
+      COL.err = e.message; drawCollectSheet();
+    });
+  }
+
+  /* ---------- today: sales list + end-of-day check ---------- */
+  function loadDay(name) {
+    return call({ action: 'posDay', day: name || '' }).then(d => { DAY = d.day; DAYS = d.days; DAYSEL = d.day ? d.day.name : (name || d.today); D.today = d.today; if (TAB === 'today') drawToday(); }).catch(e => fail(e));
+  }
+  function drawToday() {
+    const day = DAY, admin = ME && ME.role === 'full';
+    const pend = QUEUE.map(q => `<div class="oc"><div class="h"><div><b>Not sent yet</b> <span class="sub">${when(q.sale.at)}</span></div><span class="pill warn">${esc(PAY_LABEL[q.sale.pay])}</span></div>
+      ${q.shown.items.map(i => `<div class="it"><span>${i.qty} × ${esc(i.name)} <span class="sub">${esc(i.opt)}</span></span><span>${rp(i.net)}</span></div>`).join('')}<div class="ft"><b>${rp(q.shown.total)}</b><span class="sub">${esc(q.shown.by)}</span>${q.err ? `<span class="pill bad">${esc(q.err)}</span>` : ''}</div></div>`).join('');
+    const days = DAYS.length ? `<select class="ps-in" style="width:auto" onchange="DAYSEL=this.value;loadDay(this.value)">${(DAYS.includes(D.today) ? DAYS : [D.today].concat(DAYS)).map(n => `<option ${n === (day ? day.name : D.today) ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>` : '';
+    if (!day) { document.getElementById('view').innerHTML = `<div class="ps-seg">${days}</div>${pend ? `<div class="ps-list" style="margin-bottom:12px">${pend}</div>` : ''}<div class="card">No sales yet ${DAYSEL && DAYSEL !== D.today ? 'that day' : 'today'}. The day's tab in the Sales Tracker is made with the first sale.</div>`; return; }
+    const s = day.sum;
+    document.getElementById('view').innerHTML = `
+      <div class="ps-seg">${days}<span class="grow"></span><a class="pill" href="${esc(day.url)}">Open in the Sales Tracker ↗</a></div>
+      <div class="stats">
+        <div class="stat"><b>${day.count}</b>stall sales</div><div class="stat"><b>${rp(day.paid)}</b>paid</div><div class="stat"><b>${rp(day.owed)}</b>not paid yet</div>
+        ${METHODS.filter(m => s[m] && s[m].n).map(m => `<div class="stat"><b>${rp(s[m].amount)}</b>${esc(m)} · ${s[m].n}</div>`).join('')}
+      </div>
+      ${pend ? `<h3 style="margin:16px 0 8px">On this phone, not sent yet</h3><div class="ps-list">${pend}</div>` : ''}
+      <h3 style="margin:16px 0 8px">Sales</h3>
+      <div class="ps-list">${day.sales.length ? day.sales.map(x => saleHTML(x, admin, day.name)).join('') : '<div class="card">No sales.</div>'}</div>
+      <div class="card" style="margin-top:16px"><h3 style="margin:0 0 4px">End-of-day check</h3>
+        <div class="sub">Count the cash box and check the QRIS / Xendit / bank apps, then type what you found. Differences show in red.</div>
+        <table class="ck" style="margin-top:8px"><tr><th>Method</th><th>System says</th><th>Counted</th><th>Difference</th></tr>
+        ${COUNTED.map(m => { const sys = (s[m] || {}).amount || 0, v = CK[m] != null ? CK[m] : (day.counted[m] != null ? day.counted[m] : ''); const d = v === '' ? null : Number(v) - sys;
+          return `<tr><td>${esc(m)}</td><td>${rp(sys)}</td><td><input inputmode="numeric" value="${esc(v)}" oninput="CK['${m}']=this.value.replace(/\\D/g,'');drawCheckDiff()" data-m="${esc(m)}"></td><td class="diff ${d == null ? '' : d === 0 ? 'ok' : 'bad'}" id="df-${m.replace(/\W/g, '')}">${d == null ? '' : d === 0 ? 'OK' : (d > 0 ? '+' : '−') + rp(Math.abs(d))}</td></tr>`; }).join('')}
+        </table>
+        <div class="ps-lbl">Note (explain any difference)</div><input class="ps-in" id="ckNote" value="${esc(CK.note != null ? CK.note : day.check.note)}" oninput="CK.note=this.value">
+        <div class="sub" style="margin-top:6px">${day.check.by ? 'Last checked by ' + esc(day.check.by) + (day.check.at ? ' · ' + when(day.check.at) : '') : 'Not checked yet.'}</div>
+        <button target="_self" class="btn-main bigbtn" onclick="saveCheck()">Save the check</button></div>`;
+  }
+  function drawCheckDiff() {
+    const s = DAY.sum;
+    COUNTED.forEach(m => { const el = document.getElementById('df-' + m.replace(/\W/g, '')); if (!el) return; const v = CK[m] != null ? CK[m] : (DAY.counted[m] != null ? String(DAY.counted[m]) : '');
+      const d = v === '' ? null : Number(v) - ((s[m] || {}).amount || 0); el.className = 'diff ' + (d == null ? '' : d === 0 ? 'ok' : 'bad'); el.textContent = d == null ? '' : d === 0 ? 'OK' : (d > 0 ? '+' : '−') + rp(Math.abs(d)); });
+  }
+  function saleHTML(x, admin, dayName) {
+    const cx = x.status === 'Cancelled', mine = ME && x.by.split(' + ')[0] === ME.name;
+    const kind = x.kind === 'Sale' ? '' : `<span class="pill">${esc(x.kind)} ${esc(x.sale)}</span>`;
+    return `<div class="oc ${cx ? 'cx' : ''}"><div class="h"><div><b>${new Date(x.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</b> <span class="sub">${esc(x.by)}</span></div>
+        <span class="pill ${x.pay === 'NOT YET PAID' ? 'bad' : x.pay === 'FOC' ? 'warn' : 'ok'}">${esc(x.pay)}</span></div>
+      ${x.items.map(i => `<div class="it"><span>${i.qty} × ${esc(i.product)}${i.brand === 'SOAP' ? ' <span class="pill soap">SOAP</span>' : ''}${i.discount && x.pay !== 'FOC' ? ` <span class="sub">(−${rp(i.discount)} ${esc(i.reason)})</span>` : ''}</span><span>${rp(i.amount)}</span></div>`).join('')}
+      <div class="ft"><b>${rp(x.total)}</b>${kind}${cx ? '<span class="pill bad">Cancelled</span>' : ''}${x.note ? `<span class="sub">${esc(x.note)}</span>` : ''}${x.pay === 'FOC' && x.items[0] ? `<span class="sub">${esc(x.items[0].reason)}</span>` : ''}</div>
+      ${x.kind === 'Sale' ? `<div class="acts">${(mine || admin) ? `<button target="_self" onclick="voidSale('${esc(dayName)}','${esc(x.sale)}',${cx})">${cx ? 'Undo cancel' : 'Cancel sale'}</button>` : ''}
+        ${admin && !cx ? `<label class="pill ${x.dom ? 'ok' : ''}" style="cursor:pointer"><input type="checkbox" ${x.dom ? 'checked' : ''} onchange="domSale('${esc(dayName)}','${esc(x.sale)}',this.checked)"> In Dom's sheet</label>` : x.dom ? '<span class="pill ok">In Dom\'s sheet</span>' : ''}</div>` : ''}</div>`;
+  }
+  function voidSale(day, sale, undo) {
+    if (!undo && !confirm('Cancel this sale? Use this for mistakes. Its stock comes back.')) return;
+    call({ action: 'posVoid', day, sale, undo }).then(r => { DAY = r.day; drawToday(); toast(undo ? 'Sale back' : 'Sale cancelled'); }).catch(e => alert(e.message));
+  }
+  function domSale(day, sale, on) {
+    call({ action: 'posDom', day, sale, on }).then(r => { DAY = r.day; drawToday(); }).catch(e => { alert(e.message); drawToday(); });
+  }
+  function saveCheck() {
+    const counted = {};
+    COUNTED.forEach(m => { const v = CK[m] != null ? CK[m] : (DAY.counted[m] != null ? String(DAY.counted[m]) : ''); counted[m] = v === '' ? '' : Number(v); });
+    const note = document.getElementById('ckNote').value;
+    const bad = COUNTED.some(m => counted[m] !== '' && counted[m] !== ((DAY.sum[m] || {}).amount || 0));
+    if (bad && note.trim().length < 3) { alert('There\'s a difference. Write a short note explaining it first.'); return; }
+    call({ action: 'posCheck', day: DAY.name, counted, note }).then(r => { DAY = r.day; CK = {}; drawToday(); toast('Check saved'); }).catch(e => alert(e.message));
+  }
+
+  start({ title: 'Sell', need: 'handler', action: 'pos', onData: render });
+</script>
+</body>
+</html>
