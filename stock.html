@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WOAH Stock</title>
+<base target="_blank">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="img/icon.png?v=2">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="woah.css?v=5">
+<script src="theme.js?v=7"></script>
+<style>
+  .st-bar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 0 0 14px; }
+  .st-bar input[type=search] { flex: 1 1 220px; min-width: 0; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; }
+  .st-bar select { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; }
+  .st-bar label { display: flex; gap: 6px; align-items: center; font-size: 14px; color: var(--muted); cursor: pointer; }
+  .stat { cursor: pointer; }
+  .stat.on { outline: 2px solid var(--brand); outline-offset: -2px; }
+  .sp { margin-bottom: 12px; padding: 0; overflow: hidden; }
+  .sp-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .sp-head h3 { margin: 0; font-size: 16px; flex: 1 1 auto; }
+  .sp-head .tot { font-size: 13px; color: var(--muted); }
+  .sp-head .tot b { color: var(--ink); font-size: 15px; }
+  .sec { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); white-space: nowrap; }
+  .sec.hidden { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+  .sec.preorder { background: var(--warn-soft); color: var(--warn); }
+  .sp-scroll { overflow-x: auto; }
+  table.stk { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 560px; }
+  table.stk th { text-align: right; font-size: 11px; font-weight: 600; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  table.stk th.l, table.stk td.l { text-align: left; }
+  table.stk td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.stk tr:last-child td { border-bottom: 0; }
+  table.stk td.dom { color: var(--muted); }
+  table.stk th.grp { border-left: 1px solid var(--line); }
+  table.stk td.grp { border-left: 1px solid var(--line); }
+  table.stk td.left { font-weight: 700; font-size: 15px; }
+  .chip { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .chip.bad { background: var(--bad-soft); color: var(--bad); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.out { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+  .chip.ok { background: var(--ok-soft); color: var(--ok); }
+  .left.bad { color: var(--bad); } .left.warn { color: var(--warn); } .left.out { color: var(--muted); }
+  .pre { font-size: 12px; color: var(--warn); }
+  .how p { margin: 6px 0 0; }
+  .empty { padding: 20px; text-align: center; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="login" class="card"></div>
+  <div id="app">
+  <header>
+    <div>
+      <h1><span>WOAH</span> Stock</h1>
+      <div class="sub" id="updated">Loading…</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><nav class="pages" id="nav"></nav><button id="refresh" onclick="load()" target="_self">Refresh</button></div>
+      <div class="who" id="who"></div>
+    </div>
+  </header>
+  <div class="banner" id="banner"></div>
+  <div class="grid stats" id="stats"></div>
+  <div class="st-bar">
+    <input type="search" id="q" placeholder="Search a product, colour or size…" oninput="draw()">
+    <select id="sec" onchange="draw()">
+      <option value="shop">In the shop (Current + Pre-order)</option>
+      <option value="current">Current merch</option>
+      <option value="preorder">Pre-order</option>
+      <option value="hidden">Not in shop</option>
+      <option value="all">Everything</option>
+    </select>
+    <label><input type="checkbox" id="prob" onchange="draw()"> Only problems</label>
+  </div>
+  <div id="list"></div>
+  <div class="card how" style="margin-top:14px">
+    <b>Where these numbers come from.</b>
+    <p><b>Start + In − Sold = End</b> comes straight from Dom's sheet (<i>2. Sales sum report</i>). Change stock there, not here.</p>
+    <p><b>Held</b> = sold on the Sell page but not ticked "In Dom's sheet" yet, plus website and stall orders that haven't been collected. <b>Left</b> = End − Held, which is what the shop and Sell page can still sell.</p>
+    <p><b>Below zero</b> means more was sold than Dom's sheet says came in, so a stock-in is missing or a sale was put on the wrong size. Those need the recount. <b>Pre-orders</b> are people waiting for that item to arrive.</p>
+    <p id="domLink"></p>
+  </div>
+  </div>
+</div>
+<script src="common.js?v=9"></script>
+<script src="extras.js?v=3"></script>
+<script>
+  let D = null, FILTER = '';
+  const SEC = { current: 'Current merch', preorder: 'Pre-order', hidden: 'Not in shop' };
+  function stateOf(v) { return v.left < 0 ? 'bad' : v.left === 0 ? 'out' : v.left <= 2 ? 'warn' : 'ok'; }
+  const LABEL = { bad: 'Below zero', out: 'Sold out', warn: 'Low', ok: 'OK' };
+  function inSec(p) { const s = document.getElementById('sec').value; return s === 'all' || (s === 'shop' ? p.section !== 'hidden' : p.section === s); }
+
+  function drawStats(ps) {
+    const vs = [].concat(...ps.map(p => p.variants));
+    const n = k => vs.filter(v => stateOf(v) === k).length;
+    const left = vs.reduce((a, v) => a + Math.max(0, v.left), 0), pre = vs.reduce((a, v) => a + (v.pre || 0), 0);
+    const tiles = [['', 'brand', left, 'items left to sell'], ['warn', 'warn', n('warn'), 'sizes running low (1–2)'], ['out', '', n('out'), 'sizes sold out'], ['bad', 'bad', n('bad'), 'sizes below zero'], ['pre', 'warn', pre, 'pre-orders waiting']];
+    document.getElementById('stats').innerHTML = tiles.map(([k, c, num, l]) => `<div class="card stat ${c} ${FILTER === k && k ? 'on' : ''}" ${k ? `onclick="setFilter('${k}')" title="Show only these"` : `onclick="setFilter('')"`}><div class="n">${num}</div><div class="l">${l}</div></div>`).join('');
+  }
+  function setFilter(k) { FILTER = FILTER === k ? '' : k; draw(); }
+
+  function draw() {
+    if (!D) return;
+    const q = document.getElementById('q').value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const prob = document.getElementById('prob').checked;
+    const ps = D.products.filter(inSec);
+    drawStats(ps);
+    const out = ps.map(p => {
+      let vs = p.variants.filter(v => {
+        const txt = (p.name + ' ' + v.colour + ' ' + v.fit + ' ' + v.size + ' ' + v.item).toLowerCase();
+        if (q.length && !q.every(w => txt.includes(w))) return false;
+        const st = stateOf(v);
+        if (prob && st === 'ok' && !v.pre) return false;
+        if (FILTER === 'pre') return v.pre > 0;
+        if (FILTER && st !== FILTER) return false;
+        return true;
+      });
+      return { p, vs };
+    }).filter(x => x.vs.length);
+    const list = document.getElementById('list');
+    if (!out.length) { list.innerHTML = '<div class="card empty">Nothing matches.</div>'; return; }
+    list.innerHTML = out.map(({ p, vs }) => {
+      const tot = p.variants.reduce((a, v) => a + Math.max(0, v.left), 0);
+      const hasFit = p.variants.some(v => v.fit), hasCol = p.variants.some(v => v.colour);
+      return `<div class="card sp"><div class="sp-head"><h3>${esc(p.name)}</h3><span class="sec ${esc(p.section)}">${esc(SEC[p.section] || p.section)}</span><span class="tot"><b>${tot}</b> left</span></div>
+        <div class="sp-scroll"><table class="stk"><thead><tr>${hasCol ? '<th class="l">Colour</th>' : ''}${hasFit ? '<th class="l">Fit</th>' : ''}<th class="l">Size</th>
+          <th class="grp" title="From Dom's sheet">Start</th><th>In</th><th>Sold</th><th>End</th><th class="grp" title="Sold or ordered but not in Dom's sheet yet">Held</th><th>Left</th><th class="l"></th></tr></thead><tbody>
+        ${vs.map(v => { const st = stateOf(v); return `<tr>${hasCol ? `<td class="l">${esc(v.colour || '–')}</td>` : ''}${hasFit ? `<td class="l">${esc(v.fit || '–')}</td>` : ''}<td class="l">${esc(v.size || '–')}</td>
+          <td class="dom grp">${v.beg}</td><td class="dom">${v.sin}</td><td class="dom">${v.sold}</td><td class="dom">${v.end}</td>
+          <td class="grp">${v.held || '–'}</td><td class="left ${st}">${v.left}</td>
+          <td class="l">${st === 'ok' ? '' : `<span class="chip ${st}">${LABEL[st]}</span>`}${v.pre ? ` <span class="pre">${v.pre} pre-order${v.pre === 1 ? '' : 's'} waiting</span>` : ''}</td></tr>`; }).join('')}
+        </tbody></table></div></div>`;
+    }).join('');
+  }
+
+  function render(d) {
+    D = d;
+    document.getElementById('updated').textContent = 'Stock per product and size · from Dom\'s sheet · checked ' + when(d.at);
+    document.getElementById('domLink').innerHTML = d.stockUrl ? `<a href="${esc(d.stockUrl)}">Open Dom's stock sheet ↗</a>` : '';
+    draw();
+  }
+
+  start({ title: 'Stock', need: 'handler', action: 'stock', every: 5, onData: render });
+</script>
+</body>
+</html>
