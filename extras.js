@@ -39,6 +39,12 @@
     .w-dots span { display: inline-block; width: 6px; height: 6px; margin: 0 2px; border-radius: 50%; background: var(--muted); animation: wdot 1s infinite ease-in-out; }
     .w-dots span:nth-child(2) { animation-delay: .15s } .w-dots span:nth-child(3) { animation-delay: .3s }
     @keyframes wdot { 0%, 80%, 100% { opacity: .3 } 40% { opacity: 1 } }
+    .w-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .w-links a { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); text-decoration: none; }
+    .w-links a:hover { border-color: var(--brand); }
+    .w-msg a.w-a { color: inherit; text-decoration: underline; }
+    .w-looked { margin-top: 6px; font-size: 11px; color: var(--muted); }
+    .w-wait { font-size: 12px; color: var(--muted); margin-left: 6px; }
     .w-sugs { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0 8px; }
     .w-sugs button { margin: 0; font-size: 12px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
     .w-chat-in { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); }
@@ -89,7 +95,7 @@
   }
 
   // ---------- Ask Chris ----------
-  const SUGS = ["What's overdue?", 'Who is handling Bali United?', 'Which sponsors replied recently?', 'What emails are waiting on me?'];
+  const SUGS = ["What's overdue?", "Where's the WOAH 2027 folder?", 'Who is handling Bali United?', 'Which sponsors replied recently?', 'What emails are waiting on me?'];
   let busy = false;
   function chat(me) {
     const btn = document.createElement('button');
@@ -97,7 +103,7 @@
     btn.innerHTML = '<img src="img/chris.webp" alt=""><span>Ask Chris</span>';
     const box = document.createElement('div');
     box.className = 'w-chat'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'Ask Chris');
-    box.innerHTML = `<div class="w-chat-top"><img src="img/chris.webp" alt=""><div class="t"><b>Chris</b><small>Knows WOAH's emails, partners and planner</small></div>
+    box.innerHTML = `<div class="w-chat-top"><img src="img/chris.webp" alt=""><div class="t"><b>Chris</b><small>Knows WOAH's emails, partners, planner and Drive</small></div>
       <button type="button" data-a="clear" title="Start a new chat">New chat</button><button type="button" data-a="close" title="Close" aria-label="Close">✕</button></div>
       <div class="w-chat-msgs" id="wChatMsgs"></div>
       <form class="w-chat-in"><textarea id="wChatIn" placeholder="Ask Chris…" rows="1"></textarea><button type="submit" id="wChatSend">Send</button></form>`;
@@ -114,14 +120,22 @@
     if (store.get('woahChatOpen', false)) open(true);
   }
   function fmt(t) {
-    return esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/^\s*[-•]\s+/gm, '• ').replace(/\n/g, '<br>');
+    return esc(t).replace(/\[([^\]\n]{1,120})\]\((https:\/\/[^\s)<]+)\)/g, '<a class="w-a" href="$2" target="_blank" rel="noopener">$1</a>')
+      .replace(/(^|[\s(])(https:\/\/[^\s<)]+)/g, '$1<a class="w-a" href="$2" target="_blank" rel="noopener">link</a>')
+      .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/^\s*[-•]\s+/gm, '• ').replace(/\n/g, '<br>');
+  }
+  function extra(m) {
+    const ok = u => /^https:\/\/(docs|drive)\.google\.com\//.test(String(u || ''));
+    const links = (m.links || []).filter(l => l && ok(l.url));
+    return (links.length ? `<div class="w-links">${links.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener" title="${esc(l.title)}">${/\/folders\//.test(l.url) ? '📁 ' : '📄 '}${esc(l.title)}</a>`).join('')}</div>` : '')
+      + ((m.looked || []).length ? `<div class="w-looked">${esc(m.looked.join(' · '))}</div>` : '');
   }
   function render(typing, error) {
     const el = document.getElementById('wChatMsgs'); if (!el) return;
     const h = store.get('woahChat', []);
     let html = h.length ? '' : `<div class="w-msg chris">Hi! I'm Chris. Ask me anything about WOAH: who's handling a sponsor, what's overdue, what we promised someone…</div><div class="w-sugs">${SUGS.map(s => `<button type="button" onclick="woahAsk(${esc(JSON.stringify(s))})">${esc(s)}</button>`).join('')}</div>`;
-    html += h.map(m => `<div class="w-msg ${m.role === 'me' ? 'me' : 'chris'}">${fmt(m.text)}</div>`).join('');
-    if (typing) html += '<div class="w-msg chris w-dots"><span></span><span></span><span></span></div>';
+    html += h.map(m => `<div class="w-msg ${m.role === 'me' ? 'me' : 'chris'}">${fmt(m.text)}${m.role === 'me' ? '' : extra(m)}</div>`).join('');
+    if (typing) html += '<div class="w-msg chris w-dots"><span></span><span></span><span></span><span class="w-wait" id="wWait"></span></div>';
     if (error) html += `<div class="w-msg err">${esc(error)}</div>`;
     el.innerHTML = html; el.scrollTop = el.scrollHeight;
   }
@@ -133,9 +147,12 @@
     h.push({ role: 'me', text: q, at: Date.now() }); store.set('woahChat', h.slice(-40));
     input.value = ''; input.style.height = '40px';
     busy = true; document.getElementById('wChatSend').disabled = true; render(true);
+    const t0 = Date.now(), tick = setInterval(() => { const w = document.getElementById('wWait'); if (w) w.textContent = Date.now() - t0 > 4000 ? 'looking through WOAH stuff…' : ''; }, 1000);
     call({ action: 'ask', q, history }).then(d => {
-      const h2 = store.get('woahChat', []); h2.push({ role: 'chris', text: String(d.answer || ''), at: Date.now() }); store.set('woahChat', h2.slice(-40));
+      const h2 = store.get('woahChat', []);
+      h2.push({ role: 'chris', text: String(d.answer || ''), links: Array.isArray(d.links) ? d.links.slice(0, 6) : [], looked: Array.isArray(d.looked) ? d.looked.slice(0, 5) : [], at: Date.now() });
+      store.set('woahChat', h2.slice(-40));
       render();
-    }).catch(e => render(false, e.message || 'Something went wrong')).finally(() => { busy = false; const b = document.getElementById('wChatSend'); if (b) b.disabled = false; });
+    }).catch(e => render(false, e.message || 'Something went wrong')).finally(() => { clearInterval(tick); busy = false; const b = document.getElementById('wChatSend'); if (b) b.disabled = false; });
   }
 })();

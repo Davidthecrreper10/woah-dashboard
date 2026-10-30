@@ -133,7 +133,7 @@
   </div>
 </div>
 <script src="common.js?v=8"></script>
-<script src="extras.js?v=1"></script>
+<script src="extras.js?v=2"></script>
 <script>
   let D = null, EDIT = null;
   const FEAT = [
@@ -176,12 +176,36 @@
       [D.control && (D.control.inbox === 'BREAK' || D.control.planner === 'BREAK') ? 'warn' : '', 'Break', D.control && (D.control.inbox === 'BREAK' || D.control.planner === 'BREAK') ? 'On break: ' + ['inbox', 'planner'].filter(k => D.control[k] === 'BREAK').map(k => SWB[k][0]).join(' and ') + '.' : 'Not on break.'],
       [dashMins != null && dashMins > 180 ? 'warn' : '', 'Email handlers page', D.dashAt ? 'Updated ' + (dashMins < 60 ? dashMins + ' min ago' : when(D.dashAt)) + '.' : 'Not updated yet.'],
       [ppErr ? 'bad' : '', 'Possible Partners', ppErr ? 'Problem ' + when(p.errorAt) + ': ' + esc(p.error) : p.lastCheck ? 'Last update ' + when(p.lastCheck) + '.' : 'Not run yet.'],
+      driveMapItem(),
       [recentAlerts.length ? 'bad' : '', 'Alerts (24h)', recentAlerts.length ? recentAlerts.length + ': ' + esc(recentAlerts[0].subject) + ' — see Activity.' : 'None.'],
     ];
     const worst = items.some(i => i[0] === 'bad') ? 'bad' : items.some(i => i[0] === 'warn') ? 'warn' : '';
     document.getElementById('healthBox').innerHTML = `<div class="banner ${worst === 'bad' ? 'bad' : worst === 'warn' ? 'warn' : ''}" style="display:block;${worst ? '' : 'background:var(--ok-soft);color:var(--ok)'}">${worst === 'bad' ? 'Something needs a look.' : worst === 'warn' ? 'Working, with a few things to know.' : 'All good. Chris is running normally.'}</div>
       <div class="card kv">${items.map(([c, k, v]) => `<div><i class="h-dot ${c}"></i><b>${k}</b> <span>·</span> ${v}</div>`).join('')}
       ${h.me ? `<div class="sub" style="margin-top:6px">Chris sends from ${esc(h.me)}.</div>` : ''}</div>`;
+  }
+
+  function driveMapItem() {
+    const m = D.driveMap || {};
+    if (m.building) return ['warn', 'Drive map', 'Updating now (' + (m.scanned || 0) + ' of ' + (m.found || 0) + ' folders scanned).' + (m.at ? ' Ask Chris uses the one from ' + when(m.at) + ' meanwhile.' : '')];
+    if (!m.at) return [m.err ? 'bad' : 'warn', 'Drive map', m.err ? esc(m.err) : 'Not built yet, so Ask Chris can\'t find Drive files. Press "Rebuild Drive map" in Run.'];
+    const old = Date.now() - m.at > 2 * 86400000;
+    return [m.err || old ? 'warn' : '', 'Drive map', 'Ask Chris knows ' + m.folders + ' folders and ' + m.files + ' files in ' + esc(m.rootName || 'WOAH Festivals') + ', updated ' + when(m.at) + '.' + (old ? ' That\'s over 2 days old: check the hourly driveMapHourly trigger.' : '') + (m.err ? ' Last problem: ' + esc(m.err) : '')];
+  }
+  async function driveMapRun() {
+    const b = document.getElementById('dmBtn'), m = document.getElementById('dmMsg');
+    b.disabled = true; m.textContent = 'Starting…';
+    try {
+      let fresh = true, st = {};
+      for (let i = 0; i < 40; i++) {
+        const d = await call({ action: 'driveMap', op: 'step', fresh }); fresh = false; st = d.driveMap || {};
+        if (st.err && !st.building) throw new Error(st.err);
+        if (!st.building) break;
+        m.textContent = 'Scanning… ' + st.scanned + ' of ' + st.found + ' folders so far.';
+      }
+      D.driveMap = st; drawHealth();
+      m.textContent = st.building ? 'Still scanning; it carries on by itself.' : 'Done: ' + st.folders + ' folders and ' + st.files + ' files.';
+    } catch (e) { m.textContent = e.message || 'Something went wrong'; } finally { b.disabled = false; }
   }
 
   // ---------- 3 Switches ----------
@@ -341,7 +365,10 @@
     document.getElementById('runBox').innerHTML = `<div class="card">${Object.keys(OPS).map(op => { const w = pend.find(p => p.op === op); return `<div class="pp-row" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0">
       <button ${w ? 'disabled' : ''} onclick="runOp('${op}')">${OPS[op][0]}</button><span class="sub">${w ? '<b>Waiting for Chris</b> (pressed ' + esc(when(w.at)) + ' by ' + esc(first(w.by)) + ')' : OPS[op][1]}</span></div>`; }).join('')}
       <div class="sub" style="margin-top:6px">Partners buttons (update now, check PICs, test runs) are on the <a href="partners.html" target="_self">Partners page</a>.</div>
-      <div class="c-msg" id="runMsg"></div></div>`;
+      <div class="c-msg" id="runMsg"></div></div>
+      <div class="card" style="margin-top:14px"><div class="sw-name">Drive map (Ask Chris)</div>
+      <div class="sub">Chris keeps a list of every folder and file in the shared WOAH Festivals Drive folder, so Ask Chris can find them and read Docs, Sheets, Slides and PDFs. It updates by itself once a day; press this after big Drive changes. Takes a minute or two.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px"><button id="dmBtn" onclick="driveMapRun()">Rebuild Drive map</button><span class="sub" id="dmMsg"></span></div></div>`;
   }
   function runOp(op) { save({ action: 'controlRun', op }, 'runMsg', 'Queued. Chris does it within about 5 minutes; the result shows in Activity.'); }
 
