@@ -36,15 +36,16 @@
     .w-msg.me { align-self: flex-end; background: var(--brand); color: var(--on-brand, #fff); border-bottom-right-radius: 4px; }
     .w-msg.chris { align-self: flex-start; background: var(--bg); border-bottom-left-radius: 4px; }
     .w-msg.err { align-self: flex-start; background: transparent; color: var(--bad); font-size: 13px; padding: 2px 4px; }
-    .w-dots span { display: inline-block; width: 6px; height: 6px; margin: 0 2px; border-radius: 50%; background: var(--muted); animation: wdot 1s infinite ease-in-out; }
-    .w-dots span:nth-child(2) { animation-delay: .15s } .w-dots span:nth-child(3) { animation-delay: .3s }
+    .w-dots .d { display: inline-block; width: 6px; height: 6px; margin: 0 2px; border-radius: 50%; background: var(--muted); animation: wdot 1s infinite ease-in-out; }
+    .w-dots .d:nth-child(2) { animation-delay: .15s } .w-dots .d:nth-child(3) { animation-delay: .3s }
     @keyframes wdot { 0%, 80%, 100% { opacity: .3 } 40% { opacity: 1 } }
     .w-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     .w-links a { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); text-decoration: none; }
     .w-links a:hover { border-color: var(--brand); }
     .w-msg a.w-a { color: inherit; text-decoration: underline; }
     .w-looked { margin-top: 6px; font-size: 11px; color: var(--muted); }
-    .w-wait { font-size: 12px; color: var(--muted); margin-left: 6px; }
+    .w-wait { font-size: 12px; color: var(--muted); margin-left: 8px; white-space: nowrap; }
+    .w-wait:empty { display: none; }
     .w-sugs { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0 8px; }
     .w-sugs button { margin: 0; font-size: 12px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
     .w-chat-in { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); }
@@ -135,7 +136,7 @@
     const h = store.get('woahChat', []);
     let html = h.length ? '' : `<div class="w-msg chris">Hi! I'm Chris. Ask me anything about WOAH: who's handling a sponsor, what's overdue, what we promised someone…</div><div class="w-sugs">${SUGS.map(s => `<button type="button" onclick="woahAsk(${esc(JSON.stringify(s))})">${esc(s)}</button>`).join('')}</div>`;
     html += h.map(m => `<div class="w-msg ${m.role === 'me' ? 'me' : 'chris'}">${fmt(m.text)}${m.role === 'me' ? '' : extra(m)}</div>`).join('');
-    if (typing) html += '<div class="w-msg chris w-dots"><span></span><span></span><span></span><span class="w-wait" id="wWait"></span></div>';
+    if (typing) html += '<div class="w-msg chris w-dots"><span class="d"></span><span class="d"></span><span class="d"></span><span class="w-wait" id="wWait"></span></div>';
     if (error) html += `<div class="w-msg err">${esc(error)}</div>`;
     el.innerHTML = html; el.scrollTop = el.scrollHeight;
   }
@@ -147,7 +148,7 @@
     h.push({ role: 'me', text: q, at: Date.now() }); store.set('woahChat', h.slice(-40));
     input.value = ''; input.style.height = '40px';
     busy = true; document.getElementById('wChatSend').disabled = true; render(true);
-    const t0 = Date.now(), tick = setInterval(() => { const w = document.getElementById('wWait'); if (w) w.textContent = Date.now() - t0 > 4000 ? 'looking through WOAH stuff…' : ''; }, 1000);
+    const t0 = Date.now(), tick = setInterval(() => { const w = document.getElementById('wWait'); if (w) w.textContent = Date.now() - t0 > 4000 ? 'Looking through WOAH stuff…' : ''; }, 1000);
     call({ action: 'ask', q, history }).then(d => {
       const h2 = store.get('woahChat', []);
       h2.push({ role: 'chris', text: String(d.answer || ''), links: Array.isArray(d.links) ? d.links.slice(0, 6) : [], looked: Array.isArray(d.looked) ? d.looked.slice(0, 5) : [], at: Date.now() });
