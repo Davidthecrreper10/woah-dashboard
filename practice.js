@@ -37,7 +37,9 @@ const SIM = (() => {
     const sum = {}; METHODS.forEach(m => sum[m] = { n: 0, amount: 0 });
     const live = sales.filter(s => s.status !== 'Cancelled');
     live.forEach(s => { sum[s.pay].n++; sum[s.pay].amount += s.total; });
-    return { name: d.name, sales: sales.slice().reverse(), sum, counted: d.counted || {}, check: d.check || { note: '', by: '', at: 0 },
+    const toDom = live.filter(s => !s.dom && s.pay !== 'NOT YET PAID').reduce((a, s) => a + s.items.filter(i => !i.cancelled && i.item).length, 0);
+    sales.forEach(x => { x.sent = !!x.dom; });
+    return { name: d.name, sales: sales.slice().reverse(), sum, counted: d.counted || {}, check: d.check || { note: '', by: '', at: 0 }, toDom, sentDom: d.sentDom || '',
       count: live.filter(s => s.kind === 'Sale').length, paid: live.filter(s => s.pay !== 'NOT YET PAID').reduce((a, s) => a + s.total, 0),
       owed: live.filter(s => s.pay === 'NOT YET PAID').reduce((a, s) => a + s.total, 0), url: '' };
   }
@@ -124,6 +126,36 @@ const SIM = (() => {
     save();
     return { ok: true, order: id, took: take, handed: hand, day: take ? dayOut() : null };
   }
+  // "Send to Dom's sheet" in practice: same preview, but sending only ticks the sales on this phone.
+  function domSend(b) {
+    const d = get().days[b.day]; if (!d) throw err('That selling day isn\'t in practice mode.');
+    const VIA = { CASH: 'Cash', QRIS: 'QRIS', 'CARD (XENDIT)': 'Card', TRANSFER: 'Transfer', FOC: 'FOC' };
+    const out = dayOut(b.day), rows = [], skipped = [], use = [];
+    let already = 0;
+    d.sales.forEach(s => {
+      const x = out.sales.find(y => y.sale === s.sale); if (!x || x.status === 'Cancelled') return;
+      s.items.forEach(i => {
+        if (i.cancelled) return;
+        const label = i.product + (i.qty > 1 ? ' ×' + i.qty : '');
+        if (s.dom) { already++; return; }
+        if (s.pay === 'NOT YET PAID') { skipped.push({ label, why: 'Not paid yet' }); return; }
+        if (!i.item) { skipped.push({ label, why: 'Extra item, not in Dom\'s list: add it by hand or ask Dom' }); return; }
+        const t = new Date(s.at);
+        rows.push({ date: t.getDate() + '/' + (t.getMonth() + 1) + '/' + String(t.getFullYear()).slice(2), by: s.by, item: i.item, qty: i.qty, discount: i.discount || 0, via: VIA[s.pay] || s.pay, note: [i.reason, s.kind === 'Sale' ? '' : s.kind].filter(Boolean).join(' · '), receipt: s.sale, amount: i.amount, kind: s.kind, dup: false });
+        if (!use.includes(s)) use.push(s);
+      });
+    });
+    const warn = [];
+    if (!out.check.at) warn.push('The end-of-day check for ' + out.name + ' isn\'t saved yet.');
+    ['CASH', 'QRIS', 'CARD (XENDIT)', 'TRANSFER'].forEach(m => { if (out.counted[m] != null && out.counted[m] !== (out.sum[m] || {}).amount) warn.push(m + ': counted Rp ' + out.counted[m].toLocaleString('id-ID') + ' but the sales say Rp ' + ((out.sum[m] || {}).amount || 0).toLocaleString('id-ID') + '.'); });
+    const preview = { day: out.name, rows, skipped, already, warn, total: rows.reduce((a, r) => a + r.amount, 0), domUrl: '' };
+    if (!b.confirm) return { preview, day: out };
+    if (!rows.length) throw err('Nothing to send for ' + out.name + '.');
+    use.forEach(s => { s.dom = true; });
+    d.sentDom = me() + ' · practice · ' + rows.length + ' rows';
+    save();
+    return { sent: rows.length, added: rows.length, preview, day: dayOut(b.day) };
+  }
   function find(req) {
     const d = get().days[req.day]; if (!d) throw err('That selling day isn\'t in practice mode.');
     const x = d.sales.find(s => s.sale === req.sale); if (!x) throw err('Sale not found. Refresh the page.');
@@ -139,6 +171,7 @@ const SIM = (() => {
       if (a === 'posDay') { const n = b.day || today(); return wait({ day: dayOut(n), days: Object.keys(get().days).reverse(), today: today() }); }
       if (a === 'posVoid') { const x = find(b); x.items.forEach(i => { if (i.kind === 'Sale') i.cancelled = !b.undo; }); save(); return wait({ day: dayOut(b.day) }); }
       if (a === 'posDom') { const x = find(b); x.dom = !!b.on; save(); return wait({ day: dayOut(b.day) }); }
+      if (a === 'posDomSend') return wait(domSend(b));
       if (a === 'posCheck') { const d = get().days[b.day]; if (!d) throw err('That selling day isn\'t in practice mode.'); const c = b.counted || {}; d.counted = {}; Object.keys(c).forEach(m => { if (c[m] !== '' && c[m] != null) d.counted[m] = Math.round(Number(c[m]) || 0); }); d.check = { note: String(b.note || ''), by: me(), at: Date.now() }; save(); return wait({ day: dayOut(b.day) }); }
       return wait(err('Not available in practice mode.'));
     } catch (e) { return wait(e); }

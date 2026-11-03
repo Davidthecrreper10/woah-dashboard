@@ -152,6 +152,14 @@
   /* lists */
   .ps-list { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
   @media (max-width: 420px) { .ps-list { grid-template-columns: 1fr; } }
+  .dm-tbl { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  .dm-tbl th { text-align: left; font-size: 11px; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .dm-tbl td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .dm-tbl td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .dm-scroll { overflow-x: auto; }
+  .dm-skip { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .dm-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .dm-acts .btn-main { flex: 1 1 200px; }
   .oc { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
   .oc.cx { opacity: .6; } .oc.cx .it { text-decoration: line-through; }
   .oc .h { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
@@ -203,7 +211,7 @@
 <div class="toast" id="toast"></div>
 <script src="common.js?v=9"></script>
 <script src="extras.js?v=3"></script>
-<script src="practice.js?v=1"></script>
+<script src="practice.js?v=2"></script>
 <script>
   /* ---------- state ---------- */
   const PAYS = [['cash', 'Cash'], ['qris', 'QRIS'], ['xendit', 'Card (Xendit)'], ['transfer', 'Transfer'], ['later', 'Not paid yet'], ['foc', 'FOC (free)']];
@@ -623,7 +631,9 @@
         </table>
         <div class="ps-lbl">Note (explain any difference)</div><input class="ps-in" id="ckNote" value="${esc(CK.note != null ? CK.note : day.check.note)}" oninput="CK.note=this.value">
         <div class="sub" style="margin-top:6px">${day.check.by ? 'Last checked by ' + esc(day.check.by) + (day.check.at ? ' · ' + when(day.check.at) : '') : 'Not checked yet.'}</div>
-        <button target="_self" class="btn-main" style="width:100%;margin-top:12px" onclick="saveCheck()">Save the check</button></div>`;
+        <button target="_self" class="btn-main" style="width:100%;margin-top:12px" onclick="saveCheck()">Save the check</button></div>
+      <div class="ps-h">Send to Dom's sheet<span class="line"></span></div>
+      <div class="card" id="domBox">${domBoxHTML(day, admin)}</div>`;
   }
   function drawCheckDiff() {
     const s = DAY.sum;
@@ -636,9 +646,38 @@
     return `<div class="oc ${cx ? 'cx' : ''}"><div class="h"><div><b>${new Date(x.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</b> <span class="sub">${esc(x.by)}</span></div>
         <span class="pill ${x.pay === 'NOT YET PAID' ? 'bad' : x.pay === 'FOC' ? 'warn' : 'ok'}">${esc(x.pay)}</span></div>
       ${x.items.map(i => `<div class="it"><span>${i.qty} × ${esc(i.product)}${i.brand === 'SOAP' ? ' <span class="pill soap">SOAP</span>' : ''}${i.discount && x.pay !== 'FOC' ? ` <span class="sub">(−${rp(i.discount)} ${esc(i.reason)})</span>` : ''}</span><span>${rp(i.amount)}</span></div>`).join('')}
-      <div class="ft"><b>${rp(x.total)}</b>${kind}${cx ? '<span class="pill bad">Cancelled</span>' : ''}${x.note ? `<span class="sub">${esc(x.note)}</span>` : ''}${x.pay === 'FOC' && x.items[0] ? `<span class="sub">${esc(x.items[0].reason)}</span>` : ''}</div>
+      <div class="ft"><b>${rp(x.total)}</b>${kind}${x.kind !== 'Sale' && x.sent && !cx ? '<span class="pill ok">In Dom\'s sheet</span>' : ''}${cx ? '<span class="pill bad">Cancelled</span>' : ''}${x.note ? `<span class="sub">${esc(x.note)}</span>` : ''}${x.pay === 'FOC' && x.items[0] ? `<span class="sub">${esc(x.items[0].reason)}</span>` : ''}</div>
       ${x.kind === 'Sale' ? `<div class="acts">${(mine || admin) ? `<button target="_self" onclick="voidSale('${esc(dayName)}','${esc(x.sale)}',${cx})">${cx ? 'Undo cancel' : 'Cancel sale'}</button>` : ''}
         ${admin && !cx ? `<label class="pill ${x.dom ? 'ok' : ''}" style="cursor:pointer"><input type="checkbox" ${x.dom ? 'checked' : ''} onchange="domSale('${esc(dayName)}','${esc(x.sale)}',this.checked)"> In Dom's sheet</label>` : x.dom ? '<span class="pill ok">In Dom\'s sheet</span>' : ''}</div>` : ''}</div>`;
+  }
+  /* ---------- send the checked day to Dom's sheet (admins) ---------- */
+  let DOMPREV = null;
+  function domBoxHTML(day, admin) {
+    const wait = day.toDom || 0;
+    const head = `<div class="sub">Sales stay in our Sales Tracker until an admin checks them and sends them. Sending adds one row per item to Dom's <i>1. Daily sales</i> tab and ticks "In Dom's sheet" here, so nothing goes twice.</div>
+      <div style="margin-top:8px"><b>${wait}</b> ${wait === 1 ? 'row' : 'rows'} waiting to go to Dom's sheet${day.sentDom ? ` <span class="sub">· last sent: ${esc(day.sentDom)}</span>` : ''}</div>`;
+    if (!admin) return head + `<div class="sub" style="margin-top:6px">An admin sends these after the end-of-day check.</div>`;
+    if (!DOMPREV || DOMPREV.day !== day.name) return head + (wait ? `<button target="_self" class="btn-main" style="width:100%;margin-top:12px" onclick="domPreview()">Check what will be sent…</button>` : '<div class="sub" style="margin-top:6px">Nothing to send right now.</div>');
+    const p = DOMPREV;
+    return head + `${p.warn.length ? `<div class="warnline">${p.warn.map(esc).join('<br>')}</div>` : ''}
+      ${p.rows.length ? `<div class="dm-scroll"><table class="dm-tbl"><tr><th>Date</th><th>Sold by</th><th>Item (Dom's sheet)</th><th>Qty</th><th>Discount</th><th>Paid</th><th>Via</th><th>Note</th></tr>
+        ${p.rows.map(r => `<tr><td>${esc(r.date)}</td><td>${esc(r.by)}</td><td>${esc(r.item)}${r.dup ? ' <span class="pill">already there</span>' : ''}</td><td class="n">${r.qty}</td><td class="n">${r.discount ? rp(r.discount) : ''}</td><td class="n">${rp(r.amount)}</td><td>${esc(r.via)}</td><td>${esc(r.note)}</td></tr>`).join('')}
+        <tr><td colspan="5"><b>Total</b></td><td class="n"><b>${rp(p.total)}</b></td><td colspan="2"></td></tr></table></div>` : '<div class="sub" style="margin-top:8px">Nothing to send.</div>'}
+      ${p.skipped.length ? `<div class="dm-skip"><b>Left out (stay in our tracker):</b><br>${p.skipped.map(x => esc(x.label) + ' — ' + esc(x.why)).join('<br>')}</div>` : ''}
+      ${p.already ? `<div class="dm-skip">${p.already} ${p.already === 1 ? 'row is' : 'rows are'} already in Dom's sheet.</div>` : ''}
+      <div class="dm-acts"><button target="_self" onclick="DOMPREV=null;drawDomBox()">Cancel</button>${p.rows.length ? `<button target="_self" class="btn-main" id="domGo" onclick="domSend()">Send ${p.rows.length} ${p.rows.length === 1 ? 'row' : 'rows'} to Dom's sheet</button>` : ''}</div>`;
+  }
+  function drawDomBox() { const el = document.getElementById('domBox'); if (el && DAY) el.innerHTML = domBoxHTML(DAY, ME && ME.role === 'full'); }
+  function domPreview() {
+    const el = document.getElementById('domBox'), bt = el && el.querySelector('button.btn-main'); if (bt) { bt.disabled = true; bt.textContent = 'Checking…'; }
+    call({ action: 'posDomSend', day: DAY.name }).then(r => { DOMPREV = r.preview; DAY = r.day || DAY; drawDomBox(); }).catch(e => { alert(e.message); drawDomBox(); });
+  }
+  function domSend() {
+    const p = DOMPREV; if (!p) return;
+    if (p.warn.length && !confirm('Heads up:\n\n' + p.warn.join('\n') + '\n\nSend to Dom\'s sheet anyway?')) return;
+    const b = document.getElementById('domGo'); if (b) { b.disabled = true; b.textContent = 'Sending…'; }
+    call({ action: 'posDomSend', day: p.day, confirm: true }).then(r => { DOMPREV = null; DAY = r.day; drawToday(); toast('Sent ' + r.sent + ' rows to Dom\'s sheet'); })
+      .catch(e => { alert(e.message); DOMPREV = null; loadDay(DAY.name); });
   }
   function voidSale(day, sale, undo) {
     if (!undo && !confirm('Cancel this sale? Use this for mistakes. Its stock comes back.')) return;
