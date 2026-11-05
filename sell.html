@@ -219,7 +219,7 @@
   const PHOTO = ['qris', 'xendit', 'transfer'];
   const METHODS = ['CASH', 'QRIS', 'CARD (XENDIT)', 'TRANSFER', 'NOT YET PAID', 'FOC', 'XENDIT (WEBSITE)', 'QRIS (WEBSITE)', 'TRANSFER (WEBSITE)'];
   const COUNTED = ['CASH', 'QRIS', 'CARD (XENDIT)', 'TRANSFER'];
-  const QRIS_IMG = '../woah-shop/img/qris.png', XENDIT_IMG = 'img/xendit-qr.png', XENDIT_LINK = 'https://checkout.xendit.co/od/25-26-HS-WOAH-Merchandise';
+  const QRIS_IMG = 'https://shopwoahfestival.org/img/qris.png', XENDIT_IMG = 'img/xendit-qr.png', XENDIT_LINK = 'https://checkout.xendit.co/od/25-26-HS-WOAH-Merchandise';
   let D = null, TAB = 'sell', BR = 'all', SQ = '', CART = [], PRE = [], PAY = null, DAY = null, DAYS = [], DAYSEL = '', ORD = null, OQ = '', BUSY = false, PICK = null, CK = {}, SHEET = '';
   const pk = k => PRACTICE ? 'P.' + k : k;
   const ls = { get(k, d) { try { const v = localStorage.getItem(pk(k)); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(pk(k), JSON.stringify(v)); } catch (e) {} } };
