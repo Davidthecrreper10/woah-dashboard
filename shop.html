@@ -104,6 +104,18 @@
   .need td, .need th { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: left; }
   .need td.n { font-family: 'JetBrains Mono', monospace; font-weight: 700; text-align: right; }
 
+  .ac-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 12px; }
+  .ac-bar input { flex: 1 1 220px; min-width: 0; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; }
+  .ac { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 12px 14px; margin-bottom: 8px; }
+  .ac .who { flex: 1 1 240px; min-width: 0; }
+  .ac .who b { font-size: 15px; }
+  .ac .who div { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+  .ac .meta { font-size: 13px; color: var(--muted); flex: 1 1 200px; }
+  .ac .meta b { color: var(--ink); }
+  .ac .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ac .btns button { font-size: 13px; }
+  .ac-pw { margin-top: 8px; flex-basis: 100%; padding: 10px 12px; border-radius: 10px; background: var(--ok-soft); color: var(--ink); font-size: 14px; }
+  .ac-pw code { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; letter-spacing: 1px; color: var(--ok); user-select: all; }
 </style>
 </head>
 <body>
@@ -123,6 +135,7 @@
   <div class="banner" id="banner"></div>
   <div class="sp-tabs" id="tabs"></div>
   <div id="ordersView" style="display:none"></div>
+  <div id="accountsView" style="display:none"></div>
   <div id="productsView">
   <div class="card" id="topCard"></div>
   <div class="sp-seg" id="seg"></div>
@@ -302,14 +315,56 @@
   try { TAB = localStorage.getItem('woahShopTab') || 'products'; OF = localStorage.getItem('woahShopOF') || 'todo'; } catch (e) {}
   function drawTabs() {
     const open = OD ? OD.orders.filter(o => o.items.some(i => inBrand(i.product)) && o.status !== 'Collected' && o.status !== 'Cancelled').length : 0;
-    document.getElementById('tabs').innerHTML = `<button target="_self" class="${TAB === 'products' ? 'on' : ''}" onclick="setTab('products')">Products</button><button target="_self" class="${TAB === 'orders' ? 'on' : ''}" onclick="setTab('orders')">Orders${open ? `<span class="n">${open}</span>` : ''}</button><div class="sp-brand">${[['all', 'All'], ['woah', 'WOAH'], ['soap', 'SOAP']].map(([k, l]) => `<button target="_self" class="${BR === k ? 'on' : ''}" onclick="setBrand('${k}')">${l}</button>`).join('')}</div>`;
+    document.getElementById('tabs').innerHTML = `<button target="_self" class="${TAB === 'products' ? 'on' : ''}" onclick="setTab('products')">Products</button><button target="_self" class="${TAB === 'orders' ? 'on' : ''}" onclick="setTab('orders')">Orders${open ? `<span class="n">${open}</span>` : ''}</button><button target="_self" class="${TAB === 'accounts' ? 'on' : ''}" onclick="setTab('accounts')">Accounts</button><div class="sp-brand">${[['all', 'All'], ['woah', 'WOAH'], ['soap', 'SOAP']].map(([k, l]) => `<button target="_self" class="${BR === k ? 'on' : ''}" onclick="setBrand('${k}')">${l}</button>`).join('')}</div>`;
     document.getElementById('productsView').style.display = TAB === 'products' ? '' : 'none';
     document.getElementById('ordersView').style.display = TAB === 'orders' ? '' : 'none';
+    document.getElementById('accountsView').style.display = TAB === 'accounts' ? '' : 'none';
+    const br = document.querySelector('#tabs .sp-brand'); if (br) br.style.display = TAB === 'accounts' ? 'none' : '';
   }
-  function setTab(t) { TAB = t; try { localStorage.setItem('woahShopTab', t); } catch (e) {} drawTabs(); if (t === 'orders') loadOrders(); }
+  function setTab(t) { TAB = t; try { localStorage.setItem('woahShopTab', t); } catch (e) {} drawTabs(); if (t === 'orders') loadOrders(); if (t === 'accounts') loadAccounts(); }
   function loadOrders() {
     if (!OD) document.getElementById('ordersView').innerHTML = '<div class="card">Loading orders…</div>';
     return call({ action: 'shopOrders' }).then(d => { OD = d; drawOrders(); drawTabs(); }).catch(e => { document.getElementById('ordersView').innerHTML = `<div class="card bad">${esc(e.message)}</div>`; });
+  }
+  // ---------- Accounts tab ----------
+  let AD = null, AQ = '', ABUSY = {}, APW = {};
+  function loadAccounts() {
+    if (!AD) document.getElementById('accountsView').innerHTML = '<div class="card">Loading accounts…</div>';
+    return call({ action: 'shopAccounts' }).then(d => { AD = d; drawAccounts(); }).catch(e => { document.getElementById('accountsView').innerHTML = `<div class="card bad">${esc(e.message)}</div>`; });
+  }
+  function acDate(t) { return t ? new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '–'; }
+  function drawAccounts() {
+    const as = AD.accounts || [];
+    document.getElementById('accountsView').innerHTML = `
+      <div class="card"><div class="sp-top"><div class="sp-stats">
+        <div class="sp-stat"><b>${as.length}</b>Accounts</div>
+        <div class="sp-stat"><b>${as.filter(a => a.devices).length}</b>Signed in somewhere</div>
+        <div class="sp-stat"><b>${as.filter(a => a.orders).length}</b>Have ordered</div></div>
+        <div class="sp-links">${AD.sheetUrl ? `<a href="${esc(AD.sheetUrl)}">WOAH Shop sheet ↗</a>` : ''}<button target="_self" onclick="loadAccounts()">Refresh</button></div></div>
+        <p class="sub" style="margin:10px 0 0">Passwords are stored scrambled, so nobody (not even us) can see them. If someone can't log in, press <b>New password</b> and send them the one it shows. People log in with the email <i>or</i> the phone number they signed up with.</p>
+      </div>
+      <div class="ac-bar" style="margin-top:12px"><input type="search" id="acq" placeholder="Search name, email or phone" value="${esc(AQ)}" oninput="AQ=this.value;drawAccountsList()"></div>
+      <div id="acList"></div>`;
+    drawAccountsList();
+  }
+  function drawAccountsList() {
+    const q = AQ.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const as = (AD.accounts || []).filter(a => { const t = (a.name + ' ' + a.email + ' ' + a.phone).toLowerCase(); return q.every(w => t.includes(w)); });
+    const el = document.getElementById('acList'); if (!el) return;
+    el.innerHTML = as.length ? as.map(a => {
+      const id = a.email || a.phone, k = esc(String(a.row));
+      return `<div class="card ac"><div class="who"><b>${esc(a.name || '(no name)')}</b><div>${esc(a.email || 'no email')}${a.phone ? ' · ' + esc(a.phone) : ''}</div></div>
+        <div class="meta">Made <b>${acDate(a.created)}</b> · ${a.devices ? `signed in on <b>${a.devices}</b> device${a.devices === 1 ? '' : 's'}` : 'not signed in anywhere'} · <b>${a.orders}</b> order${a.orders === 1 ? '' : 's'}</div>
+        <div class="btns"><button target="_self" ${ABUSY[a.row] ? 'disabled' : ''} onclick="acDo(${a.row},'${esc(id).replace(/'/g, '&#39;')}','reset')">New password</button>${a.devices ? `<button target="_self" ${ABUSY[a.row] ? 'disabled' : ''} onclick="acDo(${a.row},'${esc(id).replace(/'/g, '&#39;')}','signout')">Sign out everywhere</button>` : ''}</div>
+        ${APW[id] ? `<div class="ac-pw">New password for ${esc(a.name || id)}: <code>${esc(APW[id])}</code><br>Send it to them. They log in with <b>${esc(id)}</b> and this password. It replaces the old one and signs them out on every device.</div>` : ''}</div>`;
+    }).join('') : `<div class="card" style="text-align:center;color:var(--muted)">${(AD.accounts || []).length ? 'Nothing matches.' : 'No accounts yet.'}</div>`;
+  }
+  function acDo(row, id, op) {
+    const a = (AD.accounts || []).find(x => x.row === row), nm = a && a.name || id;
+    if (!confirm(op === 'reset' ? `Give ${nm} a new password? Their old password stops working and they get signed out everywhere.` : `Sign ${nm} out on every device?`)) return;
+    ABUSY[row] = 1; drawAccountsList();
+    call({ action: 'shopAccountSet', op, row, id }).then(d => { if (d.password) APW[id] = d.password; AD = d; delete ABUSY[row]; drawAccountsList(); })
+      .catch(e => { delete ABUSY[row]; drawAccountsList(); alert(e.message); });
   }
   function opt(i) { return [i.colour, i.fit, i.size].filter(Boolean).join(' · '); }
   function waLink(ph) { const d = String(ph || '').replace(/\D/g, ''); return d ? 'https://wa.me/' + d : ''; }
@@ -411,7 +466,7 @@
     call({ action: 'shopOrderSet', order: id, op: 'note', note: t }).then(d => { OBUSY[id] = 0; OD = d; drawOrders(); }).catch(e => { OBUSY[id] = 0; drawOrders(); alert(e.message); });
   }
 
-  start({ title: 'Shop', need: 'full', action: 'shopAdmin', onData: d => { render(d); drawTabs(); if (TAB === 'orders') loadOrders(); } });
+  start({ title: 'Shop', need: 'full', action: 'shopAdmin', onData: d => { render(d); drawTabs(); if (TAB === 'orders') loadOrders(); if (TAB === 'accounts') loadAccounts(); } });
 </script>
 </body>
 </html>
