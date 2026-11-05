@@ -292,7 +292,8 @@
     const p = find(k); if (!p) return;
     const off = (p.preOff || []).filter(x => x.toLowerCase() !== c.toLowerCase()), was = off.length !== (p.preOff || []).length;
     if (!was) off.push(c);
-    save(k, { preOff: off }, was ? 'Pre-orders back on for ' + c + '.' : 'No pre-orders for ' + c + ' any more (website and Sell page).').catch(() => {});
+    const before = p.preOff; p.preOff = off; draw();   // show the change straight away; saving takes a few seconds
+    save(k, { preOff: off }, was ? 'Pre-orders back on for ' + c + '.' : 'No pre-orders for ' + c + ' any more (website and Sell page).').catch(() => { p.preOff = before; draw(); });
   }
   function setSection(k, s) {
     const p = find(k); if (!p || p.section === s) return;
