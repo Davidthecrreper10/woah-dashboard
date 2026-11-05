@@ -480,8 +480,8 @@
       </div>
       <div class="od-list" id="odList"></div>
       <div class="card how" style="margin-top:14px"><b>How orders work.</b> Orders from the shop land here and in the Orders tab of the WOAH Shop sheet. Check the payment (screenshot link, QRIS/Xendit/bank app), then press <b>Mark paid</b>.
-        Pre-orders wait until the stock arrives; press <b>Ready to collect</b> and message the buyer (WhatsApp/email links on each order). When they pick it up press <b>Collected</b>,
-        then add the sale to Dom's <i>Daily Sales</i> tab, because in-stock items hold their stock only until they're collected.</div>`;
+        Pre-orders wait until the stock arrives; press <b>Ready to collect</b> and message the buyer (WhatsApp/email links on each order). When they pick it up press <b>Collected</b>.
+        Once an order is paid (<b>Mark paid</b> or <b>Take payment</b>) it goes into our Sales Tracker for that day; it reaches Dom's sheet when you press <b>Send to Dom's sheet</b> on Sell → Sales &amp; check.</div>`;
     drawOrdersList(list);
   }
   function odFiltered() {
@@ -492,7 +492,9 @@
   }
   function drawOrdersList(list) {
     list = list || odFiltered();
-    document.getElementById('odList').innerHTML = list.length ? list.map(odHTML).join('') : '<div class="card">No orders here.</div>';
+    const hidden = BR === 'all' ? 0 : OD.orders.filter(o => !o.items.some(i => inBrand(i.product))).length;
+    const hid = hidden ? `<div class="card" style="margin-bottom:10px;color:var(--muted)">${hidden} order${hidden === 1 ? ' is' : 's are'} hidden by the <b>${BR.toUpperCase()}</b> filter. <a href="#" target="_self" onclick="event.preventDefault();setBrand('all')">Show all</a></div>` : '';
+    document.getElementById('odList').innerHTML = hid + (list.length ? list.map(odHTML).join('') : '<div class="card">No orders here.</div>');
   }
   function odHTML(o) {
     const done = o.status === 'Collected' || o.status === 'Cancelled', b = OBUSY[o.order];
