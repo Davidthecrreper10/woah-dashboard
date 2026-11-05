@@ -131,6 +131,17 @@
   .pre-p h3 { margin: 0; padding: 12px 14px; font-size: 16px; border-bottom: 1px solid var(--line); display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
   .pre-p h3 span { font-size: 13px; color: var(--muted); font-weight: 500; }
   .pre-scroll { overflow-x: auto; }
+  .vs-chart { display: flex; align-items: flex-end; gap: 3px; height: 160px; margin: 14px 0 4px; padding-top: 18px; }
+  .vs-bar { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; position: relative; }
+  .vs-bar i { display: block; width: 100%; max-width: 26px; background: var(--brand); border-radius: 4px 4px 0 0; min-height: 2px; }
+  .vs-bar.zero i { background: var(--line); }
+  .vs-bar b { position: absolute; font-size: 10px; color: var(--muted); font-weight: 600; }
+  @media (max-width: 600px) { .vs-bar b { display: none; } .vs-chart { gap: 2px; } }
+  .vs-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+  table.vs { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 12px; }
+  table.vs th { text-align: right; font-size: 11px; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  table.vs td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  table.vs th.l, table.vs td.l { text-align: left; }
 </style>
 </head>
 <body>
@@ -152,6 +163,7 @@
   <div id="ordersView" style="display:none"></div>
   <div id="accountsView" style="display:none"></div>
   <div id="preView" style="display:none"></div>
+  <div id="visitsView" style="display:none"></div>
   <div id="productsView">
   <div class="card" id="topCard"></div>
   <div class="sp-seg" id="seg"></div>
@@ -332,14 +344,15 @@
   function drawTabs() {
     const open = OD ? OD.orders.filter(o => o.items.some(i => inBrand(i.product)) && o.status !== 'Collected' && o.status !== 'Cancelled').length : 0;
     const preN = OD ? preItems().reduce((a, x) => a + x.qty, 0) : 0;
-    document.getElementById('tabs').innerHTML = `<button target="_self" class="${TAB === 'products' ? 'on' : ''}" onclick="setTab('products')">Products</button><button target="_self" class="${TAB === 'orders' ? 'on' : ''}" onclick="setTab('orders')">Orders${open ? `<span class="n">${open}</span>` : ''}</button><button target="_self" class="${TAB === 'pre' ? 'on' : ''}" onclick="setTab('pre')">Pre-orders${preN ? `<span class="n">${preN}</span>` : ''}</button><button target="_self" class="${TAB === 'accounts' ? 'on' : ''}" onclick="setTab('accounts')">Accounts</button><div class="sp-brand">${[['all', 'All'], ['woah', 'WOAH'], ['soap', 'SOAP']].map(([k, l]) => `<button target="_self" class="${BR === k ? 'on' : ''}" onclick="setBrand('${k}')">${l}</button>`).join('')}</div>`;
+    document.getElementById('tabs').innerHTML = `<button target="_self" class="${TAB === 'products' ? 'on' : ''}" onclick="setTab('products')">Products</button><button target="_self" class="${TAB === 'orders' ? 'on' : ''}" onclick="setTab('orders')">Orders${open ? `<span class="n">${open}</span>` : ''}</button><button target="_self" class="${TAB === 'pre' ? 'on' : ''}" onclick="setTab('pre')">Pre-orders${preN ? `<span class="n">${preN}</span>` : ''}</button><button target="_self" class="${TAB === 'accounts' ? 'on' : ''}" onclick="setTab('accounts')">Accounts</button><button target="_self" class="${TAB === 'visits' ? 'on' : ''}" onclick="setTab('visits')">Visitors</button><div class="sp-brand">${[['all', 'All'], ['woah', 'WOAH'], ['soap', 'SOAP']].map(([k, l]) => `<button target="_self" class="${BR === k ? 'on' : ''}" onclick="setBrand('${k}')">${l}</button>`).join('')}</div>`;
     document.getElementById('productsView').style.display = TAB === 'products' ? '' : 'none';
     document.getElementById('ordersView').style.display = TAB === 'orders' ? '' : 'none';
     document.getElementById('accountsView').style.display = TAB === 'accounts' ? '' : 'none';
     document.getElementById('preView').style.display = TAB === 'pre' ? '' : 'none';
-    const br = document.querySelector('#tabs .sp-brand'); if (br) br.style.display = TAB === 'accounts' ? 'none' : '';
+    document.getElementById('visitsView').style.display = TAB === 'visits' ? '' : 'none';
+    const br = document.querySelector('#tabs .sp-brand'); if (br) br.style.display = TAB === 'accounts' || TAB === 'visits' ? 'none' : '';
   }
-  function setTab(t) { TAB = t; try { localStorage.setItem('woahShopTab', t); } catch (e) {} drawTabs(); if (t === 'orders') loadOrders(); if (t === 'accounts') loadAccounts(); if (t === 'pre') loadPre(); }
+  function setTab(t) { TAB = t; try { localStorage.setItem('woahShopTab', t); } catch (e) {} drawTabs(); if (t === 'orders') loadOrders(); if (t === 'accounts') loadAccounts(); if (t === 'pre') loadPre(); if (t === 'visits') loadVisits(); }
   function loadOrders() {
     if (!OD) document.getElementById('ordersView').innerHTML = '<div class="card">Loading orders…</div>';
     return call({ action: 'shopOrders' }).then(d => { OD = d; drawOrders(); drawTabs(); }).catch(e => { document.getElementById('ordersView').innerHTML = `<div class="card bad">${esc(e.message)}</div>`; });
@@ -404,6 +417,33 @@
             <td class="l who">${Object.values(r.who).map(w => `${esc(w.name)} ×${w.qty} <span style="opacity:.75">${esc(w.order)}${w.paid ? ' · paid' : ''}</span>`).join('<br>')}</td></tr>`).join('')}
         </tbody></table></div></div>`;
       }).join('') : '<div class="card" style="margin-top:12px;text-align:center;color:var(--muted)">No pre-orders waiting for stock.</div>'}`;
+  }
+
+  // ---------- Visitors tab: anonymous visit counts from the shop website ----------
+  let VD = null;
+  function loadVisits() {
+    if (!VD) document.getElementById('visitsView').innerHTML = '<div class="card">Loading visitors…</div>';
+    return call({ action: 'shopVisits' }).then(d => { VD = d; drawVisits(); }).catch(e => { document.getElementById('visitsView').innerHTML = `<div class="card bad">${esc(e.message)}</div>`; });
+  }
+  function vsDay(s, long) { const d = new Date(s + 'T12:00:00'); return d.toLocaleDateString('en-GB', long ? { weekday: 'short', day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short' }); }
+  function drawVisits() {
+    const ds = VD.days || [], today = ds[ds.length - 1] || { visitors: 0, views: 0 }, yest = ds[ds.length - 2] || { visitors: 0 };
+    const sum = (a, k) => a.reduce((s, d) => s + d[k], 0), last7 = ds.slice(-7);
+    const max = Math.max(1, ...ds.map(d => d.visitors));
+    document.getElementById('visitsView').innerHTML = `
+      <div class="card"><div class="sp-top"><div class="sp-stats">
+        <div class="sp-stat" style="border-color:var(--brand)"><b>${today.visitors}</b>Visitors today</div>
+        <div class="sp-stat"><b>${today.views}</b>Pages viewed today</div>
+        <div class="sp-stat"><b>${VD.week}</b>Visitors, last 7 days</div>
+        <div class="sp-stat"><b>${VD.month}</b>Visitors, last 30 days</div></div>
+        <div class="sp-links"><a href="https://shopwoahfestival.org/">Open the shop ↗</a><button target="_self" onclick="loadVisits()">Refresh</button></div></div>
+        <div class="vs-chart" aria-label="Visitors per day, last 30 days">${ds.map(d => `<div class="vs-bar ${d.visitors ? '' : 'zero'}" title="${esc(vsDay(d.day, true))}: ${d.visitors} visitor${d.visitors === 1 ? '' : 's'}, ${d.views} page${d.views === 1 ? '' : 's'}">${d.visitors ? `<b style="bottom:calc(${d.visitors / max * 100}% + 2px)">${d.visitors}</b>` : ''}<i style="height:${d.visitors / max * 100}%"></i></div>`).join('')}</div>
+        <div class="vs-axis"><span>${ds[0] ? esc(vsDay(ds[0].day)) : ''}</span><span>Visitors per day, last 30 days</span><span>Today</span></div>
+        <p class="sub" style="margin:12px 0 0">A visitor is one phone or computer (counted once a day, even if they come back). Nothing personal is stored: no names, no IP addresses. Team members looking at the shop count too. Yesterday: ${yest.visitors} visitor${yest.visitors === 1 ? '' : 's'}. Last 7 days: ${sum(last7, 'views')} pages viewed.</p>
+      </div>
+      <div class="card" style="margin-top:12px"><b>Last 7 days</b>
+        <table class="vs"><tr><th class="l">Day</th><th>Visitors</th><th>Pages viewed</th></tr>
+        ${last7.slice().reverse().map(d => `<tr><td class="l">${esc(vsDay(d.day, true))}</td><td>${d.visitors}</td><td>${d.views}</td></tr>`).join('')}</table></div>`;
   }
 
   // ---------- Accounts tab ----------
@@ -548,7 +588,7 @@
     call({ action: 'shopOrderSet', order: id, op: 'note', note: t }).then(d => { OBUSY[id] = 0; OD = d; drawOrders(); }).catch(e => { OBUSY[id] = 0; drawOrders(); alert(e.message); });
   }
 
-  start({ title: 'Shop', need: 'full', action: 'shopAdmin', onData: d => { render(d); drawTabs(); if (TAB === 'orders') loadOrders(); if (TAB === 'accounts') loadAccounts(); if (TAB === 'pre') loadPre(); } });
+  start({ title: 'Shop', need: 'full', action: 'shopAdmin', onData: d => { render(d); drawTabs(); if (TAB === 'orders') loadOrders(); if (TAB === 'accounts') loadAccounts(); if (TAB === 'pre') loadPre(); if (TAB === 'visits') loadVisits(); } });
 </script>
 </body>
 </html>
