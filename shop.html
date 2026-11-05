@@ -73,7 +73,9 @@
   .sp-tabs button.on { color: var(--ink); border-bottom-color: var(--brand); }
   .sp-tabs .sp-brand { margin-left: auto; display: flex; gap: 4px; align-items: center; padding-bottom: 6px; }
   .sp-tabs .sp-brand button { font-size: 13px; font-weight: 600; padding: 5px 12px; border: 1px solid var(--line); border-radius: 999px; margin: 0; color: var(--ink); background: var(--card); }
+  .sp-tabs button { white-space: nowrap; flex-shrink: 0; }
   @media (max-width: 480px) { .sp-tabs button { padding: 10px 12px; } .sp-tabs .sp-brand button { padding: 5px 9px; } }
+  @media (max-width: 640px) { .sp-tabs { overflow-x: auto; scrollbar-width: none; } .sp-tabs::-webkit-scrollbar { display: none; } .sp-tabs > button { margin-bottom: 0; } .sp-tabs .sp-brand { padding-left: 8px; } }
   .sp-tabs .sp-brand button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
   .sp-badge.soap { background: #DDEBFF; color: #1F4E8C; }
   html body .tag.soap { background: #DDEBFF; color: #1F4E8C; }
@@ -116,6 +118,19 @@
   .ac .btns button { font-size: 13px; }
   .ac-pw { margin-top: 8px; flex-basis: 100%; padding: 10px 12px; border-radius: 10px; background: var(--ok-soft); color: var(--ink); font-size: 14px; }
   .ac-pw code { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; letter-spacing: 1px; color: var(--ok); user-select: all; }
+  .pre-sum { display: flex; flex-wrap: wrap; gap: 8px; }
+  table.pre { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 520px; }
+  table.pre th { text-align: right; font-size: 11px; font-weight: 600; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  table.pre td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; white-space: nowrap; vertical-align: top; }
+  table.pre th.l, table.pre td.l { text-align: left; }
+  table.pre tr:last-child td { border-bottom: 0; }
+  table.pre td.go { font-weight: 800; font-size: 16px; color: var(--brand); }
+  table.pre td.go.zero { color: var(--muted); font-weight: 600; font-size: 14px; }
+  table.pre td.who { white-space: normal; font-size: 12px; color: var(--muted); min-width: 160px; }
+  .pre-p { margin-top: 12px; padding: 0; overflow: hidden; }
+  .pre-p h3 { margin: 0; padding: 12px 14px; font-size: 16px; border-bottom: 1px solid var(--line); display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .pre-p h3 span { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .pre-scroll { overflow-x: auto; }
 </style>
 </head>
 <body>
@@ -136,6 +151,7 @@
   <div class="sp-tabs" id="tabs"></div>
   <div id="ordersView" style="display:none"></div>
   <div id="accountsView" style="display:none"></div>
+  <div id="preView" style="display:none"></div>
   <div id="productsView">
   <div class="card" id="topCard"></div>
   <div class="sp-seg" id="seg"></div>
@@ -161,7 +177,7 @@
   // same rule as the shop website: SOAP in the name = SOAP merch, everything else = WOAH merch
   function brandOf(name) { return /soap/i.test(name || '') ? 'soap' : 'woah'; }
   function inBrand(name) { return BR === 'all' || brandOf(name) === BR; }
-  function setBrand(b) { BR = b; try { localStorage.setItem('woahShopBrand', b); } catch (e) {} drawTabs(); draw(); if (OD) drawOrders(); }
+  function setBrand(b) { BR = b; try { localStorage.setItem('woahShopBrand', b); } catch (e) {} drawTabs(); draw(); if (OD) drawOrders(); if (OD && SD) drawPre(); }
 
   function rp(n) { return 'Rp ' + Number(n || 0).toLocaleString('id-ID'); }
   function priceText(p) { return !p.priceFrom ? 'No price yet' : p.priceFrom === p.priceTo ? rp(p.priceFrom) : rp(p.priceFrom) + ' – ' + rp(p.priceTo); }
@@ -315,17 +331,81 @@
   try { TAB = localStorage.getItem('woahShopTab') || 'products'; OF = localStorage.getItem('woahShopOF') || 'todo'; } catch (e) {}
   function drawTabs() {
     const open = OD ? OD.orders.filter(o => o.items.some(i => inBrand(i.product)) && o.status !== 'Collected' && o.status !== 'Cancelled').length : 0;
-    document.getElementById('tabs').innerHTML = `<button target="_self" class="${TAB === 'products' ? 'on' : ''}" onclick="setTab('products')">Products</button><button target="_self" class="${TAB === 'orders' ? 'on' : ''}" onclick="setTab('orders')">Orders${open ? `<span class="n">${open}</span>` : ''}</button><button target="_self" class="${TAB === 'accounts' ? 'on' : ''}" onclick="setTab('accounts')">Accounts</button><div class="sp-brand">${[['all', 'All'], ['woah', 'WOAH'], ['soap', 'SOAP']].map(([k, l]) => `<button target="_self" class="${BR === k ? 'on' : ''}" onclick="setBrand('${k}')">${l}</button>`).join('')}</div>`;
+    const preN = OD ? preItems().reduce((a, x) => a + x.qty, 0) : 0;
+    document.getElementById('tabs').innerHTML = `<button target="_self" class="${TAB === 'products' ? 'on' : ''}" onclick="setTab('products')">Products</button><button target="_self" class="${TAB === 'orders' ? 'on' : ''}" onclick="setTab('orders')">Orders${open ? `<span class="n">${open}</span>` : ''}</button><button target="_self" class="${TAB === 'pre' ? 'on' : ''}" onclick="setTab('pre')">Pre-orders${preN ? `<span class="n">${preN}</span>` : ''}</button><button target="_self" class="${TAB === 'accounts' ? 'on' : ''}" onclick="setTab('accounts')">Accounts</button><div class="sp-brand">${[['all', 'All'], ['woah', 'WOAH'], ['soap', 'SOAP']].map(([k, l]) => `<button target="_self" class="${BR === k ? 'on' : ''}" onclick="setBrand('${k}')">${l}</button>`).join('')}</div>`;
     document.getElementById('productsView').style.display = TAB === 'products' ? '' : 'none';
     document.getElementById('ordersView').style.display = TAB === 'orders' ? '' : 'none';
     document.getElementById('accountsView').style.display = TAB === 'accounts' ? '' : 'none';
+    document.getElementById('preView').style.display = TAB === 'pre' ? '' : 'none';
     const br = document.querySelector('#tabs .sp-brand'); if (br) br.style.display = TAB === 'accounts' ? 'none' : '';
   }
-  function setTab(t) { TAB = t; try { localStorage.setItem('woahShopTab', t); } catch (e) {} drawTabs(); if (t === 'orders') loadOrders(); if (t === 'accounts') loadAccounts(); }
+  function setTab(t) { TAB = t; try { localStorage.setItem('woahShopTab', t); } catch (e) {} drawTabs(); if (t === 'orders') loadOrders(); if (t === 'accounts') loadAccounts(); if (t === 'pre') loadPre(); }
   function loadOrders() {
     if (!OD) document.getElementById('ordersView').innerHTML = '<div class="card">Loading orders…</div>';
     return call({ action: 'shopOrders' }).then(d => { OD = d; drawOrders(); drawTabs(); }).catch(e => { document.getElementById('ordersView').innerHTML = `<div class="card bad">${esc(e.message)}</div>`; });
   }
+  // ---------- Pre-orders tab: how many of what to order ----------
+  let SD = null;
+  function preItems() {   // every pre-order item still waiting for stock (same rule as the Stock page)
+    const out = [];
+    (OD ? OD.orders : []).forEach(o => o.items.forEach(i => { if (i.type === 'Pre-order' && i.status === 'Waiting for stock' && inBrand(i.product)) out.push({ o, i, qty: Number(i.qty) || 0 }); }));
+    return out;
+  }
+  function loadPre() {
+    if (!OD || !SD) document.getElementById('preView').innerHTML = '<div class="card">Loading pre-orders…</div>';
+    return Promise.all([call({ action: 'shopOrders' }), call({ action: 'stock' })]).then(([o, s]) => { OD = o; SD = s; drawPre(); drawTabs(); })
+      .catch(e => { document.getElementById('preView').innerHTML = `<div class="card bad">${esc(e.message)}</div>`; });
+  }
+  function preKey(p, c, f, z) { return [p, c || '', f || '', z || ''].join('|'); }
+  function preRows() {
+    const stock = {};
+    (SD.products || []).forEach(p => p.variants.forEach(v => { stock[preKey(p.name, v.colour, v.fit, v.size)] = Math.max(0, v.left); }));
+    const g = {};
+    preItems().forEach(({ o, i, qty }) => {
+      const k = preKey(i.product, i.colour, i.fit, i.size);
+      const r = g[k] = g[k] || { product: i.product, colour: i.colour || '', fit: i.fit || '', size: i.size || '', qty: 0, paid: 0, who: {}, free: k in stock ? stock[k] : null };
+      r.qty += qty; if (o.paid === 'Yes') r.paid += qty;
+      const w = r.who[o.order] = r.who[o.order] || { name: o.name, order: o.order, qty: 0, paid: o.paid === 'Yes' }; w.qty += qty;
+    });
+    return Object.values(g).map(r => Object.assign(r, { toOrder: Math.max(0, r.qty - (r.free || 0)) }));
+  }
+  const SIZE_ORDER = ['xxs', 'xs', 's', 'm', 'l', 'xl', 'xxl', '2xl', '3xl'];
+  function sizeRank(z) { const i = SIZE_ORDER.indexOf(String(z).toLowerCase()); return i < 0 ? 99 : i; }
+  function preText(rows) {
+    const d = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const lines = rows.filter(r => r.toOrder > 0).map(r => `${r.product}${[r.colour, r.fit, r.size].filter(Boolean).length ? ' – ' + [r.colour, r.fit, r.size].filter(Boolean).join(' ') : ''}: ${r.toOrder}`);
+    return `WOAH pre-orders to order (${d})\n` + lines.join('\n') + `\nTotal: ${rows.reduce((a, r) => a + r.toOrder, 0)}`;
+  }
+  function copyPre() {
+    const t = preText(preRows().sort(preSort));
+    const done = () => { const b = document.getElementById('preCopy'); if (b) { b.textContent = 'Copied ✓'; setTimeout(() => { b.textContent = 'Copy order list'; }, 1800); } };
+    (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(done).catch(() => { prompt('Copy this:', t); });
+  }
+  function preSort(a, b) { return a.product.localeCompare(b.product) || a.colour.localeCompare(b.colour) || a.fit.localeCompare(b.fit) || sizeRank(a.size) - sizeRank(b.size) || a.size.localeCompare(b.size); }
+  function drawPre() {
+    const rows = preRows().sort(preSort);
+    const tot = rows.reduce((a, r) => a + r.qty, 0), paid = rows.reduce((a, r) => a + r.paid, 0), go = rows.reduce((a, r) => a + r.toOrder, 0);
+    const people = new Set(preItems().map(x => x.o.order)).size;
+    const byP = {}; rows.forEach(r => { (byP[r.product] = byP[r.product] || []).push(r); });
+    const el = document.getElementById('preView');
+    el.innerHTML = `
+      <div class="card"><div class="sp-top"><div class="sp-stats pre-sum">
+        <div class="sp-stat" style="border-color:var(--brand)"><b>${go}</b>To order</div>
+        <div class="sp-stat"><b>${tot}</b>Pre-ordered items</div>
+        <div class="sp-stat"><b>${paid}</b>Already paid</div>
+        <div class="sp-stat"><b>${people}</b>Orders waiting</div></div>
+        <div class="sp-links">${go ? '<button target="_self" id="preCopy" onclick="copyPre()">Copy order list</button>' : ''}${SD.stockUrl ? `<a href="${esc(SD.stockUrl)}">Dom's sheet ↗</a>` : ''}<button target="_self" onclick="loadPre()">Refresh</button></div></div>
+        <p class="sub" style="margin:10px 0 0"><b>To order</b> = pre-ordered minus what's still free in stock (Dom's sheet, after held sales). It counts unpaid pre-orders too; the <b>Paid</b> column shows how many are paid already, if you'd rather only order those. When the stock arrives, add it to Dom's sheet and mark the orders <i>Ready to collect</i>, then they drop off this list.</p>
+      </div>
+      ${rows.length ? Object.keys(byP).map(p => {
+        const rs = byP[p], hasCol = rs.some(r => r.colour), hasFit = rs.some(r => r.fit);
+        return `<div class="card pre-p"><h3>${esc(p)} <span>${rs.reduce((a, r) => a + r.toOrder, 0)} to order · ${rs.reduce((a, r) => a + r.qty, 0)} pre-ordered</span></h3><div class="pre-scroll"><table class="pre"><thead><tr>${hasCol ? '<th class="l">Colour</th>' : ''}${hasFit ? '<th class="l">Fit</th>' : ''}<th class="l">Size</th><th>To order</th><th>Pre-ordered</th><th>Paid</th><th title="Free in stock now">In stock</th><th class="l">Who</th></tr></thead><tbody>
+          ${rs.map(r => `<tr>${hasCol ? `<td class="l">${esc(r.colour || '–')}</td>` : ''}${hasFit ? `<td class="l">${esc(r.fit || '–')}</td>` : ''}<td class="l">${esc(r.size || '–')}</td><td class="go ${r.toOrder ? '' : 'zero'}">${r.toOrder}</td><td>${r.qty}</td><td>${r.paid}</td><td>${r.free == null ? '<span title="Not in Dom\'s sheet">–</span>' : r.free}</td>
+            <td class="l who">${Object.values(r.who).map(w => `${esc(w.name)} ×${w.qty} <span style="opacity:.75">${esc(w.order)}${w.paid ? ' · paid' : ''}</span>`).join('<br>')}</td></tr>`).join('')}
+        </tbody></table></div></div>`;
+      }).join('') : '<div class="card" style="margin-top:12px;text-align:center;color:var(--muted)">No pre-orders waiting for stock.</div>'}`;
+  }
+
   // ---------- Accounts tab ----------
   let AD = null, AQ = '', ABUSY = {}, APW = {};
   function loadAccounts() {
@@ -394,7 +474,7 @@
         <div class="sp-stat" style="${proofs.length ? 'border-color:var(--warn)' : ''}"><b>${proofs.length}</b>Payment to check</div>
         <div class="sp-stat"><b>${ready.length}</b>Ready to collect</div></div>
         <div class="sp-links"><a href="${esc(OD.sheetUrl)}">WOAH Shop sheet ↗</a><button target="_self" onclick="loadOrders()">Refresh</button></div></div>
-        ${needRows ? `<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700">Pre-orders to get: ${Object.values(need).reduce((a, b) => a + b, 0)} items</summary><table class="need"><tr><th>Product</th><th>Option</th><th style="text-align:right">Qty</th></tr>${needRows}</table></details>` : ''}
+        ${needRows ? `<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700">Pre-orders to get: ${Object.values(need).reduce((a, b) => a + b, 0)} items <a href="#" target="_self" onclick="event.preventDefault();setTab('pre')" style="font-weight:500;margin-left:6px">open Pre-orders tab →</a></summary><table class="need"><tr><th>Product</th><th>Option</th><th style="text-align:right">Qty</th></tr>${needRows}</table></details>` : ''}
         <div class="od-bar"><input type="search" placeholder="Search name, order number, email or phone" value="${esc(OQ)}" oninput="OQ=this.value;drawOrdersList()"></div>
         <div class="sp-seg">${filters.map(([k, l, c]) => `<button target="_self" class="${OF === k ? 'on' : ''}" onclick="setOF('${k}')">${l} · ${c}</button>`).join('')}</div>
       </div>
@@ -466,7 +546,7 @@
     call({ action: 'shopOrderSet', order: id, op: 'note', note: t }).then(d => { OBUSY[id] = 0; OD = d; drawOrders(); }).catch(e => { OBUSY[id] = 0; drawOrders(); alert(e.message); });
   }
 
-  start({ title: 'Shop', need: 'full', action: 'shopAdmin', onData: d => { render(d); drawTabs(); if (TAB === 'orders') loadOrders(); if (TAB === 'accounts') loadAccounts(); } });
+  start({ title: 'Shop', need: 'full', action: 'shopAdmin', onData: d => { render(d); drawTabs(); if (TAB === 'orders') loadOrders(); if (TAB === 'accounts') loadAccounts(); if (TAB === 'pre') loadPre(); } });
 </script>
 </body>
 </html>
