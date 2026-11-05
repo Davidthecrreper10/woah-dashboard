@@ -35,6 +35,7 @@
   .sp-badge.current { background: var(--ok-soft); color: var(--ok); }
   .sp-badge.preorder { background: var(--warn-soft); color: var(--warn); }
   .sp-badge.hidden { background: var(--bad-soft); color: var(--bad); }
+  .sp-badge.old { background: var(--brand-soft); color: var(--brand); }
   .sp-body { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
   .sp-name { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 20px; line-height: 1.15; margin: 0; }
   .sp-meta { font-size: 13px; color: var(--muted); }
@@ -44,6 +45,7 @@
   .sp-sec button { font-size: 13px; padding: 8px 6px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
   .sp-sec button.on.current { background: var(--ok-soft); color: var(--ok); border-color: var(--ok); font-weight: 700; }
   .sp-sec button.on.preorder { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); font-weight: 700; }
+  .sp-sec button.on.old { background: var(--brand-soft); color: var(--brand); border-color: var(--brand); font-weight: 700; }
   .sp-sec button.on.hidden { background: var(--bad-soft); color: var(--bad); border-color: var(--bad); font-weight: 700; }
   .sp-body textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; min-height: 80px; resize: vertical; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
   .sp-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -183,7 +185,7 @@
 <script src="extras.js?v=3"></script>
 <script>
   const SHOP_URL = 'https://shopwoahfestival.org/';
-  const SEC = { current: 'Current merch', preorder: 'Pre-order', hidden: 'Not in shop' };
+  const SEC = { current: 'Current merch', preorder: 'Pre-order', old: 'Old merch', hidden: 'Not in shop' };
   let D = null, FILTER = 'all', DRAFT = {}, BUSY = {}, MSG = {}, BR = 'all';
   try { FILTER = localStorage.getItem('woahShopFilter') || 'all'; BR = localStorage.getItem('woahShopBrand') || 'all'; } catch (e) {}
   // same rule as the shop website: SOAP in the name = SOAP merch, everything else = WOAH merch
@@ -209,6 +211,7 @@
       <div class="sp-stats">
         <div class="sp-stat"><b>${n('current')}</b>Current merch</div>
         <div class="sp-stat"><b>${n('preorder')}</b>Pre-order</div>
+        <div class="sp-stat"><b>${n('old')}</b>Old merch</div>
         <div class="sp-stat"><b>${n('hidden')}</b>Not in shop</div>
         ${nNew ? `<div class="sp-stat" style="border-color:var(--brand)"><b style="color:var(--brand)">${nNew}</b>New, needs a look</div>` : ''}
       </div>
@@ -217,7 +220,7 @@
         <a href="${esc(D.stockUrl || '#')}">Dom's stock sheet ↗</a>
         <a href="${esc(D.sheetUrl || '#')}">WOAH Shop sheet ↗</a>
       </div></div>`;
-    const tabs = [['all', 'All', ps.length], ['current', 'Current merch', n('current')], ['preorder', 'Pre-order', n('preorder')], ['hidden', 'Not in shop', n('hidden')], ['new', 'New', nNew]];
+    const tabs = [['all', 'All', ps.length], ['current', 'Current merch', n('current')], ['preorder', 'Pre-order', n('preorder')], ['old', 'Old merch', n('old')], ['hidden', 'Not in shop', n('hidden')], ['new', 'New', nNew]];
     document.getElementById('seg').innerHTML = tabs.map(([k, l, c]) => `<button target="_self" class="${FILTER === k ? 'on' : ''}" onclick="setFilter('${k}')">${l} · ${c}</button>`).join('');
     const list = ps.filter(p => FILTER === 'all' || (FILTER === 'new' ? p.isNew : p.section === FILTER));
     const order = { current: 0, preorder: 1, hidden: 2 };
@@ -233,13 +236,13 @@
     p.variants.forEach(v => { const r = [v.colour, v.fit].filter(Boolean).join(' ') || p.name; (rows[r] = rows[r] || {})[v.size] = v; });
     const total = p.variants.reduce((s, v) => s + Math.max(0, v.stock || 0), 0);
     const neg = p.variants.filter(v => v.rawStock < 0);
-    const head = p.section === 'current' ? `${total} left in total` : 'Stock in Dom\'s sheet';
+    const head = p.section === 'current' || p.section === 'old' ? `${total} left in total` : 'Stock in Dom\'s sheet';
     return `<details class="sp-stock"><summary>Sizes, prices and stock · ${head}${neg.length ? ' · ⚠ ' + neg.length + ' below zero' : ''}</summary>
       <table class="sp-tbl"><tr><th></th>${sizes.map(s => `<th>${esc(s || '–')}</th>`).join('')}</tr>
       ${Object.keys(rows).map(r => `<tr><td>${esc(r)}</td>${sizes.map(s => { const v = rows[r][s]; if (!v) return '<td style="color:var(--muted)">·</td>';
         return `<td class="${v.rawStock < 0 ? 'neg' : v.rawStock === 0 ? 'zero' : ''}" title="${esc(v.item)} · ${rp(v.price)}">${v.rawStock}</td>`; }).join('')}</tr>`).join('')}
       </table>
-      <div class="sp-meta" style="margin-top:6px">Hover a number for the exact row name and price. ${neg.length ? 'Below zero shows as sold out in the shop. Fix it in Dom\'s sheet.' : ''}${p.section !== 'current' ? ' Pre-orders don\'t use these numbers.' : ''}</div></details>`;
+      <div class="sp-meta" style="margin-top:6px">Hover a number for the exact row name and price. ${neg.length ? 'Below zero shows as sold out in the shop. Fix it in Dom\'s sheet.' : ''}${p.section !== 'current' && p.section !== 'old' ? ' Pre-orders don\'t use these numbers.' : ''}</div></details>`;
   }
   function cardHTML(p) {
     const k = p.key, photos = DRAFT[k] ? DRAFT[k].photos : p.photos, desc = DRAFT[k] && DRAFT[k].desc != null ? DRAFT[k].desc : p.desc;
@@ -257,7 +260,9 @@
           <div class="sp-sec">${Object.keys(SEC).map(s => `<button target="_self" class="${p.section === s ? 'on ' + s : ''}" onclick="setSection('${k}','${s}')" ${busy ? 'disabled' : ''}>${SEC[s]}</button>`).join('')}</div></div>
         <div><span class="sp-lbl">Pre-orders</span>
           <div class="sp-sec">${[['auto', 'Automatic'], ['open', 'Open'], ['closed', 'Closed']].map(([v, l]) => `<button target="_self" class="${(p.preSet || 'auto') === v ? 'on ' + (v === 'closed' ? 'hidden' : v === 'open' ? 'current' : 'preorder') : ''}" onclick="setPre('${k}','${v}')" ${busy ? 'disabled' : ''}>${l}</button>`).join('')}</div>
-          <div class="sp-meta" style="margin-top:5px">${p.preorder ? '<b>Pre-orders open</b>: people can pre-order it on the website and on the Sell page' + (p.section === 'current' ? '. Sizes that sell out show <i>Pre-order</i> on the website instead of <i>Sold out</i>.' : '.') : '<b>Pre-orders closed</b>: not on the Sell page\'s Pre-order tab' + (p.section === 'preorder' ? ', and the website shows "Pre-orders closed".' : '.')} Automatic = open only while it\'s in Pre-order.</div></div>
+          <div class="sp-meta" style="margin-top:5px">${p.preorder ? '<b>Pre-orders open</b>: people can pre-order it on the website and on the Sell page' + (p.section === 'current' || p.section === 'old' ? '. Sizes that sell out show <i>Pre-order</i> on the website instead of <i>Sold out</i>.' : '.') : '<b>Pre-orders closed</b>: not on the Sell page\'s Pre-order tab' + (p.section === 'preorder' ? ', and the website shows "Pre-orders closed".' : '.')} Automatic = open only while it\'s in Pre-order.</div>
+          ${p.colours && p.colours.length && p.preorder ? `<div class="sp-meta" style="margin-top:8px"><b>Pre-orders by colour</b> (tap to switch a colour off or on):</div>
+          <div class="sp-sec pre-col">${p.colours.map(c => { const off = (p.preOff || []).some(x => x.toLowerCase() === c.toLowerCase()); return `<button target="_self" class="${off ? 'on hidden' : 'on current'}" onclick="togglePreCol('${k}','${esc(c).replace(/'/g, '&#39;')}')" ${busy ? 'disabled' : ''}>${off ? '✕' : '✓'} ${esc(c)}</button>`; }).join('')}</div>` : ''}</div>
         <div><span class="sp-lbl">Description</span>
           <textarea id="desc-${k}" placeholder="What buyers see under the name: material, fit, the story behind the design…" oninput="descInput('${k}')">${esc(desc)}</textarea>
           <div class="sp-row" style="margin-top:6px"><button target="_self" id="dsave-${k}" onclick="saveDesc('${k}')" ${descChanged && !busy ? '' : 'disabled'}>Save description</button></div></div>
@@ -282,6 +287,12 @@
   function setPre(k, v) {
     const p = find(k); if (!p || (p.preSet || 'auto') === v) return;
     save(k, { pre: v }, v === 'open' ? 'Pre-orders open.' : v === 'closed' ? 'Pre-orders closed.' : 'Pre-orders follow the section again.').catch(() => {});
+  }
+  function togglePreCol(k, c) {
+    const p = find(k); if (!p) return;
+    const off = (p.preOff || []).filter(x => x.toLowerCase() !== c.toLowerCase()), was = off.length !== (p.preOff || []).length;
+    if (!was) off.push(c);
+    save(k, { preOff: off }, was ? 'Pre-orders back on for ' + c + '.' : 'No pre-orders for ' + c + ' any more (website and Sell page).').catch(() => {});
   }
   function setSection(k, s) {
     const p = find(k); if (!p || p.section === s) return;

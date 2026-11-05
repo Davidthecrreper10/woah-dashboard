@@ -66,9 +66,10 @@
   <div class="st-bar">
     <input type="search" id="q" placeholder="Search a product, colour or size…" oninput="draw()">
     <select id="sec" onchange="draw()">
-      <option value="shop">In the shop (Current + Pre-order)</option>
+      <option value="shop">In the shop (Current, Pre-order, Old)</option>
       <option value="current">Current merch</option>
       <option value="preorder">Pre-order</option>
+      <option value="old">Old merch</option>
       <option value="hidden">Not in shop</option>
       <option value="all">Everything</option>
     </select>
@@ -88,7 +89,7 @@
 <script src="extras.js?v=3"></script>
 <script>
   let D = null, FILTER = '';
-  const SEC = { current: 'Current merch', preorder: 'Pre-order', hidden: 'Not in shop' };
+  const SEC = { current: 'Current merch', preorder: 'Pre-order', old: 'Old merch', hidden: 'Not in shop' };
   function stateOf(v) { return v.left < 0 ? 'bad' : v.left === 0 ? 'out' : v.left <= 2 ? 'warn' : 'ok'; }
   const LABEL = { bad: 'Below zero', out: 'Sold out', warn: 'Low', ok: 'OK' };
   function inSec(p) { const s = document.getElementById('sec').value; return s === 'all' || (s === 'shop' ? p.section !== 'hidden' : p.section === s); }
