@@ -185,7 +185,7 @@
 <script src="extras.js?v=3"></script>
 <script>
   const SHOP_URL = 'https://shopwoahfestival.org/';
-  const SEC = { current: 'Current merch', preorder: 'Pre-order', old: 'Old merch', hidden: 'Not in shop' };
+  const SEC = { current: 'Current merch', preorder: 'Pre-order', old: 'Vintage merch', hidden: 'Not in shop' };
   let D = null, FILTER = 'all', DRAFT = {}, BUSY = {}, MSG = {}, BR = 'all';
   try { FILTER = localStorage.getItem('woahShopFilter') || 'all'; BR = localStorage.getItem('woahShopBrand') || 'all'; } catch (e) {}
   // same rule as the shop website: SOAP in the name = SOAP merch, everything else = WOAH merch
@@ -211,7 +211,7 @@
       <div class="sp-stats">
         <div class="sp-stat"><b>${n('current')}</b>Current merch</div>
         <div class="sp-stat"><b>${n('preorder')}</b>Pre-order</div>
-        <div class="sp-stat"><b>${n('old')}</b>Old merch</div>
+        <div class="sp-stat"><b>${n('old')}</b>Vintage merch</div>
         <div class="sp-stat"><b>${n('hidden')}</b>Not in shop</div>
         ${nNew ? `<div class="sp-stat" style="border-color:var(--brand)"><b style="color:var(--brand)">${nNew}</b>New, needs a look</div>` : ''}
       </div>
@@ -220,7 +220,7 @@
         <a href="${esc(D.stockUrl || '#')}">Dom's stock sheet ↗</a>
         <a href="${esc(D.sheetUrl || '#')}">WOAH Shop sheet ↗</a>
       </div></div>`;
-    const tabs = [['all', 'All', ps.length], ['current', 'Current merch', n('current')], ['preorder', 'Pre-order', n('preorder')], ['old', 'Old merch', n('old')], ['hidden', 'Not in shop', n('hidden')], ['new', 'New', nNew]];
+    const tabs = [['all', 'All', ps.length], ['current', 'Current merch', n('current')], ['preorder', 'Pre-order', n('preorder')], ['old', 'Vintage merch', n('old')], ['hidden', 'Not in shop', n('hidden')], ['new', 'New', nNew]];
     document.getElementById('seg').innerHTML = tabs.map(([k, l, c]) => `<button target="_self" class="${FILTER === k ? 'on' : ''}" onclick="setFilter('${k}')">${l} · ${c}</button>`).join('');
     const list = ps.filter(p => FILTER === 'all' || (FILTER === 'new' ? p.isNew : p.section === FILTER));
     const order = { current: 0, preorder: 1, hidden: 2 };
