@@ -6,15 +6,15 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="WOAH Sell">
-<title>WOAH Sell</title>
+<title>WOAH POS</title>
 <base target="_blank">
 <link rel="stylesheet" href="style.css?v=11">
 <link rel="icon" href="img/icon.png?v=2">
 <link rel="apple-touch-icon" href="img/icon.png?v=2">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&family=Public+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="woah.css?v=5">
-<script src="theme.js?v=7"></script>
+<link rel="stylesheet" href="woah.css?v=6">
+<script src="theme.js?v=8"></script>
 <style>
   /* No tap animations on this page: the till must feel instant (and the swap animation used to cover the Close button). */
   #view.w-swap, #view .w-swap, #view .w-row, #view .w-in, #sheet.w-swap, #sheet .w-swap, #sheet .w-row, #sheet .w-in, #side.w-swap, #side .w-swap, #side .w-row, #side .w-in, #tabs .w-row { animation: none !important; }
@@ -192,7 +192,7 @@
   <div id="app">
   <header>
     <div>
-      <h1><span>WOAH</span> Sell</h1>
+      <h1><span>WOAH</span> POS</h1>
       <div class="sub" id="updated">Loading…</div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
@@ -209,7 +209,7 @@
 </div>
 <div class="ps-ov" id="ov" onclick="if(event.target===this)closeSheet()"><div class="ps-sh" id="sheet"></div></div>
 <div class="toast" id="toast"></div>
-<script src="common.js?v=9"></script>
+<script src="common.js?v=10"></script>
 <script src="extras.js?v=3"></script>
 <script src="practice.js?v=2"></script>
 <script>
@@ -695,7 +695,7 @@
     call({ action: 'posCheck', day: DAY.name, counted, note }).then(r => { DAY = r.day; CK = {}; drawToday(); toast('Check saved'); }).catch(e => alert(e.message));
   }
 
-  start({ title: 'Sell', need: 'handler', action: 'pos', onData: render });
+  start({ title: 'POS', need: 'handler', action: 'pos', onData: render });
 </script>
 </body>
 </html>

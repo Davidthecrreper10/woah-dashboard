@@ -41,15 +41,37 @@
   if (CAME_BY_LINK && MAX()) html.classList.add('w-arrive');
 
   // ---------- page decoration (WOAH UI only; Retro stays exactly as it was) ----------
-  function logoHTML() { return '<img class="w-logo w-logo-light" src="img/logo-light.webp" alt="WOAH Festival" width="180" height="86"><img class="w-logo w-logo-dark" src="img/logo-dark.webp" alt="WOAH Festival" width="180" height="81">'; }
+  // The logo switches to another WOAH design every 2 minutes (same one on every page and device at the same time), with a slow cross-fade.
+  const LOGOS = [''].concat(Array.from({ length: 9 }, (_, i) => 'img/logos/logo-' + String(i + 1).padStart(2, '0') + '.webp'));
+  const LOGO_MS = 120000;
+  const logoNow = () => Math.floor(Date.now() / LOGO_MS) % LOGOS.length;
+  function logoSlide(i, on) {
+    return i === 0 ? `<span class="w-slide${on ? ' on' : ''}" data-i="0"><img class="w-logo w-logo-light" src="img/logo-light.webp" alt="WOAH Festival" width="180" height="86"><img class="w-logo w-logo-dark" src="img/logo-dark.webp" alt="WOAH Festival" width="180" height="81"></span>`
+      : `<span class="w-slide alt${on ? ' on' : ''}" data-i="${i}"><img class="w-alt w-alt-light" src="${LOGOS[i]}" alt="WOAH Festival"><img class="w-alt w-alt-dark" src="${LOGOS[i].replace('.webp', '-dark.webp')}" alt="WOAH Festival"></span>`;
+  }
+  function logoHTML() { return `<span class="w-rot">${logoSlide(logoNow(), true)}</span>`; }
+  let logoTimer = null;
+  function logoTick() {
+    const i = logoNow(), rots = document.querySelectorAll('.w-rot');
+    const swap = () => rots.forEach(r => {
+      const old = r.querySelector('.w-slide.on'); if (old && Number(old.dataset.i) === i) return;
+      r.insertAdjacentHTML('beforeend', logoSlide(i, false));
+      const nw = r.lastElementChild; void nw.offsetWidth;   // start from hidden so the fade runs
+      nw.classList.add('on'); if (old) { old.classList.remove('on'); setTimeout(() => old.remove(), 1600); }
+    });
+    if (rots.length && i) { const im = new Image(); im.onload = im.onerror = swap; im.src = html.dataset.theme === 'dark' ? LOGOS[i].replace('.webp', '-dark.webp') : LOGOS[i]; } else swap();
+    logoTimer = setTimeout(logoTick, LOGO_MS - (Date.now() % LOGO_MS) + 50);
+  }
+  function startLogos() { if (!logoTimer) logoTimer = setTimeout(logoTick, LOGO_MS - (Date.now() % LOGO_MS) + 50); }
   function decorateLogos(root) {
     (root || document).querySelectorAll('h1 > span:first-child').forEach(s => {
       if (s.dataset.w || s.textContent.trim() !== 'WOAH') return;
       s.dataset.w = '1'; s.classList.add('w-mark');
       s.insertAdjacentHTML('afterend', logoHTML());
       s.parentNode.classList.add('w-h1');
-      const sib = s.parentNode.querySelectorAll('img.w-logo');
+      const sib = s.parentNode.querySelectorAll('img.w-logo, img.w-alt');
       sib.forEach(i => { i.decoding = 'async'; });
+      startLogos();
       if (!sessionStorage.getItem('wLogoSeen')) { s.parentNode.classList.add('w-reveal'); try { sessionStorage.setItem('wLogoSeen', '1'); } catch (e) {} }
     });
   }

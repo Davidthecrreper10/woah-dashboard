@@ -9,8 +9,8 @@
 <link rel="icon" href="img/icon.png?v=2">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&family=Public+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="woah.css?v=5">
-<script src="theme.js?v=7"></script>
+<link rel="stylesheet" href="woah.css?v=6">
+<script src="theme.js?v=8"></script>
 <style>
   .st-bar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 0 0 14px; }
   .st-bar input[type=search] { flex: 1 1 220px; min-width: 0; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; }
@@ -79,13 +79,13 @@
   <div class="card how" style="margin-top:14px">
     <b>Where these numbers come from.</b>
     <p><b>Start + In − Sold = End</b> comes straight from Dom's sheet (<i>2. Sales sum report</i>). Change stock there, not here.</p>
-    <p><b>Held</b> = sold on the Sell page but not ticked "In Dom's sheet" yet, plus website and stall orders that haven't been collected. <b>Left</b> = End − Held, which is what the shop and Sell page can still sell.</p>
+    <p><b>Held</b> = sold on the POS page but not ticked "In Dom's sheet" yet, plus website and stall orders that haven't been collected. <b>Left</b> = End − Held, which is what the shop and Sell page can still sell.</p>
     <p><b>Below zero</b> means more was sold than Dom's sheet says came in, so a stock-in is missing or a sale was put on the wrong size. Those need the recount. <b>Pre-orders</b> are people waiting for that item to arrive.</p>
     <p id="domLink"></p>
   </div>
   </div>
 </div>
-<script src="common.js?v=9"></script>
+<script src="common.js?v=10"></script>
 <script src="extras.js?v=3"></script>
 <script>
   let D = null, FILTER = '';
