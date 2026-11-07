@@ -79,8 +79,8 @@ function outList() {
   let h = '';
   if (pend.length) h += `<div class="gh">Waiting for Chris to send <span class="sub">· ${pend.length}</span></div>` + pend.map(p => { let v = {}; try { v = JSON.parse(String(p.value).replace(/^​/, '')); } catch (e) {}
     return `<div class="hitem sent"><div class="top"><div><b>${esc(v.subject || '(no subject)')}</b></div><div class="sentlbl">waiting for Chris</div></div><div class="meta">To ${esc(v.name || '')} &lt;${esc(p.id)}&gt; · by ${esc(teamName(p.by))}</div></div>`; }).join('');
-  h += `<div class="gh">Sponsor emails sent <span class="sub">· last 45 days</span></div>`;
-  h += sent.length ? sent.map(s => `<div class="hitem ${s.replied ? 'sent' : ''}"><div class="top"><div><b>${esc(s.name)}</b> <span class="tag">${s.kind === 'returning' ? 'returning' : 'new'}</span></div><div class="${s.replied ? 'sentlbl' : 'sub'}" style="white-space:nowrap">${s.replied ? 'They replied' : 'No reply yet'}</div></div>
+  h += `<div class="gh">Sponsor emails sent <span class="sub">· last 45 days, from here and from Reach out</span></div>`;
+  h += sent.length ? sent.map(s => `<div class="hitem ${s.replied ? 'sent' : ''}"><div class="top"><div><b>${esc(s.name)}</b> <span class="tag">${s.kind === 'returning' ? 'returning' : s.kind === 'own' ? 'own email' : 'new'}</span></div><div class="${s.replied ? 'sentlbl' : 'sub'}" style="white-space:nowrap">${s.replied ? 'They replied' : 'No reply yet'}</div></div>
       <div class="meta">${esc(s.subject)} · sent by ${esc(s.by)} · ${esc(agoText(s.at))}</div></div>`).join('')
     : `<div class="empty">None yet. Emails sent from here show up in this list.</div>`;
   return h;

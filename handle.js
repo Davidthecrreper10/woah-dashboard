@@ -181,7 +181,8 @@ function act(id, op, value) {
   doAct(id, op, value);
 }
 function doAct(id, op, value) {
-  const box = document.getElementById('hc-' + id); if (box) { box.innerHTML = 'Sending…'; box.style.display = 'block'; }
+  const WORD = { dismiss: 'Dismissing…', done: 'Marking as done…', reassign: 'Passing it on…', claim: 'Claiming…', snooze: 'Snoozing…', unsnooze: 'Waking it up…' };
+  const box = document.getElementById('hc-' + id); if (box) { box.innerHTML = WORD[op] || 'Sending…'; box.style.display = 'block'; }
   if (op === 'dismiss') { op = 'done'; value = 'dismiss'; }   // Dismiss = done in one click, no questions
   if (op === 'followup' || op === 'reply') value = (DRAFTS[id] || {}).text || '';
   call({ action: 'inbox', op, id, value: value || '' })

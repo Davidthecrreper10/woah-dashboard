@@ -9,8 +9,8 @@
 <link rel="icon" href="img/icon.png?v=2">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&family=Public+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="woah.css?v=5">
-<script src="theme.js?v=7"></script>
+<link rel="stylesheet" href="woah.css?v=6">
+<script src="theme.js?v=8"></script>
 <style>
   .sp-top { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }
   .sp-stats { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -181,7 +181,7 @@
   </div>
   </div>
 </div>
-<script src="common.js?v=9"></script>
+<script src="common.js?v=10"></script>
 <script src="extras.js?v=3"></script>
 <script>
   const SHOP_URL = 'https://shopwoahfestival.org/';
@@ -260,7 +260,7 @@
           <div class="sp-sec">${Object.keys(SEC).map(s => `<button target="_self" class="${p.section === s ? 'on ' + s : ''}" onclick="setSection('${k}','${s}')" ${busy ? 'disabled' : ''}>${SEC[s]}</button>`).join('')}</div></div>
         <div><span class="sp-lbl">Pre-orders</span>
           <div class="sp-sec">${[['auto', 'Automatic'], ['open', 'Open'], ['closed', 'Closed']].map(([v, l]) => `<button target="_self" class="${(p.preSet || 'auto') === v ? 'on ' + (v === 'closed' ? 'hidden' : v === 'open' ? 'current' : 'preorder') : ''}" onclick="setPre('${k}','${v}')" ${busy ? 'disabled' : ''}>${l}</button>`).join('')}</div>
-          <div class="sp-meta" style="margin-top:5px">${p.preorder ? '<b>Pre-orders open</b>: people can pre-order it on the website and on the Sell page' + (p.section === 'current' || p.section === 'old' ? '. Sizes that sell out show <i>Pre-order</i> on the website instead of <i>Sold out</i>.' : '.') : '<b>Pre-orders closed</b>: not on the Sell page\'s Pre-order tab' + (p.section === 'preorder' ? ', and the website shows "Pre-orders closed".' : '.')} Automatic = open only while it\'s in Pre-order.</div>
+          <div class="sp-meta" style="margin-top:5px">${p.preorder ? '<b>Pre-orders open</b>: people can pre-order it on the website and on the POS page' + (p.section === 'current' || p.section === 'old' ? '. Sizes that sell out show <i>Pre-order</i> on the website instead of <i>Sold out</i>.' : '.') : '<b>Pre-orders closed</b>: not on the POS page\'s Pre-order tab' + (p.section === 'preorder' ? ', and the website shows "Pre-orders closed".' : '.')} Automatic = open only while it\'s in Pre-order.</div>
           ${p.colours && p.colours.length ? `<div class="sp-meta" style="margin-top:8px"><b>Pre-orders by colour</b> (tap to switch a colour off or on)${p.preorder ? ':' : '. Only used while pre-orders are open for this item:'}</div>
           <div class="sp-sec pre-col">${p.colours.map(c => { const off = (p.preOff || []).some(x => x.toLowerCase() === c.toLowerCase()); return `<button target="_self" class="${off ? 'on hidden' : 'on current'}" onclick="togglePreCol('${k}','${esc(c).replace(/'/g, '&#39;')}')" ${busy ? 'disabled' : ''}>${off ? '✕' : '✓'} ${esc(c)}</button>`; }).join('')}</div>` : `<div class="sp-meta" style="margin-top:8px"><b>Pre-orders by colour:</b> this item has no colours in Dom's sheet, so pre-orders are just on or off for the whole item (above).</div>`}</div>
         <div><span class="sp-lbl">Description</span>
@@ -293,7 +293,7 @@
     const off = (p.preOff || []).filter(x => x.toLowerCase() !== c.toLowerCase()), was = off.length !== (p.preOff || []).length;
     if (!was) off.push(c);
     const before = p.preOff; p.preOff = off; draw();   // show the change straight away; saving takes a few seconds
-    save(k, { preOff: off }, was ? 'Pre-orders back on for ' + c + '.' : 'No pre-orders for ' + c + ' any more (website and Sell page).').catch(() => { p.preOff = before; draw(); });
+    save(k, { preOff: off }, was ? 'Pre-orders back on for ' + c + '.' : 'No pre-orders for ' + c + ' any more (website and POS page).').catch(() => { p.preOff = before; draw(); });
   }
   function setSection(k, s) {
     const p = find(k); if (!p || p.section === s) return;
@@ -533,7 +533,7 @@
       <div class="od-list" id="odList"></div>
       <div class="card how" style="margin-top:14px"><b>How orders work.</b> Orders from the shop land here and in the Orders tab of the WOAH Shop sheet. Check the payment (screenshot link, QRIS/Xendit/bank app), then press <b>Mark paid</b>.
         Pre-orders wait until the stock arrives; press <b>Ready to collect</b> and message the buyer (WhatsApp/email links on each order). When they pick it up press <b>Collected</b>.
-        Once an order is paid (<b>Mark paid</b> or <b>Take payment</b>) it goes into our Sales Tracker for that day; it reaches Dom's sheet when you press <b>Send to Dom's sheet</b> on Sell → Sales &amp; check.</div>`;
+        Once an order is paid (<b>Mark paid</b> or <b>Take payment</b>) it goes into our Sales Tracker for that day; it reaches Dom's sheet when you press <b>Send to Dom's sheet</b> on POS → Sales &amp; check.</div>`;
     drawOrdersList(list);
   }
   function odFiltered() {
@@ -569,7 +569,7 @@
       ${OPAY[o.order] && !done && o.paid !== 'Yes' ? odPayHTML(o) : ''}
     </div>`;
   }
-  // Payment taken in person (e.g. at Shanti House): marks it paid and adds it to that day's tab in the Sales Tracker, like the Sell page.
+  // Payment taken in person (e.g. at Shanti House): marks it paid and adds it to that day's tab in the Sales Tracker, like the POS page.
   function odPayOpen(id) { OPAY[id] = OPAY[id] ? null : { method: '', hand: false, photo: false }; drawOrdersList(); }
   function odPayHTML(o) {
     const s = OPAY[o.order], id = esc(o.order);

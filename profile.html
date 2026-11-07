@@ -9,8 +9,8 @@
 <link rel="icon" href="img/icon.png?v=2">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&family=Public+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="woah.css?v=5">
-<script src="theme.js?v=7"></script>
+<link rel="stylesheet" href="woah.css?v=6">
+<script src="theme.js?v=8"></script>
 <style>
   .pf-top { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
   .pf-name { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 26px; line-height: 1.15; margin: 0; }
@@ -52,8 +52,9 @@
   <div id="pf" class="pf"></div>
   </div>
 </div>
-<script src="common.js?v=9"></script>
+<script src="common.js?v=10"></script>
 <script src="extras.js?v=3"></script>
+<script src="reach.js?v=1"></script>
 <script>
   const PKEY = (new URLSearchParams(location.search).get('k') || '').toLowerCase();
   let P = null, TASKS = {}, NOTE_OPEN = false;
@@ -118,7 +119,7 @@
     if (!r) { box.innerHTML = `<div class="card"><div class="pf-h">This contact isn't on the Possible Partners List any more</div><div class="sub">They may have been removed or renamed. <a href="partners.html" target="_self">Search the partners</a>.</div></div>`; return; }
     const sp = P.sponsor;
     box.innerHTML = `<div class="card"><div class="pf-top"><div><h2 class="pf-name">${esc(r.company || r.contact || r.email)}</h2><div class="sub">${esc(r.tab)}${r.status ? ' · <b>' + esc(r.status) + '</b>' : ' · no status yet'}</div></div>
-        <div class="hact" style="margin:0"><a class="btn" href="partners.html?q=${encodeURIComponent(r.company || r.email || '')}" target="_self">Edit on Partners page</a></div></div>
+        <div class="hact" style="margin:0">${r.email ? `<button class="primary" target="_self" onclick="reachOpen({ email: P.row.email, name: P.row.contact, company: P.row.company })">Reach out…</button>` : ''}<a class="btn" href="partners.html?q=${encodeURIComponent(r.company || r.email || '')}" target="_self">Edit on Partners page</a></div></div>
       <div class="pf-kv">${[['Contact person', r.contact], ['Email', r.email], ['PIC', r.pic], ['Latest contact', r.latest], ['Coming?', r.coming], ['Offer', r.offer]].filter(x => x[1]).map(([k, v]) => `<div><span>${k}</span>${esc(v)}</div>`).join('')}</div>
       ${r.progress ? `<div style="margin-top:10px;font-size:14px"><span class="sub">Progress</span><br>${esc(r.progress)}</div>` : ''}
       ${sp ? `<div style="margin-top:10px;font-size:14px"><span class="sub">Sponsor payment</span><br>${esc(PAID[sp.paid] || sp.paid || '')}${sp.amount ? ' · promised Rp ' + Number(sp.amount).toLocaleString('en-US') : ''}${sp.received ? ' · received Rp ' + Number(sp.received).toLocaleString('en-US') : ''}</div>` : ''}
