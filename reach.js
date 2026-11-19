@@ -1,5 +1,5 @@
 // "Reach out" on the Partners page and partner profiles: starts a NEW email thread to a contact from the WOAH email.
-// Two choices: the Returning sponsor template (read live from the doc, like the New sponsor email tab), or write your own
+// Three choices: the New or Returning sponsor template (Sanur or Green School version, read live from the doc), or write your own
 // (with "Improve my text": Chris fixes grammar only and keeps everything you wrote). Sent by Chris within about 5 minutes.
 const RO = { open: false, kind: 'returning', name: '', company: '', to: '', subject: '', body: '', edited: false, tpl: null, loading: false, err: '', before: null, polishing: false, pmsg: '', busy: false, sent: '' };
 (function () {
@@ -9,13 +9,14 @@ const RO = { open: false, kind: 'returning', name: '', company: '', to: '', subj
   .ro-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}.ro-head h3{margin:0;font-size:19px}
   .ro-x{margin:0;padding:4px 10px}.ro-msg{font-size:13px;margin-top:8px}.ro-msg.bad{color:var(--bad)}
   .ro-polish{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px}.ro-polish button{margin:0}
+  .ro-k3{grid-template-columns:1fr 1fr 1fr}@media (max-width:560px){.ro-k3{grid-template-columns:1fr}}
   @media (prefers-reduced-motion:reduce){.ro-box{animation:none}}`;
   const s = document.createElement('style'); s.textContent = css; document.head.appendChild(s);
 })();
 function roMe() { const n = String((ME && (ME.nick || ME.name)) || ''); return (n.split(',')[0].trim().split(' ')[0]) || ''; }
 function roSubject() {
   const c = RO.company.trim() || '[Company Name]';
-  return 'Supporting WOAH Festival again this year - ' + c;
+  return (RO.kind === 'new' ? 'Sponsorship invitation: WOAH Festival' : 'Supporting WOAH Festival again this year') + ' - ' + c;
 }
 function roFill(raw) {
   const lines = String(raw || '').replace(/\r/g, '').split('\n');
@@ -29,8 +30,8 @@ function roFill(raw) {
 }
 function roStarter() { return `Dear ${RO.name.trim() || '[Name]'},\n\n\n\nBest regards,\n${roMe()}\nWOAH Festival Team`; }
 function roRebuild(force) {
-  if (RO.kind === 'returning') {
-    const tp = RO.tpl && RO.tpl.returning;
+  if (RO.kind !== 'own') {
+    const tp = RO.tpl && pickTpl(RO.tplData, RO.kind);
     if (tp && tp.text && (force || !RO.edited)) { RO.body = roFill(tp.text); RO.edited = false; }
     RO.subject = roSubject();
   } else if (force || !RO.edited) { RO.body = roStarter(); RO.edited = false; }
@@ -47,9 +48,10 @@ function reachClose() { RO.open = false; const w = document.getElementById('roWr
 function roEsc(e) { if (e.key === 'Escape' && !RO.busy) reachClose(); }
 function roLoad() {
   if (RO.loading) return; RO.loading = true; RO.err = ''; roDraw();
-  call({ action: 'templates' }).then(d => { RO.tpl = d.templates || {}; RO.loading = false; roRebuild(false); roDraw(); })
+  call({ action: 'templates' }).then(d => { RO.tpl = d.templates || {}; RO.tplData = d; RO.loading = false; roRebuild(false); roDraw(); })
     .catch(e => { RO.loading = false; RO.err = e.message; roDraw(); });
 }
+function roVenueChanged() { RO.edited = false; RO.before = null; roRebuild(true); roDraw(); }
 function roKind(k) {
   if (RO.kind === k) return;
   RO.kind = k; RO.before = null; RO.pmsg = '';
@@ -60,7 +62,7 @@ function roField(f, v) {
   RO[f] = v;
   if (f === 'body') { RO.edited = true; RO.before = null; }
   if (f === 'name' && !RO.edited) { roRebuild(false); const b = document.getElementById('roBody'); if (b) b.value = RO.body; }
-  if (f === 'company' && (RO.kind === 'returning' || /^WOAH Festival - /.test(RO.subject))) { RO.subject = RO.kind === 'returning' ? roSubject() : 'WOAH Festival - ' + (v.trim() || '[Company Name]'); const s = document.getElementById('roSubj'); if (s) s.value = RO.subject; }
+  if (f === 'company' && (RO.kind !== 'own' || /^WOAH Festival - /.test(RO.subject))) { RO.subject = RO.kind !== 'own' ? roSubject() : 'WOAH Festival - ' + (v.trim() || '[Company Name]'); const s = document.getElementById('roSubj'); if (s) s.value = RO.subject; }
   const m = document.getElementById('roMsg'); if (m) m.style.display = 'none';
 }
 function roProblem() {
@@ -98,7 +100,7 @@ function roAsk() {
 }
 function roSend() {
   const m = document.getElementById('roMsg'); m.innerHTML = 'Sending…'; RO.busy = true;
-  call({ action: 'outreach', to: RO.to.trim(), name: RO.name.trim(), company: RO.company.trim(), subject: RO.subject.trim(), body: RO.body, kind: RO.kind === 'own' ? 'own' : 'returning' })
+  call({ action: 'outreach', to: RO.to.trim(), name: RO.name.trim(), company: RO.company.trim(), subject: RO.subject.trim(), body: RO.body, kind: RO.kind })
     .then(() => { RO.busy = false; RO.sent = RO.to.trim(); roDraw(); })
     .catch(err => { RO.busy = false; m.innerHTML = esc(err.message); m.style.display = 'block'; });
 }
@@ -111,15 +113,17 @@ function roDraw() {
       <div class="okbox">Your email to <b>${esc(RO.sent)}</b> is on its way. Chris sends it from the WOAH email within about 5 minutes and emails you a copy. When they reply, it shows up on the Email handlers page.</div></div>`;
     return;
   }
-  const tp = RO.tpl && RO.tpl.returning, tplOk = !!(tp && tp.text), own = RO.kind === 'own';
+  const tp = RO.tpl && pickTpl(RO.tplData, RO.kind), tplOk = !!(tp && tp.text), own = RO.kind === 'own';
   const tplNote = RO.loading ? 'Loading the template…' : RO.err ? `Couldn't load the template: ${esc(RO.err)} <a href="#" target="_self" onclick="RO.tpl=null;roLoad();return false">Try again</a>` : tp && tp.error ? esc(tp.error) : tp ? `Template: <b>${esc(tp.title || 'Returning sponsor')}</b>${RO.edited ? ' · <a href="#" target="_self" onclick="roRebuild(true);roDraw();return false">Start again from the template</a>' : ''}` : '';
   const keep = document.activeElement && document.activeElement.id;
   w.innerHTML = `<div class="ro-box" role="dialog" aria-modal="true" aria-label="Reach out">
     <div class="ro-head"><div><h3>Reach out to ${esc(RO.company || RO.to || 'this contact')}</h3><div class="sub">Starts a new email from the WOAH email. Chris sends it within about 5 minutes.</div></div><button class="ro-x" onclick="reachClose()" ${RO.busy ? 'disabled' : ''}>Close</button></div>
-    <div class="out-kind" role="group" aria-label="What to send">
-      <button class="${!own ? 'on' : ''}" aria-pressed="${!own}" onclick="roKind('returning')"><b>Returning sponsor template</b><span>The team's template, filled in for them</span></button>
+    <div class="out-kind ro-k3" role="group" aria-label="What to send">
+      <button class="${RO.kind === 'new' ? 'on' : ''}" aria-pressed="${RO.kind === 'new'}" onclick="roKind('new')"><b>New sponsor template</b><span>First time asking them</span></button>
+      <button class="${RO.kind === 'returning' ? 'on' : ''}" aria-pressed="${RO.kind === 'returning'}" onclick="roKind('returning')"><b>Returning sponsor template</b><span>They supported us before</span></button>
       <button class="${own ? 'on' : ''}" aria-pressed="${own}" onclick="roKind('own')"><b>Write my own</b><span>Type the email yourself</span></button>
     </div>
+    ${own ? '' : venueHTML('roVenueChanged')}
     <div class="out-grid">
       <label>Their name<input id="roName" value="${esc(RO.name)}" placeholder="e.g. Made" oninput="roField('name',this.value)"></label>
       <label>Company<input id="roCo" value="${esc(RO.company)}" placeholder="e.g. Ocean Café" oninput="roField('company',this.value)"></label>

@@ -63,6 +63,15 @@
     .f-row { grid-template-columns: 1fr; }
     .c-table .hide-s { display: none; }
   }
+  .lf-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .lf-row:last-child { border-bottom: 0; }
+  .lf-row .lf-act { display: flex; gap: 6px; align-items: flex-start; flex-wrap: wrap; justify-content: flex-end; }
+  .lf-row .lf-act button { margin: 0; }
+  .lf-bad { color: var(--bad); font-weight: 600; }
+  .lf-edit { grid-column: 1 / -1; padding: 10px 12px; border-radius: 10px; background: var(--brand-soft); font-size: 14px; }
+  .lf-edit button { margin: 0 6px 0 0; }
+  .lf-edit input { width: 100%; font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); margin: 6px 0; }
+  @media (max-width: 560px) { .lf-row { grid-template-columns: 1fr; } .lf-row .lf-act { justify-content: flex-start; } }
 </style>
 </head>
 <body>
@@ -82,7 +91,8 @@
   <div class="banner" id="banner"></div>
   <div class="c-nav">
     <a href="#how" target="_self">1 How Chris works</a><a href="#health" target="_self">2 Health</a><a href="#switches" target="_self">3 Switches</a><a href="#settings" target="_self">4 Settings</a>
-    <a href="#team" target="_self">5 Team &amp; departments</a><a href="#run" target="_self">6 Run</a><a href="#activity" target="_self">7 Activity</a><a href="#handover" target="_self">8 For the next admin</a>
+    <a href="#files" target="_self">5 Linked files</a>
+    <a href="#team" target="_self">6 Team &amp; departments</a><a href="#run" target="_self">7 Run</a><a href="#activity" target="_self">8 Activity</a><a href="#handover" target="_self">9 For the next admin</a>
   </div>
 
   <section class="c-sec" id="how">
@@ -112,14 +122,15 @@
   <section class="c-sec" id="health"><h2><span class="num">2</span> Health</h2><div class="sub">Is Chris running, and is anything wrong?</div><div id="healthBox"></div></section>
   <section class="c-sec" id="switches"><h2><span class="num">3</span> Switches</h2><div class="sub">Turn whole parts of Chris on or off. Each one says what changes.</div><div id="switchBox"></div></section>
   <section class="c-sec" id="settings"><h2><span class="num">4</span> Settings</h2><div class="sub">Who gets copied, when reminders go out, how Chris signs his emails. Separate several emails with commas.</div><div id="settingsBox"></div></section>
-  <section class="c-sec" id="team"><h2><span class="num">5</span> Team &amp; departments</h2><div class="sub">Who's on the team, who's an admin, and which department gets which emails.</div><div id="teamBox"></div></section>
-  <section class="c-sec" id="run"><h2><span class="num">6</span> Run</h2><div class="sub">Make Chris do something now instead of waiting. He picks it up within about 5 minutes.</div><div id="runBox"></div></section>
-  <section class="c-sec" id="activity"><h2><span class="num">7</span> Activity</h2><div class="sub">Changes made on this page, what people did on the website, and Chris's alerts.</div><div id="activityBox"></div></section>
+  <section class="c-sec" id="files"><h2><span class="num">5</span> Linked files</h2><div class="sub">Every Doc, Sheet and folder Chris reads or fills in. If one gets replaced (say Dom starts a new stock sheet, or there's a new email template), point Chris at the new one here.</div><div id="filesBox"></div></section>
+  <section class="c-sec" id="team"><h2><span class="num">6</span> Team &amp; departments</h2><div class="sub">Who's on the team, who's an admin, and which department gets which emails.</div><div id="teamBox"></div></section>
+  <section class="c-sec" id="run"><h2><span class="num">7</span> Run</h2><div class="sub">Make Chris do something now instead of waiting. He picks it up within about 5 minutes.</div><div id="runBox"></div></section>
+  <section class="c-sec" id="activity"><h2><span class="num">8</span> Activity</h2><div class="sub">Changes made on this page, what people did on the website, and Chris's alerts.</div><div id="activityBox"></div></section>
   <section class="c-sec" id="handover">
-    <h2><span class="num">8</span> For the next admin</h2>
+    <h2><span class="num">9</span> For the next admin</h2>
     <div class="sub">Taking over Chris? Do these once, in this order.</div>
     <div class="card"><ol class="handover">
-      <li><b>Get added.</b> Ask a current admin to add you to the Team list and press <b>Make admin</b> next to your name (section 5). Then log in here with your own email.</li>
+      <li><b>Get added.</b> Ask a current admin to add you to the Team list and press <b>Make admin</b> next to your name (section 6). Then log in here with your own email.</li>
       <li><b>Get the passwords</b> from the person handing over: the full password and the handlers password. Never post them in a chat group or a document.</li>
       <li><b>Put yourself on alerts.</b> In Settings, add your email to "Who gets Chris's alerts" so you hear about problems.</li>
       <li><b>Update the team every term.</b> Add new students, remove people who left (their open emails and partner contacts move to the right department automatically), and check the Routing departments still match.</li>
@@ -132,7 +143,7 @@
   </section>
   </div>
 </div>
-<script src="common.js?v=10"></script>
+<script src="common.js?v=11"></script>
 <script src="extras.js?v=3"></script>
 <script>
   let D = null, EDIT = null;
@@ -384,10 +395,52 @@
       ${al.length ? al.slice(0, 15).map(a => `<details class="c-more" style="border-bottom:1px solid var(--line);padding-bottom:8px"><summary><span class="sub">${esc(when(a.at))}</span> · ${esc(a.subject)}</summary><div class="sub" style="margin-top:6px">${esc(a.text)}</div></details>`).join('') : '<div class="empty">No alerts.</div>'}</div>`;
   }
 
+
+  // ---------- 5 Linked files ----------
+  let LF = null, LF_LOADING = false, LF_OPEN = -1;
+  const LF_TYPE = { doc: 'Google Doc', sheet: 'Google Sheet', folder: 'Drive folder' };
+  function loadFiles() {
+    LF_LOADING = true;
+    call({ action: 'linked' }).then(d => { LF = d; LF_LOADING = false; drawFiles(); })
+      .catch(e => { LF_LOADING = false; document.getElementById('filesBox').innerHTML = `<div class="card"><div class="c-msg bad">${esc(e.message)}</div><button onclick="loadFiles()">Try again</button></div>`; });
+  }
+  function drawFiles() {
+    const box = document.getElementById('filesBox'); if (!box) return;
+    if (!LF) { box.innerHTML = '<div class="card sub">Checking every file… (takes a few seconds)</div>'; if (!LF_LOADING) loadFiles(); return; }
+    const keep = LF_OPEN >= 0 && document.getElementById('lf-in') ? document.getElementById('lf-in').value : '';
+    box.innerHTML = `<div class="card">${LF.list.map((f, i) => `<div class="lf-row">
+        <div><b>${esc(f.label)}</b> <span class="tag">${esc(LF_TYPE[f.type] || f.type)}</span>${f.changed ? ' <span class="pill">changed</span>' : ''}
+          <div class="sub" style="margin-top:3px">${esc(f.used)}</div>
+          <div style="margin-top:4px;font-size:14px">${f.ok ? `<a href="${esc(f.url)}">${esc(f.name)}</a>` : `<span class="lf-bad">${esc(f.err)}</span>${f.url ? ` · <a href="${esc(f.url)}">open link</a>` : ''}`}
+            <span class="sub"> · used by ${esc(f.who)}</span></div>
+          ${f.tabs.length ? `<div class="sub">Must have the tab${f.tabs.length > 1 ? 's' : ''} ${f.tabs.map(t => '"' + esc(t) + '"').join(' and ')}.</div>` : ''}</div>
+        <div class="lf-act"><button onclick="lfEdit(${i})">Change…</button>${f.changed ? `<button class="ghost" onclick="lfReset(${i})">Back to original</button>` : ''}</div>
+        ${LF_OPEN === i ? `<div class="lf-edit">Paste the link to the new ${esc(LF_TYPE[f.type] || 'file')}. First share it with <b>chris.hermes.apa@gmail.com</b>${/Inbox/.test(f.who) ? ' and <b>woahfestival@greenschool.org</b>' : ''} as Editor. Chris checks he can open it${f.tabs.length ? ' and that it has the right tabs' : ''} before switching.
+          <input id="lf-in" placeholder="https://docs.google.com/…" value="${esc(keep)}" onkeydown="if(event.key==='Enter')lfSave(${i})">
+          <button class="primary" onclick="lfSave(${i})">Switch to this one</button><button onclick="LF_OPEN=-1;drawFiles()">Cancel</button><div class="c-msg" id="lf-msg"></div></div>` : ''}
+      </div>`).join('')}</div>
+      ${(LF.log || []).length ? `<details class="c-more" style="margin-top:10px"><summary>Recent changes to linked files</summary>${LF.log.map(l => `<div class="sub" style="margin:4px 0">${esc(when(l.at))} · ${esc(teamNameOf(l.by))}: ${esc(l.what)}</div>`).join('')}</details>` : ''}`;
+    if (LF_OPEN >= 0) { const inp = document.getElementById('lf-in'); if (inp) inp.focus(); }
+  }
+  function teamNameOf(e) { const t = ((D && D.team) || []).find(x => x.email === String(e || '').toLowerCase()); return t ? (t.nick || t.name) : e; }
+  function lfEdit(i) { LF_OPEN = LF_OPEN === i ? -1 : i; drawFiles(); }
+  function lfSave(i) {
+    const f = LF.list[i], v = document.getElementById('lf-in').value.trim(), m = document.getElementById('lf-msg');
+    if (!v) { m.className = 'c-msg bad'; m.textContent = 'Paste a link first.'; return; }
+    m.className = 'c-msg'; m.textContent = 'Chris is checking the file…';
+    call({ action: 'linkedSet', fkey: f.fkey, value: v }).then(d => { LF = d; LF_OPEN = -1; drawFiles(); })
+      .catch(e => { m.className = 'c-msg bad'; m.textContent = e.message; });
+  }
+  function lfReset(i) {
+    const f = LF.list[i];
+    if (!confirm('Point Chris back at the original ' + f.label + '?')) return;
+    call({ action: 'linkedSet', fkey: f.fkey, value: '' }).then(d => { LF = d; LF_OPEN = -1; drawFiles(); }).catch(e => alert(e.message));
+  }
+
   function render(d) {
     D = d;
     document.getElementById('updated').textContent = 'Everything about Chris in one place · loaded ' + when(Date.now());
-    drawHealth(); drawSwitches(); drawSettings(); drawTeam(); drawRun(); drawActivity();
+    drawHealth(); drawSwitches(); drawSettings(); LF = null; drawFiles(); drawTeam(); drawRun(); drawActivity();
     const l = [];
     if (d.plannerUrl) l.push(`<a href="${esc(d.plannerUrl)}">Planner</a> (Team and Routing tabs)`);
     if (d.teamDocUrl) l.push(`<a href="${esc(d.teamDocUrl)}">Team roles document</a>`);
