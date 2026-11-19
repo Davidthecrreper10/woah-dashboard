@@ -41,10 +41,11 @@ function massClose() { if (MS.busy) return; MS.open = false; const w = document.
 function msEsc(e) { if (e.key === 'Escape') massClose(); }
 function msLoad() {
   MS.loading = true; MS.tplErr = ''; msDraw();
-  call({ action: 'templates' }).then(d => { MS.tpl = d.templates || {}; MS.loading = false; if (!MS.edited) msRebuild(); msDraw(); })
+  call({ action: 'templates' }).then(d => { MS.tpl = d.templates || {}; MS.tplData = d; MS.loading = false; if (!MS.edited) msRebuild(); msDraw(); })
     .catch(e => { MS.loading = false; MS.tplErr = e.message; msDraw(); });
 }
-function msRebuild() { const tp = MS.tpl && MS.tpl[MS.kind]; MS.body = tp && tp.text ? msFill(tp.text) : ''; MS.edited = false; }
+function msVenueChanged() { msRebuild(); msDraw(); }
+function msRebuild() { const tp = MS.tpl && pickTpl(MS.tplData, MS.kind); MS.body = tp && tp.text ? msFill(tp.text) : ''; MS.edited = false; }
 function msKind(k) { if (MS.kind === k) return; MS.kind = k; msRebuild(); msDraw(); }
 function msFind(q) {
   if (q != null) { MS.query = q; const i = document.getElementById('msQ'); if (i) i.value = q; }
@@ -105,6 +106,7 @@ function msDraw() {
     h = `<div class="out-kind" role="group" aria-label="Which template">
         <button class="${MS.kind === 'new' ? 'on' : ''}" aria-pressed="${MS.kind === 'new'}" onclick="msKind('new')"><b>New sponsor</b><span>First time asking them</span></button>
         <button class="${MS.kind === 'returning' ? 'on' : ''}" aria-pressed="${MS.kind === 'returning'}" onclick="msKind('returning')"><b>Returning sponsor</b><span>They supported us before</span></button></div>
+      ${venueHTML('msVenueChanged')}
       <div class="ms-h">1. Who should get it?</div>
       <div class="ms-chips">${MS_PRESETS.map((p, i) => `<button class="${MS.query === p ? 'on' : ''}" onclick="msFind(MS_PRESETS[${i}])" ${MS.finding ? 'disabled' : ''}>${esc(p)}</button>`).join('')}</div>
       <div class="ms-ask"><input id="msQ" value="${esc(MS.query)}" placeholder="Or tell Chris, e.g. surf shops and cafés in Canggu" onkeydown="if(event.key==='Enter')msFind()">
@@ -118,7 +120,7 @@ function msDraw() {
         ${list.length ? `<div class="ms-tools"><a href="#" target="_self" onclick="msAll(true);return false">Tick all</a> · <a href="#" target="_self" onclick="msAll(false);return false">Untick all</a> · <span id="msN"></span></div>
         <div class="ms-list">${list.map(msRow).join('')}</div>` : '<div class="empty">Nobody fits that. Try different words or another tab.</div>'}
         <div class="ms-h">3. The email</div>
-        <div class="sub">${MS.loading ? 'Loading the template…' : MS.tplErr ? `Couldn't load the template: ${esc(MS.tplErr)}` : 'Each email starts with "Dear &lt;their name&gt;," and the subject is "' + esc(msBase()) + ' - &lt;Company&gt;". [Name] and [Company Name] in the text are filled in for each sponsor. Change the text below and it changes for everyone.'}</div>
+        <div class="sub">${MS.loading ? 'Loading the template…' : MS.tplErr ? `Couldn't load the template: ${esc(MS.tplErr)}` : (pickTpl(MS.tplData, MS.kind) && pickTpl(MS.tplData, MS.kind).title ? 'Template: <b>' + esc(pickTpl(MS.tplData, MS.kind).title) + '</b>. ' : '') + 'Each email starts with "Dear &lt;their name&gt;," and the subject is "' + esc(msBase()) + ' - &lt;Company&gt;". [Name] and [Company Name] in the text are filled in for each sponsor. Change the text below and it changes for everyone.'}</div>
         <textarea class="compose" id="msBody" oninput="MS.body=this.value;MS.edited=true" ${MS.body ? '' : 'disabled'}>${esc(MS.body)}</textarea>
         ${MS.edited ? '<div class="sub"><a href="#" target="_self" onclick="msRebuild();msDraw();return false">Start again from the template</a></div>' : ''}
         ${list.length && MS.body ? `<details class="ms-prev"><summary>Preview the first one</summary><pre>${(() => { const c = msChosen()[0] || list.find(x => !x.skip); if (!c) return ''; const e = msEmailFor(c); return esc('To: ' + e.to + '\nSubject: ' + e.subject + '\n\n' + e.body); })()}</pre></details>` : ''}
@@ -136,6 +138,7 @@ function msDraw() {
 function massCard() {
   const c = document.getElementById('massCard'); if (!c) return;
   c.style.display = 'block';
+  if (location.hash === '#mass' && !MS.auto) { MS.auto = true; setTimeout(massOpen, 50); }
   c.innerHTML = `<div class="pp-h">Mass email sponsors</div><div class="sub" style="margin-bottom:10px">Send the New or Returning sponsor template to a whole group at once, e.g. all hotels, or all restaurants and bars in Sanur. Chris picks them from the list, you tick who gets it, and everyone gets their own separate email. People who already replied to WOAH are left out.</div>
     <button class="primary" target="_self" onclick="massOpen()">Start a mass email…</button>`;
 }

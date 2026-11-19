@@ -112,3 +112,20 @@ function mineLink(x) {
   return 'https://mail.google.com/mail/' + (me ? '?authuser=' + encodeURIComponent(me) : '') + '#search/' + encodeURIComponent(q);
 }
 function links(x) { return `<a href="${esc(fixLink(x.link))}" title="Open in the WOAH inbox">${esc(x.subject)}</a> <a class="mine" href="${esc(mineLink(x))}" title="Search your own Gmail for this email or Chris's forward/reminder about it">find in my email</a>`; }
+
+// Sponsor templates come in a Sanur and a Green School version (the festival isn't always in the same place).
+// Each person picks on the page; the choice is remembered on this device. Used by outreach.js, reach.js and mass.js.
+let VENUE = 'sanur';
+try { if (localStorage.getItem('woahVenue') === 'gs') VENUE = 'gs'; } catch (e) {}
+function setVenue(v) { VENUE = v === 'gs' ? 'gs' : 'sanur'; try { localStorage.setItem('woahVenue', VENUE); } catch (e) {} }
+function pickTpl(d, kind) { const a = d && d.all && d.all[kind]; return (a && a[VENUE]) || (d && d.templates && d.templates[kind]) || null; }
+function venueHTML(fn) {
+  return `<div class="ven" role="group" aria-label="Which version of the template"><span>Version:</span>` +
+    [['sanur', 'Sanur'], ['gs', 'Green School']].map(([v, t]) => `<button type="button" class="${VENUE === v ? 'on' : ''}" aria-pressed="${VENUE === v}" onclick="setVenue('${v}');${fn}()">${t}</button>`).join('') + `</div>`;
+}
+(function () {
+  const s = document.createElement('style');
+  s.textContent = '.ven{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 12px;font-size:13px}.ven span{color:var(--muted);font-weight:600}' +
+    '.ven button{margin:0;padding:5px 12px;border-radius:999px;font-size:13px}.ven button.on{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}';
+  (document.head || document.documentElement).appendChild(s);
+})();

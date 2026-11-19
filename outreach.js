@@ -24,7 +24,7 @@ function outFill(raw) {
   return t;
 }
 function outRebuild(force) {
-  const tp = OUT.tpl && OUT.tpl[OUT.kind];
+  const tp = OUT.tpl && pickTpl(OUT.tplData, OUT.kind);
   if (tp && tp.text && (force || !OUT.edited)) { OUT.body = outFill(tp.text); OUT.edited = false; }
   OUT.subject = outSubject();
 }
@@ -32,13 +32,14 @@ function outLoad(quiet) {
   if (OUT.loading) return;
   OUT.loading = true; OUT.err = ''; if (!quiet) outDraw();
   call({ action: 'templates' }).then(d => {
-    OUT.tpl = d.templates || {}; OUT.loading = false; outRebuild(false);
+    OUT.tpl = d.templates || {}; OUT.tplData = d; OUT.loading = false; outRebuild(false);
     const b = document.getElementById('outBody');
     if (quiet && b && document.activeElement && document.activeElement.closest && document.activeElement.closest('#panel')) { if (!OUT.edited && document.activeElement !== b) b.value = OUT.body; return; }   // typing: don't redraw under them
     outDraw();
   })
     .catch(e => { OUT.loading = false; OUT.err = e.message; outDraw(); });
 }
+function outVenueChanged() { OUT.edited = false; OUT.sent = null; outRebuild(true); outDraw(); }
 function outKind(k) { OUT.kind = k; try { localStorage.setItem('woahOutKind', k); } catch (e) {} OUT.edited = false; OUT.sent = null; outRebuild(true); outDraw(); }
 function outField(f, v) {
   OUT[f] = v;
@@ -87,15 +88,16 @@ function outList() {
 }
 function outDraw() {
   const p = document.getElementById('panel'); if (!p || TAB !== 'new') return;
-  const tp = OUT.tpl && OUT.tpl[OUT.kind];
+  const tp = OUT.tpl && pickTpl(OUT.tplData, OUT.kind);
   const tplNote = OUT.loading ? 'Loading the template…' : OUT.err ? `Couldn't load the template: ${esc(OUT.err)}` : tp && tp.error ? esc(tp.error) : tp ? `Template: <b>${esc(tp.title || '')}</b>, loaded ${esc(new Date(tp.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}. Changes to the doc show up here automatically.` : '';
   p.innerHTML = `
-    <div class="htools"><div class="sub">Write a first email to a sponsor from the WOAH email, using the team's template. Chris sends it within about 5 minutes.</div></div>
+    <div class="htools"><div class="sub">Write a first email to a sponsor from the WOAH email, using the team's template. Chris sends it within about 5 minutes.</div><a class="btn" href="partners.html#mass" target="_self">Mass email many sponsors →</a></div>
     ${OUT.sent ? `<div class="okbox" style="margin-bottom:12px">Your email to <b>${esc(OUT.sent)}</b> is on its way. Chris sends it from the WOAH email within about 5 minutes and emails you a copy.</div>` : ''}
     <div class="out-kind" role="group" aria-label="Which sponsor">
       <button class="${OUT.kind === 'new' ? 'on' : ''}" aria-pressed="${OUT.kind === 'new'}" onclick="outKind('new')"><b>New sponsor</b><span>First time asking them</span></button>
       <button class="${OUT.kind === 'returning' ? 'on' : ''}" aria-pressed="${OUT.kind === 'returning'}" onclick="outKind('returning')"><b>Returning sponsor</b><span>They supported us before</span></button>
     </div>
+    ${venueHTML('outVenueChanged')}
     <div class="out-grid">
       <label>Their name<input id="outName" value="${esc(OUT.name)}" placeholder="e.g. Made" oninput="outField('name',this.value)"></label>
       <label>Company<input id="outCo" value="${esc(OUT.company)}" placeholder="e.g. Ocean Café" oninput="outField('company',this.value)"></label>
