@@ -78,6 +78,7 @@
   </header>
   <div class="banner" id="banner"></div>
   <div class="card" id="searchCard"></div>
+  <div class="card" id="massCard" style="margin-top:14px;display:none"></div>
   <div class="card" id="sponsorsCard" style="margin-top:14px;display:none"></div>
   <div id="control"></div>
   <div class="card how" style="margin-top:14px">This is the <b>WOAH 2027 Possible Partners List</b>. Chris keeps it up to date from the WOAH emails: the row colour shows the status, and he fills in the latest contact, the PIC, the progress and what they offer. Search here to see where any company or person stands. Press <b>Edit…</b> to change a contact's status, progress or offer, <b>Profile</b> for their documents, package and meeting notes, and <b>Change PIC…</b> to give them to someone else. The <a href="pipeline.html" target="_self">Pipeline</a> shows everyone as cards by status. To change anything else, press <b>Open in sheet</b>.</div>
@@ -86,6 +87,7 @@
 <script src="common.js?v=10"></script>
 <script src="extras.js?v=3"></script>
 <script src="reach.js?v=1"></script>
+<script src="mass.js?v=1"></script>
 <script>
   let PP = null, Q = '', F_TAB = '', F_ST = '', MINE = false, SHOW = 1000;   // show every contact
   try { const s = JSON.parse(sessionStorage.getItem('ppFilters') || '{}'); Q = s.q || ''; F_TAB = s.tab || ''; F_ST = s.st || ''; MINE = !!s.mine; } catch (e) {}
@@ -384,6 +386,7 @@
     document.getElementById('updated').textContent = d.at ? 'List copied from the sheet ' + when(d.at) + ' · refreshes every 10 minutes' : 'Possible Partners List';
     drawSearch();
     drawSponsors();
+    if (window.massCard) massCard();
     drawControl();
   }
   start({ title: 'Partners', need: 'handler', action: 'partners', every: 2, onData: render });
