@@ -2,6 +2,8 @@
 // The computer view is not touched: everything here only applies while <html> has the class "m".
 // Adds a slim top bar, a bottom tab bar (Home, Emails, Partners, POS, More) and two sheets (More pages, and You).
 // The normal header, menu and photo strip stay in the page (hidden on phones), so nothing else has to change.
+// Also profile pictures (phones and computers): add one under your initial (phone) or "Photo" next to your name (computer);
+// the whole team sees it on the avatar buttons and in the Reassign / Change PIC pickers. Chris keeps them (actions photos / photoSet).
 (function () {
   const html = document.documentElement;
   const MQ = window.matchMedia ? matchMedia('(max-width: 700px)') : { matches: false, addEventListener() {} };
@@ -31,6 +33,8 @@
     phone: '<rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 17.5h2"/>',
     mega: '<path d="M4 10v4h3l7 4V6L7 10z"/><path d="M17.5 9.5a3.5 3.5 0 0 1 0 5"/>',
     chev: '<path d="m9 6 6 6-6 6"/>',
+    camera: '<path d="M4 8.5h3l1.6-2.5h6.8L17 8.5h3v10.5H4z"/><circle cx="12" cy="13.5" r="3.5"/>',
+    trash: '<path d="M5 7h14M10 7V4.5h4V7M7 7l1 12.5h8L17 7"/>',
   };
   const ico = (k, s) => `<svg viewBox="0 0 24 24" width="${s || 22}" height="${s || 22}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[k] || ''}</svg>`;
 
@@ -116,14 +120,18 @@
   function closeSheet() { const s = document.getElementById('mSheet'); if (s) s.classList.remove('open'); html.classList.remove('m-lock'); }
   function openSheet(kind) {
     const s = sheetEl(), b = document.getElementById('mSheetBody');
-    if (kind === 'more') {
+    if (kind === 'photo') {
+      const me = ME || {};
+      b.innerHTML = whoHTML(me) + photoHTML(me);
+      wirePhoto();
+    } else if (kind === 'more') {
       b.innerHTML = `<div class="m-sh">More pages</div><div class="m-list">` + REST.map(p =>
         `<a href="${p.href}" target="_self" class="${here === p ? 'on' : ''}"><span class="m-li">${ico(p.icon)}</span><span class="m-lt"><b>${p.label}</b><small>${p.desc}</small></span>${ico('chev', 18)}</a>`).join('') + `</div>`;
     } else {
       const me = ME || {};
       const extras = [...document.querySelectorAll('header button')].filter(x => !['refresh', 'wGear'].includes(x.id) && x.offsetParent === null);
       b.innerHTML =
-        `<div class="m-who"><span class="m-me big">${esc(initial(me.name))}</span><span><b>${esc(me.name || 'Logged in')}</b><small>${esc(me.email || '')}${me.role === 'handler' ? ' · email handler' : ''}</small></span></div>` +
+        whoHTML(me) + photoHTML(me) +
         (IS_POS && typeof setPractice === 'function' ? `<div class="m-sh">POS</div><div class="m-list"><button type="button" id="mPrac" target="_self"><span class="m-li">${ico('pos')}</span><span class="m-lt"><b>Practice mode</b><small>Try the POS without real sales</small></span>${ico('chev', 18)}</button><a href="${ME && ME.role === 'full' ? './' : 'handlers.html'}" target="_self"><span class="m-li">${ico('home')}</span><span class="m-lt"><b>Open the dashboard</b><small>Emails, partners and the rest</small></span>${ico('chev', 18)}</a></div>` : '') +
         (extras.length ? `<div class="m-sh">On this page</div><div class="m-list">` + extras.map((x, i) => `<button type="button" data-x="${i}" target="_self"><span class="m-li">${ico('mega')}</span><span class="m-lt"><b>${esc(x.textContent.trim())}</b></span>${ico('chev', 18)}</button>`).join('') + `</div>` : '') +
         `<div class="m-sh">Settings</div><div class="m-list">` +
@@ -139,10 +147,97 @@
         p.style.top = (window.scrollY + 66) + 'px'; p.style.right = '12px';
       };
       const pr = document.getElementById('mPrac'); if (pr) pr.onclick = () => { closeSheet(); setPractice(true); };
+      wirePhoto();
       document.getElementById('mOut').onclick = () => { closeSheet(); if (typeof logout === 'function') logout(); };
     }
     s.classList.add('open'); html.classList.add('m-lock');
   }
+  // ---------- profile pictures ----------
+  let PH = { v: '', map: {} };
+  try { PH = JSON.parse(localStorage.getItem('woahPhotos') || 'null') || PH; } catch (e) {}
+  const myPhoto = () => ME && PH.map[String(ME.email || '').toLowerCase()];
+  function whoHTML(me) {
+    return `<div class="m-who"><span class="m-me big" id="mMeBig">${esc(initial(me.name))}</span><span><b>${esc(me.name || 'Logged in')}</b><small>${esc(me.email || '')}${me.role === 'handler' ? ' · email handler' : ''}</small></span></div>`;
+  }
+  function photoHTML() {
+    const has = !!myPhoto();
+    return `<div class="m-sh">Profile picture</div><div class="m-list">` +
+      `<label class="m-row" for="mPhFile"><span class="m-li">${ico('camera')}</span><span class="m-lt"><b>${has ? 'Change my photo' : 'Add a photo'}</b><small id="mPhMsg">Your team sees it on your name. From your camera roll.</small></span>${ico('chev', 18)}</label>` +
+      `<input type="file" id="mPhFile" accept="image/*" hidden>` +
+      (has ? `<button type="button" id="mPhDel" target="_self"><span class="m-li">${ico('trash')}</span><span class="m-lt"><b>Remove my photo</b><small>Go back to your initial</small></span></button>` : '') + `</div>`;
+  }
+  function wirePhoto() {
+    paintPhotos();
+    const f = document.getElementById('mPhFile'), d = document.getElementById('mPhDel');
+    if (f) f.onchange = () => { const file = f.files && f.files[0]; f.value = ''; if (file) uploadPhoto(file); };
+    if (d) d.onclick = () => savePhoto('');
+  }
+  function phMsg(t, bad) { const m = document.getElementById('mPhMsg'); if (m) { m.textContent = t; m.style.color = bad ? 'var(--bad)' : ''; } }
+  // crop the middle square and shrink it on the phone, so only a small picture (about 6 KB) is sent
+  function uploadPhoto(file) {
+    phMsg('Getting your photo ready…');
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const side = Math.min(img.naturalWidth, img.naturalHeight); if (!side) return phMsg('That picture could not be read. Try another one.', true);
+      let out = '';
+      for (const size of [128, 112, 96, 80]) {
+        const cv = document.createElement('canvas'); cv.width = cv.height = size;
+        const cx = cv.getContext('2d'); cx.imageSmoothingQuality = 'high';
+        cx.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, size, size);
+        for (const q of [0.82, 0.72, 0.6, 0.5]) { out = cv.toDataURL('image/jpeg', q); if (out.length < 8000) break; }
+        if (out.length < 8000) break;
+      }
+      if (!out || out.length >= 8000) return phMsg('That picture is too big. Try another one.', true);
+      savePhoto(out);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); phMsg('That picture could not be read. Try another one.', true); };
+    img.src = url;
+  }
+  function savePhoto(data) {
+    phMsg(data ? 'Saving…' : 'Removing…');
+    if (typeof call !== 'function') return;
+    call({ action: 'photoSet', img: data }).then(d => {
+      keepPhotos(d);
+      phMsg(data ? 'Saved. Your team sees it from their next refresh.' : 'Removed.');
+      const sheet = document.getElementById('mSheet');
+      if (sheet && sheet.classList.contains('open')) setTimeout(() => { const kind = document.getElementById('mOut') ? 'me' : 'photo'; openSheet(kind); phMsg(data ? 'Saved. Your team sees it from their next refresh.' : 'Removed.'); }, 50);
+    }).catch(e => phMsg(e.message || 'Could not save. Try again.', true));
+  }
+  function keepPhotos(d) {
+    if (!d || !d.map) return;
+    PH = { v: d.v || '', map: d.map };
+    try { localStorage.setItem('woahPhotos', JSON.stringify(PH)); } catch (e) {}
+    paintPhotos();
+  }
+  function loadPhotos(me) {
+    if (!me || !me.phv || me.phv === PH.v || loadPhotos.busy || typeof call !== 'function') return;
+    loadPhotos.busy = true;
+    call({ action: 'photos' }).then(keepPhotos).catch(() => {}).finally(() => { loadPhotos.busy = false; });
+  }
+  function setAv(el, src) {
+    if (!el) return;
+    if (src) { el.style.backgroundImage = `url("${src}")`; el.classList.add('has-ph'); }
+    else { el.style.backgroundImage = ''; el.classList.remove('has-ph'); }
+  }
+  function paintPhotos() {
+    const mine = myPhoto();
+    setAv(document.getElementById('mMe'), mine); setAv(document.getElementById('mMeBig'), mine); setAv(document.getElementById('wAv'), mine);
+    document.querySelectorAll('.chip input[value]').forEach(i => setAv(i.parentNode.querySelector('.av'), PH.map[String(i.value).toLowerCase()]));
+  }
+  // computers: a small photo + "Photo" link next to "Logged in as …"
+  function whoLine() {
+    const w = document.getElementById('who'); if (!w || !ME || w.querySelector('#wAv')) return;
+    w.insertAdjacentHTML('afterbegin', `<span class="w-av" id="wAv">${esc(initial(ME.name))}</span>`);
+    const out = [...w.querySelectorAll('a')].find(a => /Log out/.test(a.textContent));
+    if (out) out.insertAdjacentHTML('beforebegin', `<a href="#" id="wPhoto" target="_self">Photo</a> · `);
+    const p = document.getElementById('wPhoto'); if (p) p.onclick = e => { e.preventDefault(); openSheet('photo'); };
+    paintPhotos();
+  }
+  // pickers are drawn later (Reassign, Change PIC): paint their avatars when they appear
+  let paintT = 0;
+  new MutationObserver(() => { if (!Object.keys(PH.map).length) return; clearTimeout(paintT); paintT = setTimeout(paintPhotos, 60); }).observe(document.documentElement, { childList: true, subtree: true });
+
   function initial(n) { return String(n || '?').trim().charAt(0).toUpperCase() || '?'; }
 
   // ---------- countdown: one thin line, tap to see the rest ----------
@@ -167,8 +262,10 @@
   }
   function boot(me) {
     ME = me; wrapPick();
+    loadPhotos(me); setTimeout(whoLine, 0);
     top(); tabs(me);
     const m = document.getElementById('mMe'); if (m) m.textContent = initial(me.name);
+    paintPhotos();
     countdown(); setTimeout(countdown, 1500); setTimeout(countdown, 4000);
     html.classList.add('m-ready');
   }

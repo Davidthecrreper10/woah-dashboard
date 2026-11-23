@@ -1,5 +1,13 @@
 /* Phone layout (see phone.js). Only applies while <html> has the class "m" (screens up to 700px). */
 .m-top, .m-tabs, .m-sheet { display: none; }
+/* profile pictures (every screen size) */
+.m-me, .w-av, .chip .av { background-size: cover !important; background-position: center !important; }
+.m-me.has-ph, .w-av.has-ph, .chip .av.has-ph { color: transparent !important; }
+.w-av { display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 6px; vertical-align: middle; border-radius: 50%; background-color: var(--brand); color: var(--on-brand, #fff); font-size: 11px; font-weight: 700; }
+/* the photo sheet on computers: a small centred box */
+html:not(.m) .m-sheet.open { display: block; position: fixed; inset: 0; z-index: 1000; }
+html:not(.m) .m-sheet .m-shade { position: absolute; inset: 0; background: rgba(4,20,28,.42); }
+html:not(.m) .m-sheet .m-panel { position: absolute; left: 50%; top: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%); width: 380px; max-width: calc(100vw - 32px); padding: 8px 16px 18px; background: var(--bg); border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,.25); }
 
 html.m { --m-top: 56px; --m-tabs: 62px; --m-safe-b: env(safe-area-inset-bottom, 0px); --m-safe-t: env(safe-area-inset-top, 0px); -webkit-text-size-adjust: 100%; }
 html.m body { font-size: 15px; padding-bottom: calc(var(--m-tabs) + var(--m-safe-b) + 24px) !important; -webkit-tap-highlight-color: transparent; }
@@ -29,7 +37,7 @@ html[data-ui="woah"] .m-ttl b { font-family: "Bricolage Grotesque", "Public Sans
 .m-ib:active { background: var(--card) !important; }
 .m-ib.spin svg { animation: m-spin .9s cubic-bezier(.3,.6,.3,1); }
 @keyframes m-spin { to { transform: rotate(360deg); } }
-.m-me { display: grid; place-items: center; width: 36px; height: 36px; flex: none; margin: 0 0 0 2px; padding: 0; border-radius: 50% !important; border: 0 !important; background: var(--brand) !important; color: var(--on-brand, #fff) !important; font-weight: 700; font-size: 15px; }
+.m-me { display: grid; place-items: center; width: 36px; height: 36px; flex: none; margin: 0 0 0 2px; padding: 0; border-radius: 50% !important; border: 0 !important; background-color: var(--brand) !important; color: var(--on-brand, #fff) !important; font-weight: 700; font-size: 15px; }
 .m-me.big { width: 46px; height: 46px; font-size: 19px; }
 .m-back { margin-left: -6px; }
 
@@ -67,18 +75,20 @@ html.m .m-sheet.open { pointer-events: auto; }
 .m-sh { margin: 14px 4px 8px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .m-sh:first-child { margin-top: 2px; }
 .m-list { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
-.m-list > a, .m-list > button {
+.m-list > a, .m-list > button, .m-list > label {
   display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; margin: 0; padding: 10px 12px; text-align: left;
   border: 0 !important; border-bottom: 1px solid var(--line) !important; border-radius: 0; background: transparent !important; color: var(--ink) !important; text-decoration: none !important; font: inherit;
 }
-.m-list > :last-child { border-bottom: 0 !important; }
-.m-list > a:active, .m-list > button:active { background: var(--card-2, var(--bg)) !important; }
+.m-list > :last-child, .m-list > input + button:last-child { border-bottom: 0 !important; }
+.m-list > label:has(+ input:last-child) { border-bottom: 0 !important; }
+.m-list > label { cursor: pointer; }
+.m-list > a:active, .m-list > button:active, .m-list > label:active { background: var(--card-2, var(--bg)) !important; }
 .m-list > .on .m-li { background: var(--brand); color: var(--on-brand, #fff); }
 .m-li { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 12px; background: var(--brand-soft); color: var(--brand); }
 .m-lt { flex: 1; min-width: 0; line-height: 1.25; }
 .m-lt b { display: block; font-size: 15.5px; font-weight: 650; }
 .m-lt small { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); }
-.m-list > a > svg:last-child, .m-list > button > svg:last-child { color: var(--muted); flex: none; }
+.m-list > a > svg:last-child, .m-list > button > svg:last-child, .m-list > label > svg:last-child { color: var(--muted); flex: none; }
 .m-list > .bad .m-lt b { color: var(--bad); }
 .m-list > .bad .m-li { background: var(--bad-soft); color: var(--bad); }
 .m-who { display: flex; align-items: center; gap: 12px; padding: 4px 4px 4px; }
