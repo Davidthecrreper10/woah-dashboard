@@ -1,7 +1,7 @@
 // WOAH app: keeps a copy of the pages, scripts and pictures on the phone, so the app opens (and the POS can sell)
 // with bad or no wifi. Always tries the internet first, so changes to the site show up straight away when online.
 // Chris's data (script.google.com) is never stored here: the pages handle that themselves.
-const CACHE = 'woah-app-v4';
+const CACHE = 'woah-app-v5';
 const SHELL = [
   './', 'index.html', 'handlers.html', 'email.html', 'partners.html', 'profile.html', 'pipeline.html', 'shop.html',
   'sell.html', 'stock.html', 'gaps.html', 'control.html', 'install.html',
@@ -24,7 +24,8 @@ self.addEventListener('fetch', (e) => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== self.location.origin) return;   // only our own files; never Chris's data
   e.respondWith(
-    fetch(req).then((res) => {
+    // pages are always checked with the server (not the browser's 10-minute copy), so a new version shows up straight away
+    fetch(req.mode === 'navigate' ? new Request(req.url, { cache: 'no-cache', credentials: 'same-origin' }) : req).then((res) => {
       if (res && res.ok && res.type === 'basic') { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
       return res;
     }).catch(() => caches.match(req).then((hit) => hit || caches.match(req, { ignoreSearch: true })).then((hit) => {
