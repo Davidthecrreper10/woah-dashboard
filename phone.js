@@ -88,7 +88,7 @@
 
   // ---------- bottom tab bar ----------
   function tabs(me) {
-    if (document.getElementById('mTabs') || IS_POS) return;
+    if (document.getElementById('mTabs')) return;
     const ok = PAGES.filter(p => RK[me.role] >= RK[p.need]);
     if (ok.length < 2) return;
     const main = ok.filter(p => ['index.html', 'handlers.html', 'partners.html', 'sell.html'].includes(p.file));
@@ -132,7 +132,7 @@
       const extras = [...document.querySelectorAll('header button')].filter(x => !['refresh', 'wGear'].includes(x.id) && x.offsetParent === null);
       b.innerHTML =
         whoHTML(me) + photoHTML(me) +
-        (IS_POS && typeof setPractice === 'function' ? `<div class="m-sh">POS</div><div class="m-list"><button type="button" id="mPrac" target="_self"><span class="m-li">${ico('pos')}</span><span class="m-lt"><b>Practice mode</b><small>Try the POS without real sales</small></span>${ico('chev', 18)}</button><a href="${ME && ME.role === 'full' ? './' : 'handlers.html'}" target="_self"><span class="m-li">${ico('home')}</span><span class="m-lt"><b>Open the dashboard</b><small>Emails, partners and the rest</small></span>${ico('chev', 18)}</a></div>` : '') +
+        (IS_POS && typeof setPractice === 'function' ? `<div class="m-sh">POS</div><div class="m-list"><button type="button" id="mPrac" target="_self"><span class="m-li">${ico('pos')}</span><span class="m-lt"><b>Practice mode</b><small>Try the POS without real sales</small></span>${ico('chev', 18)}</button></div>` : '') +
         (extras.length ? `<div class="m-sh">On this page</div><div class="m-list">` + extras.map((x, i) => `<button type="button" data-x="${i}" target="_self"><span class="m-li">${ico('mega')}</span><span class="m-lt"><b>${esc(x.textContent.trim())}</b></span>${ico('chev', 18)}</button>`).join('') + `</div>` : '') +
         `<div class="m-sh">Settings</div><div class="m-list">` +
         `<button type="button" id="mLook" target="_self"><span class="m-li">${ico('paint')}</span><span class="m-lt"><b>Look &amp; theme</b><small>Light, dark, WOAH or Retro</small></span>${ico('chev', 18)}</button>` +
