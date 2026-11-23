@@ -10,6 +10,11 @@
 <base target="_blank">
 <link rel="stylesheet" href="style.css?v=11">
 <link rel="icon" href="img/icon.png?v=2">
+<link rel="manifest" href="pos.webmanifest">
+<link rel="apple-touch-icon" href="img/app/pos-apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="WOAH POS">
 <link rel="apple-touch-icon" href="img/icon.png?v=2">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&family=Public+Sans:wght@400;500;600;700&display=swap">
@@ -209,7 +214,7 @@
 </div>
 <div class="ps-ov" id="ov" onclick="if(event.target===this)closeSheet()"><div class="ps-sh" id="sheet"></div></div>
 <div class="toast" id="toast"></div>
-<script src="common.js?v=11"></script>
+<script src="common.js?v=12"></script>
 <script src="extras.js?v=3"></script>
 <script src="practice.js?v=2"></script>
 <script>
@@ -254,8 +259,9 @@
   function sheetHead(title, sub) { return `<div class="sh-h"><div class="tt"><h2>${title}</h2>${sub ? `<div class="sub">${sub}</div>` : ''}</div><button target="_self" class="sh-x" aria-label="Close" onclick="closeSheet()">✕</button></div>`; }
 
   /* ---------- page ---------- */
-  function render(d) {
+  function render(d, fromCache) {
     D = d;
+    if (!fromCache) { try { localStorage.setItem('woahPosLast', JSON.stringify(d)); } catch (e) {} const b = document.getElementById('banner'); if (b && /No internet/.test(b.textContent)) { b.className = 'banner'; b.textContent = ''; } }
     if (d.day) DAY = d.day;
     document.getElementById('updated').textContent = 'Items and prices from Dom\'s sheet · ' + when(d.at) + ' · today: ' + d.today;
     CART = CART.filter(l => !l.pre || canPre(prod(l.key))); saveCarts();
@@ -717,7 +723,15 @@
     call({ action: 'posCheck', day: DAY.name, counted, note }).then(r => { DAY = r.day; CK = {}; drawToday(); toast('Check saved'); }).catch(e => alert(e.message));
   }
 
-  start({ title: 'POS', need: 'handler', action: 'pos', onData: render });
+  const failOnline = fail;
+  fail = function (err) {
+    const net = err instanceof TypeError || /fetch|network|load failed/i.test((err && err.message) || '');
+    if (net && D) { const b = document.getElementById('banner'); if (b) { b.className = 'banner warn'; b.textContent = 'No internet: showing the last product list saved on this phone. Sales are saved here and sent by themselves when you\'re back online. Pre-orders need internet.'; } const r = document.getElementById('refresh'); if (r) r.disabled = false; return; }
+    failOnline(err);
+  };
+  start({ title: 'POS', need: 'handler', action: 'pos', onData: d => render(d) });
+  /* Opens straight away with the last product list saved on this phone (no wifi at the stand), then swaps in fresh data */
+  try { const last = JSON.parse(localStorage.getItem('woahPosLast') || 'null'); if (KEY && last && last.products && !D) render(last, true); } catch (e) {}
 </script>
 </body>
 </html>

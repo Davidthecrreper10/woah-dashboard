@@ -29,7 +29,7 @@ function gate(me) {
   ME = me;
   if (RANK[me.role] < RANK[PAGE.need]) { location.replace(me.role === 'handler' ? 'handlers.html' : './'); throw new Error('Moving you to your page…'); }
   const w = document.getElementById('who');
-  if (w) w.innerHTML = `Logged in as <b>${esc(me.name)}</b> · <a href="#" onclick="logout();return false">Log out</a>`;
+  if (w) w.innerHTML = `Logged in as <b>${esc(me.name)}</b> · <a href="#" onclick="logout();return false">Log out</a>${APP_MODE ? '' : ' · <a href="install.html" target="_self">Get the app</a>'}`;
   const nav = document.getElementById('nav');
   if (nav) {
     const pages = [['./', 'Dashboard', 'full'], ['handlers.html', 'Email handlers', 'handler'], ['partners.html', 'Partners', 'handler'], ['pipeline.html', 'Pipeline', 'handler'], ['shop.html', 'Shop', 'full'], ['sell.html', 'POS', 'handler'], ['stock.html', 'Stock', 'handler'], ['gaps.html', 'Gaps', 'full'], ['control.html', 'Control', 'full']]
@@ -129,3 +129,7 @@ function venueHTML(fn) {
     '.ven button{margin:0;padding:5px 12px;border-radius:999px;font-size:13px}.ven button.on{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}';
   (document.head || document.documentElement).appendChild(s);
 })();
+
+// The phone app (installed from the browser): keeps the pages on the phone so the app opens with bad wifi. See sw.js and install.html.
+const APP_MODE = !!((window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone);
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
