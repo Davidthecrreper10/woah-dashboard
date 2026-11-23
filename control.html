@@ -237,7 +237,25 @@
       <div class="seg" style="margin-top:10px"><button class="${!e.testMode ? 'active on' : ''}" onclick="askTest(false)">Off</button><button class="${e.testMode ? 'active break' : ''}" onclick="askTest(true)">On</button></div>
       <div class="confirm" id="cf-test"></div></div>
       <div class="card"><div class="sw-name">Possible Partners</div><div class="sw-note">The partners sheet has its own switches (updates from emails, PIC reassigning, moving rows).</div><div style="margin-top:10px"><a href="partners.html" target="_self">Open the Partners controls →</a></div></div>`;
-    document.getElementById('switchBox').innerHTML = h + `</div><div class="c-msg" id="swMsg"></div>`;
+    document.getElementById('switchBox').innerHTML = h + `</div>` + posSwitches() + `<div class="c-msg" id="swMsg"></div>`;
+  }
+  // ---------- POS (sales stand) switches: saved in settings.pos, read by the POS page ----------
+  const POS_PAYS = [['cash', 'Cash'], ['qris', 'QRIS'], ['xendit', 'Card (Xendit)'], ['transfer', 'Transfer'], ['later', 'Not paid yet'], ['foc', 'FOC (free)']];
+  function posCfg() { return Object.assign({ recount: true, preorders: true, cash: true, qris: true, xendit: true, transfer: true, later: true, foc: true }, (D.settings || {}).pos || {}); }
+  function setPos(k, v) { save({ action: 'controlSet', settings: { pos: { [k]: v } } }, 'swMsg', 'Saved. The POS uses it the next time the page loads or refreshes.'); }
+  function posSwitches() {
+    const p = posCfg();
+    const sw = (k, name, onTxt, offTxt) => `<div class="card feat">
+      <div class="sw-top"><div class="sw-name">${name}</div><span class="pill ${p[k] ? 'on' : 'break'}">${p[k] ? 'ON' : 'OFF'}</span></div>
+      <div class="sw-note">${p[k] ? onTxt : '<b>Off:</b> ' + offTxt}</div>
+      <div class="seg"><button class="${p[k] ? 'active on' : ''}" onclick="setPos('${k}',true)">On</button><button class="${!p[k] ? 'active break' : ''}" onclick="setPos('${k}',false)">Off</button></div></div>`;
+    return `<div class="gh" style="font-size:16px;margin:22px 0 4px">POS (sales stand)</div><div class="sub" style="margin-bottom:10px">How the POS page behaves at the stand. Changes show on sellers' phones the next time the POS loads or refreshes.</div>
+      <div class="c-grid">` +
+      sw('recount', 'Stock is being recounted', 'Sellers can still sell items whose stock says 0 (with a note that the stock is being recounted).', 'The stock numbers are trusted: sold-out sizes can\'t be sold, only pre-ordered (if pre-orders are on).') +
+      sw('preorders', 'Pre-orders at the stand', 'Sellers can take pre-orders for PRE-ORDER items on the POS. The online shop is not affected.', 'No pre-orders on the POS. Items can only be sold from stock. The online shop is not affected.') +
+      `<div class="card"><div class="sw-name">Payment methods</div><div class="sw-note">Tap to switch a method on or off at checkout. Off methods are hidden on the POS and in Collect.</div>
+        <div class="chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">${POS_PAYS.map(([k, l]) => `<button class="${p[k] ? 'primary' : ''}" aria-pressed="${p[k]}" onclick="setPos('${k}',${!p[k]})">${p[k] ? '✓ ' : ''}${l}</button>`).join('')}</div></div>
+      </div>`;
   }
   function askBreak(k, v) {
     if ((D.control || {})[k] === v || (v === 'ON' && (D.control || {})[k] !== 'BREAK')) return;
