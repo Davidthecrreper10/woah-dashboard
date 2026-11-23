@@ -154,8 +154,19 @@
   }
 
   // start once we know who is logged in (common.js calls woahExtras(me))
+  // Reassign / Pass on opens a people picker under the email card: bring it into view on phones
+  function wrapPick() {
+    if (typeof window.pickPeople !== 'function' || window.pickPeople.mWrapped) return;
+    const o = window.pickPeople;
+    window.pickPeople = function (id) {
+      const r = o.apply(this, arguments);
+      if (html.classList.contains('m')) setTimeout(() => { const b = document.querySelector('#hc-' + id + ' .pick-head') || document.getElementById('hc-' + id); if (b) b.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+      return r;
+    };
+    window.pickPeople.mWrapped = true;
+  }
   function boot(me) {
-    ME = me;
+    ME = me; wrapPick();
     top(); tabs(me);
     const m = document.getElementById('mMe'); if (m) m.textContent = initial(me.name);
     countdown(); setTimeout(countdown, 1500); setTimeout(countdown, 4000);

@@ -59,7 +59,7 @@ html.m .m-sheet { display: block; position: fixed; inset: 0; z-index: 1000; poin
   padding: 6px 14px calc(18px + var(--m-safe-b)); background: var(--bg); border-radius: 22px 22px 0 0;
   transform: translateY(104%); transition: transform .32s cubic-bezier(.2,.8,.2,1); box-shadow: 0 -10px 40px rgba(0,0,0,.18);
 }
-.m-sheet.open { pointer-events: auto; }
+html.m .m-sheet.open { pointer-events: auto; }
 .m-sheet.open .m-shade { opacity: 1; }
 .m-sheet.open .m-panel { transform: none; }
 .m-grab { width: 100%; height: 22px; display: grid; place-items: center; cursor: pointer; }
@@ -103,6 +103,7 @@ html.m .w-cd .sep { display: none; }
 html.m .w-cd > span:nth-child(3) { display: none; }
 html.m .w-cd .late { margin-left: auto; flex: none; padding: 2px 9px; border-radius: 999px; background: var(--bad-soft); text-decoration: none; font-size: 12px; }
 html.m .w-cd.open { flex-wrap: wrap; white-space: normal; }
+html.m .w-cd.open .late { order: 2; }
 html.m .w-cd.open > span:nth-child(3) { display: block; flex-basis: 100%; order: 3; padding-top: 6px; border-top: 1px dashed var(--line); }
 
 /* ---------- every page: easier to tap and read ---------- */
@@ -182,4 +183,8 @@ html.pg-control.m .c-nav a { flex: none; white-space: nowrap; padding: 8px 13px;
 html.pg-control.m [id] { scroll-margin-top: calc(var(--m-top) + var(--m-safe-t) + 60px); }
 
 /* login screen: no top bar (the login card already says where you are) */
-html.m body:has(#login[style*="block"]) .m-top { display: none !important; }
+html.m body:has(#login[style*="block"]) .m-top, body:has(#login[style*="block"]) .w-chat-btn, body:has(#login[style*="block"]) .w-chat { display: none !important; }
+
+/* things that open further down the page scroll into view below the top bar */
+html.m .pick-head, html.m .picking { scroll-margin-top: calc(var(--m-top) + var(--m-safe-t) + 12px); }
+html.m .w-cd.open > span:first-child { flex: 1 1 0; white-space: normal; }

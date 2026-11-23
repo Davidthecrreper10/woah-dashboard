@@ -1,11 +1,11 @@
 // WOAH app: keeps a copy of the pages, scripts and pictures on the phone, so the app opens (and the POS can sell)
 // with bad or no wifi. Always tries the internet first, so changes to the site show up straight away when online.
 // Chris's data (script.google.com) is never stored here: the pages handle that themselves.
-const CACHE = 'woah-app-v2';
+const CACHE = 'woah-app-v3';
 const SHELL = [
   './', 'index.html', 'handlers.html', 'email.html', 'partners.html', 'profile.html', 'pipeline.html', 'shop.html',
   'sell.html', 'stock.html', 'gaps.html', 'control.html', 'install.html',
-  'style.css?v=11', 'woah.css?v=6', 'common.js?v=12', 'extras.js?v=3', 'phone.js?v=1', 'phone.css?v=1', 'handle.js?v=13', 'mass.js?v=2', 'outreach.js?v=4',
+  'style.css?v=11', 'woah.css?v=6', 'common.js?v=12', 'extras.js?v=3', 'phone.js?v=2', 'phone.css?v=2', 'handle.js?v=13', 'mass.js?v=2', 'outreach.js?v=4',
   'practice.js?v=2', 'reach.js?v=2', 'theme.js?v=8',
   'img/icon.png?v=2', 'img/chris.webp', 'img/logo-light.webp', 'img/logo-dark.webp', 'img/xendit-qr.png',
   'app.webmanifest', 'pos.webmanifest', 'img/app/icon-192.png', 'img/app/pos-icon-192.png'
