@@ -23,7 +23,11 @@
   .app b { font-size:18px } .app .sub { margin-top:2px }
   .steps { margin:8px 0 0; padding-left:22px; line-height:1.6 } .steps li { margin-bottom:6px }
   .os { display:none } .os.on { display:block }
-  .tabs2 { display:flex; gap:6px; margin:4px 0 10px } .tabs2 button { margin:0 }
+  .tabs2 { display:flex; gap:6px; margin:4px 0 10px; flex-wrap:wrap } .tabs2 button { margin:0 }
+  .dl { margin:6px 0 14px; padding:14px; border-radius:14px; background:var(--card-2, var(--bg)); border:1px solid var(--line) }
+  .dl .btn { display:inline-block; text-decoration:none; padding:12px 18px; border-radius:12px; font-weight:700; background:var(--brand); color:var(--on-brand,#fff) !important; margin-bottom:6px }
+  details.alt { margin-top:12px } details.alt summary { cursor:pointer; font-weight:600; color:var(--muted) }
+  code { font-family:'JetBrains Mono',monospace; font-size:12px; background:var(--bg); padding:2px 6px; border-radius:6px; user-select:all }
   .big { font-size:16px; padding:10px 18px }
   .ok { color:var(--ok, #0f7f7a); font-weight:600 }
 </style>
@@ -77,25 +81,47 @@
     </div>
 
     <div class="os" id="os-mac">
-      <b>On a Mac (Chrome, Edge or Safari)</b>
+      <div class="dl">
+        <a class="btn primary big" href="https://github.com/Davidthecrreper10/woah-desktop/releases/latest/download/WOAH_1.0.0_universal.dmg">Download WOAH for Mac (.dmg)</a>
+        <div class="sub">About 4 MB. macOS 10.15 or newer, Intel and Apple chips.</div>
+      </div>
+      <b>First time opening it</b>
+      <ol class="steps">
+        <li>Open the downloaded <b>WOAH .dmg</b> and drag <b>WOAH</b> into <b>Applications</b>.</li>
+        <li>Open WOAH from Applications. The Mac stops it the first time (WOAH isn't from the App Store). Click <b>Done</b>.</li>
+        <li>Open <b>System Settings</b> → <b>Privacy &amp; Security</b>, scroll down to <b>Security</b>, and click <b>Open Anyway</b> next to WOAH. Enter your Mac password, then <b>Open</b>.</li>
+        <li>That's it: from now on it opens normally. Log in once with the WOAH password and <b>your own</b> email.</li>
+      </ol>
+      <div class="sub">If the Mac says WOAH "is damaged": open Terminal, paste <code>xattr -cr /Applications/WOAH.app</code>, press Return, then open WOAH again.</div>
+      <details class="alt"><summary>Or install it straight from your browser (no download)</summary>
       <ol class="steps">
         <li>Go to the page you want as an app: the <a href="./">Dashboard</a> for <b>WOAH</b>, or the <a href="sell.html">POS</a> for <b>WOAH POS</b>.</li>
         <li><b>Chrome or Edge:</b> click the small <b>install icon</b> at the right end of the address bar (a screen with an arrow), or the <b>⋮</b> menu → <b>Cast, save and share</b> → <b>Install page as app</b>. Then <b>Install</b>.</li>
         <li><b>Safari:</b> in the menu bar choose <b>File</b> → <b>Add to Dock</b>, then <b>Add</b>.</li>
         <li>WOAH opens in its own window and gets an icon in your <b>Dock</b> and <b>Launchpad</b>. Log in once with the WOAH password and <b>your own</b> email.</li>
-      </ol>
-      <div class="sub">To keep it in the Dock: right-click the WOAH icon → Options → Keep in Dock.</div>
+      </ol></details>
+      <div class="sub" style="margin-top:8px">To keep it in the Dock: right-click the WOAH icon → Options → Keep in Dock.</div>
     </div>
 
     <div class="os" id="os-win">
-      <b>On Windows (Edge or Chrome)</b>
+      <div class="dl">
+        <a class="btn primary big" href="https://github.com/Davidthecrreper10/woah-desktop/releases/latest/download/WOAH_1.0.0_x64-setup.exe">Download WOAH for Windows (.exe)</a>
+        <div class="sub">About 1 MB. Windows 10 and 11. No admin password needed.</div>
+      </div>
+      <b>First time opening it</b>
+      <ol class="steps">
+        <li>Open the downloaded <b>WOAH setup .exe</b>.</li>
+        <li>If you see <b>"Windows protected your PC"</b>, click <b>More info</b> → <b>Run anyway</b> (WOAH isn't from the Microsoft Store).</li>
+        <li>Click through the installer. WOAH opens and gets a <b>Start menu</b> icon. Log in once with the WOAH password and <b>your own</b> email.</li>
+      </ol>
+      <details class="alt"><summary>Or install it straight from your browser (no download)</summary>
       <ol class="steps">
         <li>Go to the page you want as an app: the <a href="./">Dashboard</a> for <b>WOAH</b>, or the <a href="sell.html">POS</a> for <b>WOAH POS</b>.</li>
         <li><b>Edge:</b> click the <b>…</b> menu (top right) → <b>Apps</b> → <b>Install this site as an app</b>, then <b>Install</b>.</li>
         <li><b>Chrome:</b> click the small <b>install icon</b> at the right end of the address bar, or the <b>⋮</b> menu → <b>Cast, save and share</b> → <b>Install page as app</b>.</li>
         <li>WOAH opens in its own window and shows up in the <b>Start menu</b>. Log in once with the WOAH password and <b>your own</b> email.</li>
-      </ol>
-      <div class="sub">To pin it: right-click the WOAH icon in the taskbar → Pin to taskbar.</div>
+      </ol></details>
+      <div class="sub" style="margin-top:8px">To pin it: right-click the WOAH icon in the taskbar → Pin to taskbar.</div>
     </div>
   </div>
 
