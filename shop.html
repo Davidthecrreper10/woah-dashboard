@@ -26,6 +26,13 @@
   .sp-links a { font-size: 13px; padding: 7px 12px; border-radius: 10px; border: 1px solid var(--line); text-decoration: none; background: var(--card); }
   .sp-links a.main { background: var(--brand); color: var(--on-brand, #fff); border-color: var(--brand); font-weight: 600; }
   .sp-seg { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+  .sp-find { position: relative; display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+  .sp-box { position: relative; flex: 1; max-width: 460px; display: block; }
+  .sp-find input { width: 100%; margin: 0; padding: 10px 38px 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; box-sizing: border-box; }
+  .sp-find input:focus { outline: 2px solid color-mix(in srgb, var(--brand) 40%, transparent); border-color: var(--brand); }
+  .sp-find button { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); z-index: 1; margin: 0; padding: 4px 8px; min-height: 0 !important; border: 0; background: none; color: var(--muted); }
+  .sp-find input::-webkit-search-cancel-button { display: none; }
+  .sp-count { font-size: 13px; color: var(--muted); white-space: nowrap; }
   .sp-seg button { font-size: 13px; padding: 6px 12px; border-radius: 999px; background: var(--card); color: var(--ink); border: 1px solid var(--line); }
   .sp-seg button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
   .sp-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); margin-top: 14px; }
@@ -178,6 +185,7 @@
   <div id="productsView">
   <div class="card" id="topCard"></div>
   <div id="look"></div>
+  <div class="sp-find"><span class="sp-box"><input id="spSearch" type="search" placeholder="Search products, colours or sizes…" autocomplete="off" oninput="setSearch(this.value)"><button type="button" id="spClear" target="_self" style="display:none" onclick="const i=document.getElementById('spSearch');i.value='';setSearch('');i.focus()" aria-label="Clear search">✕</button></span><span class="sp-count" id="spCount"></span></div>
   <div class="sp-seg" id="seg"></div>
   <div class="sp-grid" id="grid"></div>
   <div id="gone"></div>
@@ -197,7 +205,7 @@
 <script>
   const SHOP_URL = 'https://shopwoahfestival.org/';
   const SEC = { current: 'Current merch', preorder: 'Pre-order', old: 'Vintage merch', hidden: 'Not in shop' };
-  let D = null, FILTER = 'all', DRAFT = {}, BUSY = {}, MSG = {}, BR = 'all';
+  let D = null, FILTER = 'all', DRAFT = {}, BUSY = {}, MSG = {}, BR = 'all', SQ = '';
   try { FILTER = localStorage.getItem('woahShopFilter') || 'all'; BR = localStorage.getItem('woahShopBrand') || 'all'; } catch (e) {}
   // same rule as the shop website: SOAP in the name = SOAP merch, everything else = WOAH merch
   function brandOf(name) { return /soap/i.test(name || '') ? 'soap' : 'woah'; }
@@ -233,10 +241,14 @@
       </div></div>`;
     const tabs = [['all', 'All', ps.length], ['current', 'Current merch', n('current')], ['preorder', 'Pre-order', n('preorder')], ['old', 'Vintage merch', n('old')], ['hidden', 'Not in shop', n('hidden')], ['new', 'New', nNew]];
     document.getElementById('seg').innerHTML = tabs.map(([k, l, c]) => `<button target="_self" class="${FILTER === k ? 'on' : ''}" onclick="setFilter('${k}')">${l} · ${c}</button>`).join('');
-    const list = ps.filter(p => FILTER === 'all' || (FILTER === 'new' ? p.isNew : p.section === FILTER));
+    // search box: every word typed must appear in the name, a colour, a size, the group or Dom's row names
+    const words = SQ.toLowerCase().split(/\s+/).filter(Boolean);
+    const hay = p => [p.name, p.group || '', ...(p.colours || []), ...(p.fits || []), ...(p.sizes || []), ...(p.variants || []).map(v => v.item || '')].join(' ').toLowerCase();
+    const list = ps.filter(p => FILTER === 'all' || (FILTER === 'new' ? p.isNew : p.section === FILTER)).filter(p => !words.length || words.every(w => hay(p).includes(w)));
     const order = { current: 0, preorder: 1, hidden: 2 };
     list.sort((a, b) => (b.isNew - a.isNew) || (order[a.section] - order[b.section]) || a.name.localeCompare(b.name));
-    document.getElementById('grid').innerHTML = list.length ? list.map(cardHTML).join('') : '<div class="card" style="grid-column:1/-1">Nothing here.</div>';
+    document.getElementById('grid').innerHTML = list.length ? list.map(cardHTML).join('') : `<div class="card" style="grid-column:1/-1">${words.length ? 'No products match <b>' + esc(SQ) + '</b>' + (FILTER !== 'all' ? ' in this tab. Try <a href="#" target="_self" onclick="setFilter(\'all\');return false">All</a>.' : '.') : 'Nothing here.'}</div>`;
+    const sc = document.getElementById('spCount'); if (sc) sc.textContent = words.length ? list.length + ' found' : '';
     const g = D.gone || [];
     const lk = D.lookalike || [];   // names Chris may have read as two products when they are one (backend shopLookalikes_)
     document.getElementById('look').innerHTML = lk.length ? `<div class="card sp-look"><b>Check ${lk.length === 1 ? 'these names' : 'these ' + lk.length + ' pairs of names'} in Dom's sheet</b>
@@ -245,6 +257,7 @@
       <div class="sp-meta">If they are one product, ask Dom to write the rows as <code>Product Colour (Size)</code>, for example <i>SOAP Fleece Hoodies Army Green (L)</i>, and they join up within a few minutes. If they really are different products, you can ignore this.</div></div>` : '';
     document.getElementById('gone').innerHTML = g.length ? `<div class="card sp-gone" style="margin-top:14px"><b>No longer in Dom's sheet:</b> ${g.map(x => esc(x.key)).join(', ')}. Their photos and description are kept in the WOAH Shop sheet. If a row was only renamed, tell David so the photos can be moved over.</div>` : '';
   }
+  function setSearch(v) { SQ = v || ''; const x = document.getElementById('spClear'); if (x) x.style.display = SQ ? '' : 'none'; draw(); }
   function setFilter(k) { FILTER = k; try { localStorage.setItem('woahShopFilter', k); } catch (e) {} draw(); }
 
   function stockHTML(p) {
