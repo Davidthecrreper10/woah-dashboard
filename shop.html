@@ -164,6 +164,36 @@
   table.vs th { text-align: right; font-size: 11px; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); }
   table.vs td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
   table.vs th.l, table.vs td.l { text-align: left; }
+  /* POS sales history */
+  .hs-ctl { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+  .hs-ctl .sp-box { min-width: 200px; }
+  .hs-ctl select { padding: 9px 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; }
+  .hs-pays { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; color: var(--muted); }
+  .hs-pays span { border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; background: var(--card); }
+  .hs-pays b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  details.hs-day { margin-top: 12px; padding: 0; overflow: hidden; }
+  details.hs-day > summary { list-style: none; cursor: pointer; padding: 14px 16px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  details.hs-day > summary::-webkit-details-marker { display: none; }
+  details.hs-day > summary::before { content: '▸'; color: var(--muted); transition: transform .15s; }
+  details.hs-day[open] > summary::before { transform: rotate(90deg); }
+  .hs-day h3 { margin: 0; font-size: 16px; }
+  .hs-day .hs-meta { color: var(--muted); font-size: 13px; }
+  .hs-day .hs-tot { margin-left: auto; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .hs-tag { font-size: 11px; border-radius: 999px; padding: 2px 8px; border: 1px solid var(--line); color: var(--muted); }
+  .hs-tag.ok { border-color: #2e9d6a; color: #2e9d6a; }
+  .hs-list { border-top: 1px solid var(--line); }
+  .hs-s { display: grid; grid-template-columns: 70px 1fr auto; gap: 4px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .hs-s:last-child { border-bottom: 0; }
+  .hs-s .t { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; }
+  .hs-s .it div { line-height: 1.35; }
+  .hs-s .it .x { text-decoration: line-through; opacity: .55; }
+  .hs-s .it .d { font-size: 12px; color: var(--muted); }
+  .hs-s .who { grid-column: 2 / 4; font-size: 12px; color: var(--muted); }
+  .hs-s .amt { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .hs-s.cancel .amt { text-decoration: line-through; opacity: .55; }
+  .hs-s .don { color: var(--brand); font-weight: 700; }
+  html.m .hs-s { grid-template-columns: 52px 1fr auto; padding: 10px 12px; }
+  html.m details.hs-day > summary { padding: 12px; }
 </style>
 </head>
 <body>
@@ -186,6 +216,7 @@
   <div id="accountsView" style="display:none"></div>
   <div id="preView" style="display:none"></div>
   <div id="visitsView" style="display:none"></div>
+  <div id="histView" style="display:none"></div>
   <div id="productsView">
   <div class="card" id="topCard"></div>
   <div id="look"></div>
@@ -214,7 +245,7 @@
   // same rule as the shop website: SOAP in the name = SOAP merch, everything else = WOAH merch
   function brandOf(name) { return /soap/i.test(name || '') ? 'soap' : 'woah'; }
   function inBrand(name) { return BR === 'all' || brandOf(name) === BR; }
-  function setBrand(b) { BR = b; try { localStorage.setItem('woahShopBrand', b); } catch (e) {} drawTabs(); draw(); if (OD) drawOrders(); if (OD && SD) drawPre(); }
+  function setBrand(b) { BR = b; try { localStorage.setItem('woahShopBrand', b); } catch (e) {} drawTabs(); draw(); if (OD) drawOrders(); if (OD && SD) drawPre(); if (HD) drawHist(); }
 
   function rp(n) { return 'Rp ' + Number(n || 0).toLocaleString('id-ID'); }
   function priceText(p) { return !p.priceFrom ? 'No price yet' : p.priceFrom === p.priceTo ? rp(p.priceFrom) : rp(p.priceFrom) + ' – ' + rp(p.priceTo); }
@@ -415,15 +446,16 @@
   function drawTabs() {
     const open = OD ? OD.orders.filter(o => o.items.some(i => inBrand(i.product)) && o.status !== 'Collected' && o.status !== 'Cancelled').length : 0;
     const preN = OD ? preItems().reduce((a, x) => a + x.qty, 0) : 0;
-    document.getElementById('tabs').innerHTML = `<button target="_self" class="${TAB === 'products' ? 'on' : ''}" onclick="setTab('products')">Products</button><button target="_self" class="${TAB === 'orders' ? 'on' : ''}" onclick="setTab('orders')">Orders${open ? `<span class="n">${open}</span>` : ''}</button><button target="_self" class="${TAB === 'pre' ? 'on' : ''}" onclick="setTab('pre')">Pre-orders${preN ? `<span class="n">${preN}</span>` : ''}</button><button target="_self" class="${TAB === 'accounts' ? 'on' : ''}" onclick="setTab('accounts')">Accounts</button><button target="_self" class="${TAB === 'visits' ? 'on' : ''}" onclick="setTab('visits')">Visitors</button><div class="sp-brand">${[['all', 'All'], ['woah', 'WOAH'], ['soap', 'SOAP']].map(([k, l]) => `<button target="_self" class="${BR === k ? 'on' : ''}" onclick="setBrand('${k}')">${l}</button>`).join('')}</div>`;
+    document.getElementById('tabs').innerHTML = `<button target="_self" class="${TAB === 'products' ? 'on' : ''}" onclick="setTab('products')">Products</button><button target="_self" class="${TAB === 'orders' ? 'on' : ''}" onclick="setTab('orders')">Orders${open ? `<span class="n">${open}</span>` : ''}</button><button target="_self" class="${TAB === 'pre' ? 'on' : ''}" onclick="setTab('pre')">Pre-orders${preN ? `<span class="n">${preN}</span>` : ''}</button><button target="_self" class="${TAB === 'accounts' ? 'on' : ''}" onclick="setTab('accounts')">Accounts</button><button target="_self" class="${TAB === 'hist' ? 'on' : ''}" onclick="setTab('hist')">POS sales</button><button target="_self" class="${TAB === 'visits' ? 'on' : ''}" onclick="setTab('visits')">Visitors</button><div class="sp-brand">${[['all', 'All'], ['woah', 'WOAH'], ['soap', 'SOAP']].map(([k, l]) => `<button target="_self" class="${BR === k ? 'on' : ''}" onclick="setBrand('${k}')">${l}</button>`).join('')}</div>`;
     document.getElementById('productsView').style.display = TAB === 'products' ? '' : 'none';
     document.getElementById('ordersView').style.display = TAB === 'orders' ? '' : 'none';
     document.getElementById('accountsView').style.display = TAB === 'accounts' ? '' : 'none';
     document.getElementById('preView').style.display = TAB === 'pre' ? '' : 'none';
     document.getElementById('visitsView').style.display = TAB === 'visits' ? '' : 'none';
+    document.getElementById('histView').style.display = TAB === 'hist' ? '' : 'none';
     const br = document.querySelector('#tabs .sp-brand'); if (br) br.style.display = TAB === 'accounts' || TAB === 'visits' ? 'none' : '';
   }
-  function setTab(t) { TAB = t; try { localStorage.setItem('woahShopTab', t); } catch (e) {} drawTabs(); if (t === 'orders') loadOrders(); if (t === 'accounts') loadAccounts(); if (t === 'pre') loadPre(); if (t === 'visits') loadVisits(); }
+  function setTab(t) { TAB = t; try { localStorage.setItem('woahShopTab', t); } catch (e) {} drawTabs(); if (t === 'orders') loadOrders(); if (t === 'accounts') loadAccounts(); if (t === 'pre') loadPre(); if (t === 'visits') loadVisits(); if (t === 'hist') loadHist(); }
   function loadOrders() {
     if (!OD) document.getElementById('ordersView').innerHTML = '<div class="card">Loading orders…</div>';
     return call({ action: 'shopOrders' }).then(d => { OD = d; drawOrders(); drawTabs(); }).catch(e => { document.getElementById('ordersView').innerHTML = `<div class="card bad">${esc(e.message)}</div>`; });
@@ -515,6 +547,78 @@
       <div class="card" style="margin-top:12px"><b>Last 7 days</b>
         <table class="vs"><tr><th class="l">Day</th><th>Visitors</th><th>Pages viewed</th></tr>
         ${last7.slice().reverse().map(d => `<tr><td class="l">${esc(vsDay(d.day, true))}</td><td>${d.visitors}</td><td>${d.views}</td></tr>`).join('')}</table></div>`;
+  }
+
+  // ---------- POS sales tab: every selling day from the Sales Tracker ----------
+  let HD = null, HQ = '', HPAY = 'all', HOPEN = {};
+  function loadHist() {
+    if (!HD) document.getElementById('histView').innerHTML = '<div class="card">Loading POS sales…</div>';
+    return call({ action: 'posHistory' }).then(d => { HD = d; drawHist(); }).catch(e => { document.getElementById('histView').innerHTML = `<div class="card bad">${esc(e.message)}</div>`; });
+  }
+  function hsDon(i) { return !i.item && (i.kind === 'Donation' || /(^|: )Donation$/.test(i.product || '')); }
+  function hsItemBrand(i) { return hsDon(i) ? 'all' : (String(i.brand || '').toLowerCase() || brandOf(i.product)); }
+  // The sales that match the search / payment / brand, each with only the matching items.
+  function hsDays() {
+    const q = HQ.trim().toLowerCase();
+    return (HD.days || []).map(d => {
+      const sales = d.sales.map(s => {
+        if (HPAY !== 'all' && s.pay !== HPAY) return null;
+        const items = s.items.filter(i => BR === 'all' || hsItemBrand(i) === BR);
+        if (!items.length) return null;
+        if (q && ![s.by, s.sale, s.note, s.pay].concat(items.map(i => i.product + ' ' + (i.reason || ''))).join(' ').toLowerCase().includes(q)) return null;
+        const live = items.filter(i => !i.cancelled);
+        return Object.assign({}, s, { items, shown: live.reduce((a, i) => a + (Number(i.amount) || 0), 0), dead: !live.length });
+      }).filter(Boolean);
+      return Object.assign({}, d, { list: sales });
+    }).filter(d => d.list.length);
+  }
+  function hsTime(s, d) { return d.old || !s.at ? '–' : new Date(s.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); }
+  function hsDate(d) { return d.at ? new Date(d.at).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : ''; }
+  function setHQ(v) { HQ = v; document.getElementById('hsClear').style.display = v ? '' : 'none'; drawHistList(); }
+  function setHPay(v) { HPAY = v; drawHistList(); }
+  function hsToggle(name, el) { HOPEN[name] = el.open; }
+  function drawHist() {
+    const pays = []; (HD.days || []).forEach(d => d.sales.forEach(s => { if (!pays.includes(s.pay)) pays.push(s.pay); }));
+    document.getElementById('histView').innerHTML = `
+      <div class="card"><div id="hsTop"></div>
+        <div class="hs-ctl"><span class="sp-box sp-find" style="margin:0"><input id="hsSearch" type="search" placeholder="Search item, seller or receipt…" autocomplete="off" value="${esc(HQ)}" oninput="setHQ(this.value)"><button type="button" id="hsClear" target="_self" style="${HQ ? '' : 'display:none'}" onclick="const i=document.getElementById('hsSearch');i.value='';setHQ('');i.focus()" aria-label="Clear search">✕</button></span>
+          <select onchange="setHPay(this.value)" aria-label="Payment method"><option value="all">All payments</option>${pays.map(p => `<option value="${esc(p)}" ${HPAY === p ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>
+          <span class="sp-links"><button target="_self" onclick="hsCsv()">Download CSV</button><button target="_self" onclick="loadHist()">Refresh</button><a href="sell.html">Open POS ↗</a></span></div>
+        <p class="sub" style="margin:10px 0 0">Every selling day in the Sales Tracker, newest first. Days before the POS (typed in by hand) have no times. Cancelled sales are crossed out and don't count.</p>
+      </div><div id="hsList"></div>`;
+    drawHistList();
+  }
+  function drawHistList() {
+    const days = hsDays(), all = days.reduce((a, d) => a.concat(d.list), []), live = all.filter(s => !s.dead);
+    const paid = live.filter(s => s.pay !== 'NOT YET PAID').reduce((a, s) => a + s.shown, 0), owed = live.filter(s => s.pay === 'NOT YET PAID').reduce((a, s) => a + s.shown, 0);
+    const items = live.reduce((a, s) => a + s.items.filter(i => !i.cancelled && !hsDon(i)).reduce((b, i) => b + (Number(i.qty) || 0), 0), 0);
+    const don = live.reduce((a, s) => a + s.items.filter(i => !i.cancelled && hsDon(i)).reduce((b, i) => b + (Number(i.amount) || 0), 0), 0);
+    const byPay = {}; live.forEach(s => { const m = byPay[s.pay] = byPay[s.pay] || { n: 0, amount: 0 }; m.n++; m.amount += s.shown; });
+    document.getElementById('hsTop').innerHTML = `<div class="sp-top"><div class="sp-stats">
+        <div class="sp-stat" style="border-color:var(--brand)"><b>${rp(paid)}</b>Taken</div>
+        <div class="sp-stat"><b>${live.length}</b>Sales</div>
+        <div class="sp-stat"><b>${items}</b>Items</div>
+        <div class="sp-stat"><b>${days.length}</b>Selling day${days.length === 1 ? '' : 's'}</div>
+        ${don ? `<div class="sp-stat"><b>${rp(don)}</b>Donations</div>` : ''}${owed ? `<div class="sp-stat"><b>${rp(owed)}</b>Not paid yet</div>` : ''}</div></div>
+      ${Object.keys(byPay).length ? `<div class="hs-pays">${Object.keys(byPay).map(k => `<span>${esc(k)} · ${byPay[k].n} · <b>${rp(byPay[k].amount)}</b></span>`).join('')}</div>` : ''}`;
+    const first = days[0] && days[0].name, filtering = HQ.trim() || HPAY !== 'all';
+    document.getElementById('hsList').innerHTML = days.length ? days.map(d => {
+      const lv = d.list.filter(s => !s.dead), tot = lv.filter(s => s.pay !== 'NOT YET PAID').reduce((a, s) => a + s.shown, 0);
+      const open = d.name in HOPEN ? HOPEN[d.name] : (filtering || d.name === first);
+      const checked = d.check && d.check.at ? `<span class="hs-tag ok" title="${esc(d.check.note || '')}">Checked${d.check.by ? ' by ' + esc(d.check.by) : ''}</span>` : (d.old ? '<span class="hs-tag">Before the POS</span>' : '<span class="hs-tag">Not checked</span>');
+      return `<details class="card hs-day" ${open ? 'open' : ''} ontoggle="hsToggle(${esc(JSON.stringify(d.name))}, this)"><summary><h3>${esc(d.name)}</h3><span class="hs-meta">${esc(hsDate(d))} · ${lv.length} sale${lv.length === 1 ? '' : 's'}</span>${checked}<span class="hs-tot">${rp(tot)}</span></summary>
+        <div class="hs-list">${d.list.map(s => `<div class="hs-s ${s.dead ? 'cancel' : ''}"><div class="t">${esc(hsTime(s, d))}</div>
+          <div class="it">${s.items.map(i => `<div class="${i.cancelled ? 'x' : ''}">${hsDon(i) ? `<span class="don">♥ Donation</span>` : `${Number(i.qty) > 1 ? i.qty + ' × ' : ''}${esc(i.product)}`}${i.discount ? ` <span class="d">(−${rp(i.discount)}${i.reason ? ': ' + esc(i.reason) : ''})</span>` : ''}${s.items.length > 1 ? ` <span class="d">${rp(i.amount)}</span>` : ''}</div>`).join('')}</div>
+          <div class="amt">${rp(s.dead ? s.items.reduce((a, i) => a + (Number(i.amount) || 0), 0) : s.shown)}</div>
+          <div class="who">${esc(s.pay)}${s.by ? ' · ' + esc(s.by) : ''}${s.kind && s.kind !== 'Sale' ? ' · ' + esc(s.kind) : ''}${s.dead ? ' · Cancelled' : ''}${s.note ? ' · ' + esc(s.note) : ''}</div></div>`).join('')}</div></details>`;
+    }).join('') : `<div class="card" style="margin-top:12px;text-align:center;color:var(--muted)">${(HD.days || []).length ? 'No sales match.' : 'No POS sales yet.'}</div>`;
+  }
+  function hsCsv() {
+    const q = v => { const t = String(v == null ? '' : v); return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+    const rows = [['Day', 'Date', 'Time', 'Receipt', 'Kind', 'Item', 'Qty', 'Amount', 'Discount', 'Discount reason', 'Payment', 'Sold by', 'Status', 'Note']];
+    hsDays().forEach(d => d.list.forEach(s => s.items.forEach(i => rows.push([d.name, d.at ? new Date(d.at).toISOString().slice(0, 10) : '', hsTime(s, d) === '–' ? '' : hsTime(s, d), d.old ? '' : s.sale, hsDon(i) ? 'Donation' : (i.kind || 'Sale'), i.product, i.qty, i.amount, i.discount || '', i.reason || '', s.pay, s.by, i.cancelled ? 'Cancelled' : 'OK', s.note || '']))));
+    const blob = new Blob(['﻿' + rows.map(r => r.map(q).join(',')).join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'woah-pos-sales-' + new Date().toISOString().slice(0, 10) + '.csv'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }
 
   // ---------- Accounts tab ----------
@@ -659,7 +763,7 @@
     call({ action: 'shopOrderSet', order: id, op: 'note', note: t }).then(d => { OBUSY[id] = 0; OD = d; drawOrders(); }).catch(e => { OBUSY[id] = 0; drawOrders(); alert(e.message); });
   }
 
-  start({ title: 'Shop', need: 'full', action: 'shopAdmin', onData: d => { render(d); drawTabs(); if (TAB === 'orders') loadOrders(); if (TAB === 'accounts') loadAccounts(); if (TAB === 'pre') loadPre(); if (TAB === 'visits') loadVisits(); } });
+  start({ title: 'Shop', need: 'full', action: 'shopAdmin', onData: d => { render(d); drawTabs(); if (TAB === 'orders') loadOrders(); if (TAB === 'accounts') loadAccounts(); if (TAB === 'pre') loadPre(); if (TAB === 'visits') loadVisits(); if (TAB === 'hist') loadHist(); } });
 </script>
 </body>
 </html>
