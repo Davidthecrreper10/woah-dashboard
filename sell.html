@@ -148,6 +148,10 @@
   .change { font-size: 15px; margin-top: 8px; } .change b { font-family: 'JetBrains Mono', monospace; font-size: 24px; display: block; }
   .change.bad b { color: var(--bad); }
   .quick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; } .quick button { font-size: 13px; padding: 6px 10px; }
+  .paidline { padding: 10px 12px; border-radius: 12px; background: var(--ok-soft); color: var(--ok); font-weight: 600; font-size: 14px; }
+  .keepch { width: 100%; margin-top: 8px; padding: 10px 12px; border-radius: 12px; border: 1px dashed var(--ok); background: var(--ok-soft); color: var(--ok); font-weight: 600; font-size: 14px; }
+  .tot small { display: block; font-size: 11px; color: var(--muted); font-weight: 500; }
+  .dons td, .dons th { text-align: left; } .dons tr.tot td { border-top: 2px solid var(--line); }
   .photo { display: flex; gap: 12px; align-items: flex-start; margin-top: 14px; padding: 12px 14px; border-radius: 12px; border: 2px dashed var(--warn); background: var(--warn-soft); text-align: left; font-size: 15px; font-weight: 600; cursor: pointer; }
   .photo.ok { border-style: solid; border-color: var(--ok); background: var(--ok-soft); }
   .photo input { width: 24px; height: 24px; flex: none; margin: 0; }
@@ -299,7 +303,7 @@
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && SHEET) closeSheet(); });
 
   /* ---------- cart + checkout ---------- */
-  function newPay() { return { method: '', got: '', photo: false, owes: '', reason: '', helper: ls.get('woahPosHelper', ''), note: '', buyer: { name: '', phone: '', cemail: '', role: 'Student' }, collect: '', err: '' }; }
+  function newPay() { return { don: 0, donOther: false, kept: false, method: '', got: '', photo: false, owes: '', reason: '', helper: ls.get('woahPosHelper', ''), note: '', buyer: { name: '', phone: '', cemail: '', role: 'Student' }, collect: '', err: '' }; }
   function openCart() { PAY = PAY || newPay(); SHEET = 'cart'; drawCart(); openSheet(); }
   function photoBox(obj) {
     return `<label class="photo ${obj.photo ? 'ok' : ''}"><input type="checkbox" ${obj.photo ? 'checked' : ''} onchange="${obj === PAY ? 'PAY' : 'COL'}.photo=this.checked;this.parentNode.classList.toggle('ok',this.checked)">
@@ -310,7 +314,7 @@
     const amt = `<div class="amt">${rp(tot)}</div>`;
     if (m === 'cash') {
       const quick = [tot, 50000, 100000, 200000, 500000, 1000000].filter((x, i, a) => x >= tot && a.indexOf(x) === i).slice(0, 5);
-      return `<div class="ps-lbl">Cash received (optional)</div><input class="ps-in" id="got" inputmode="numeric" placeholder="${tot}" value="${esc(PAY.got)}" oninput="PAY.got=this.value;document.getElementById('chg').outerHTML=changeHTML(totalOf(CART))">
+      return `<div class="ps-lbl">Cash received (optional)</div><input class="ps-in" id="got" inputmode="numeric" placeholder="${tot}" value="${esc(PAY.got)}" oninput="PAY.got=this.value;document.getElementById('chg').outerHTML=changeHTML(grandTot())">
         <div class="quick" ${tot ? '' : 'hidden'}>${quick.map(x => `<button target="_self" onclick="PAY.got='${x}';drawCart()">${x === tot ? 'Exact' : rp(x)}</button>`).join('')}</div>${changeHTML(tot)}`;
     }
     if (m === 'qris') return `<div class="payinfo"><img src="${QRIS_IMG}" alt="WOAH QRIS code">${amt}<div class="sub">They scan with any banking / e-wallet app and type this amount.</div>${photoBox(PAY)}</div>`;
@@ -328,7 +332,22 @@
     const got = Number(String(PAY.got).replace(/\D/g, '')) || 0;
     if (!got) return '<div class="change" id="chg"></div>';
     const ch = got - tot;
-    return `<div class="change ${ch < 0 ? 'bad' : ''}" id="chg">${ch < 0 ? 'Still missing' : 'Change to give back'}<b>${rp(Math.abs(ch))}</b></div>`;
+    return `<div id="chg"><div class="change ${ch < 0 ? 'bad' : ''}">${ch < 0 ? 'Still missing' : 'Change to give back'}<b>${rp(Math.abs(ch))}</b></div>${ch > 0 ? `<button target="_self" class="keepch" onclick="keepChange()">They say keep the change: add ${rp(ch)} as a donation</button>` : ''}</div>`;
+  }
+  /* donation (optional): its own line, never sent to Dom's sheet; listed in "All donations" on Sales & check */
+  function donOf() { return PAY ? Math.max(0, Number(PAY.don) || 0) : 0; }
+  function grandTot() { return (PAY && PAY.method === 'foc' ? 0 : totalOf(CART)) + donOf(); }
+  function setDon(v) { PAY.don = v === 'other' ? PAY.don : v; PAY.donOther = v === 'other'; PAY.kept = false; PAY.err = ''; drawCart(); if (v === 'other') { const e = document.getElementById('donIn'); if (e) e.focus(); } }
+  function donInput(v) { PAY.don = Number(String(v).replace(/\D/g, '')) || 0; PAY.kept = false; keepFocus(drawCart); }
+  function keepChange() { const got = Number(String(PAY.got).replace(/\D/g, '')) || 0, ch = got - grandTot(); if (ch <= 0) return; PAY.don = donOf() + ch; PAY.kept = true; PAY.donOther = ![10000, 25000, 50000, 100000].includes(PAY.don); drawCart(); toast(rp(ch) + ' added as a donation'); }
+  function donHTML() {
+    const d = donOf(), m = PAY.method;
+    const chip = (v, l) => `<button target="_self" class="chip ${(!PAY.donOther && d === v) ? 'on' : ''}" onclick="setDon(${v})">${l}</button>`;
+    return `<div class="sh-sec"><div class="lbl">Donation (optional)</div>
+      <div class="chips">${chip(0, 'No thanks')}${[10000, 25000, 50000, 100000].map(v => chip(v, rp(v))).join('')}<button target="_self" class="chip ${PAY.donOther ? 'on' : ''}" onclick="setDon('other')">Other</button></div>
+      ${PAY.donOther ? `<input class="ps-in" id="donIn" inputmode="numeric" placeholder="Amount in Rp" value="${d || ''}" oninput="donInput(this.value)" style="margin-top:8px">` : ''}
+      ${d ? `<div class="ps-note">${PAY.kept ? 'Kept change: ' : ''}${rp(d)} donation, added to the total. It's listed in "All donations" on Sales &amp; check (not in Dom's sheet).</div>` : ''}
+      ${d && (m === 'foc' || m === 'later') ? '<div class="warnline">A donation has to be paid now: pick Cash, QRIS, Card or Transfer.</div>' : ''}</div>`;
   }
   function setPay(k) { PAY.method = k; PAY.photo = false; PAY.err = ''; drawCart(); }
   function lineQty(i, d) { const c = cartFor(), l0 = c[i], v0 = !l0.pre && !l0.custom && CFG().recount === false ? variant(l0) : null;
@@ -481,14 +500,15 @@
         <div class="ps-row2" style="margin-top:6px"><input class="ps-in" inputmode="tel" placeholder="Phone (WhatsApp)" value="${esc(PAY.buyer.phone)}" oninput="PAY.buyer.phone=this.value"><input class="ps-in" type="email" placeholder="Email (optional)" value="${esc(PAY.buyer.cemail)}" oninput="PAY.buyer.cemail=this.value"></div>
         <div class="chips" style="margin-top:8px">${['Student', 'Parent', 'Staff', 'Other'].map(r => `<button target="_self" class="chip ${PAY.buyer.role === r ? 'on' : ''}" onclick="PAY.buyer.role='${r}';drawCart()">${r}</button>`).join('')}</div>
         <div class="ps-lbl">They collect the pre-order at</div><div class="chips">${Object.keys(D.settings.collect).map(k => `<button target="_self" class="chip ${PAY.collect === k ? 'on' : ''}" onclick="PAY.collect='${k}';drawCart()">${esc(D.settings.collect[k])}</button>`).join('')}</div></div>` : ''}
+      ${donHTML()}
       <div class="sh-sec"><div class="lbl">How do they pay?${hasPre && hasNow ? ' (one payment for everything)' : ''}</div>
         ${methods.length ? '' : '<div class="warnline">Every payment method is switched off on the Control page. Ask an admin to turn one on.</div>'}<div class="pays">${methods.map(([k, l]) => `<button target="_self" class="${m === k ? 'on' : ''}" onclick="setPay('${k}')">${l}</button>`).join('')}</div>
-        ${payBox(m, m === 'foc' ? 0 : tot)}</div>
+        ${payBox(m, grandTot())}</div>
       <div class="sh-sec"><div class="lbl">Extra</div>
         <input class="ps-in" placeholder="Selling with (optional), e.g. Nila" value="${esc(PAY.helper)}" oninput="PAY.helper=this.value" style="margin-bottom:6px">
         <input class="ps-in" placeholder="Note (optional)" value="${esc(PAY.note)}" oninput="PAY.note=this.value"></div>
       <div class="badline" id="ckErr">${esc(PAY.err || '')}</div>
-      <div class="sh-f"><div class="tot">Total<b id="ckTot">${rp(m === 'foc' ? 0 : tot)}</b></div>
+      <div class="sh-f"><div class="tot">Total${donOf() ? ' <small>incl. ' + rp(donOf()) + ' donation</small>' : ''}<b id="ckTot">${rp(grandTot())}</b></div>
         <button target="_self" class="btn-main" ${BUSY ? 'disabled' : ''} onclick="finishSale()">${BUSY ? 'Saving…' : 'Finish sale'}</button></div>`;
     document.getElementById('sheet').scrollTop = sc;
   }
@@ -502,7 +522,8 @@
     }
     if (!m) return ckErr('Pick how they pay.');
     if (PHOTO.includes(m) && !PAY.photo) return ckErr('Take a photo of the payment with your phone and tick the box.');
-    if (m === 'cash' && PAY.got && (Number(String(PAY.got).replace(/\D/g, '')) || 0) < totalOf(CART)) return ckErr('The cash received is less than the total.');
+    if (donOf() && (m === 'foc' || m === 'later')) return ckErr('A donation has to be paid now: pick Cash, QRIS, Card or Transfer, or pick "No thanks".');
+    if (m === 'cash' && PAY.got && (Number(String(PAY.got).replace(/\D/g, '')) || 0) < grandTot()) return ckErr('The cash received is less than the total.');
     if (m === 'later' && hasNow && PAY.owes.trim().length < 2) return ckErr('Type who still has to pay.');
     if (m === 'foc' && PAY.reason.trim().length < 2) return ckErr('Say why it\'s free.');
     if (m !== 'foc') { const bad = CART.find(l => !l.pre && l.discount > 0 && !(l.reason || '').trim()); if (bad) return ckErr('Give a reason for each discount.'); }
@@ -518,7 +539,8 @@
     const sale = { id: PAY.sid || uid('S'), at: Date.now(), pay: PAY.method, photo: !!PAY.photo, helper: PAY.helper.trim(), note: PAY.note.trim(), owes: PAY.owes.trim(), reason: PAY.reason.trim(),
       lines: CART.map(l => l.custom ? { custom: l.custom, price: l.price, qty: l.qty } : Object.assign({ key: l.key, colour: l.colour, fit: l.fit, size: l.size, qty: l.qty }, l.pre ? { pre: true } : { discount: l.discount || 0, reason: l.reason || '' })) };
     if (hasPre) { sale.buyer = { name: b.name.trim(), phone: b.phone.trim(), cemail: b.cemail.trim(), role: b.role }; sale.collect = PAY.collect; }
-    const shown = { total: PAY.method === 'foc' ? 0 : totalOf(CART), items: CART.map(l => ({ name: (l.custom || (prod(l.key) || {}).name) + (l.pre ? ' (pre-order)' : ''), opt: optText(l), qty: l.qty, net: lineNet(l) })), by: (ME ? ME.name : '') + (sale.helper ? ' + ' + sale.helper : '') };
+    if (donOf()) { sale.donation = donOf(); if (PAY.kept) sale.keptChange = true; }
+    const shown = { total: grandTot(), items: CART.map(l => ({ name: (l.custom || (prod(l.key) || {}).name) + (l.pre ? ' (pre-order)' : ''), opt: optText(l), qty: l.qty, net: lineNet(l) })).concat(donOf() ? [{ name: 'Donation', opt: PAY.kept ? 'kept the change' : '', qty: 1, net: donOf() }] : []), by: (ME ? ME.name : '') + (sale.helper ? ' + ' + sale.helper : '') };
     ls.set('woahPosHelper', PAY.helper.trim());
     if (!hasPre) {
       QUEUE.push({ sale, shown, err: '' }); ls.set('woahPosQueue', QUEUE);
@@ -591,28 +613,28 @@
       return `<div class="oc"><div class="h"><div><b>${esc(o.order)}</b> · ${esc(o.name)}<div class="sub">${o.phone ? '+' + esc(o.phone) + ' · ' : ''}${esc(o.collect)}</div></div>
           <span class="pill ${o.status === 'Ready to collect' ? 'ok' : wait ? 'warn' : ''}">${esc(o.status)}</span></div>
         ${o.items.filter(i => i.status !== 'Cancelled').map(i => `<div class="it"><span>${i.qty} × ${esc(i.product)} <span class="sub">${esc(optText(i))}</span>${i.type === 'Pre-order' ? ' <span class="pill warn">pre-order</span>' : ''}</span><span>${rp(i.price * i.qty)}</span></div>`).join('')}
-        <div class="ft"><b>${rp(o.total)}</b><span class="pill ${paid ? 'ok' : o.paid === 'Proof sent' ? 'warn' : 'bad'}">${paid ? 'Paid' : o.paid === 'Proof sent' ? 'Screenshot sent, check it' : 'Not paid'}</span><span class="sub">${esc(o.pay)}</span>${o.proof ? `<a href="${esc(o.proof)}">Screenshot ↗</a>` : ''}</div>
+        <div class="ft"><b>${rp(o.total)}</b><span class="pill ${paid || o.paid === 'Proof sent' ? 'ok' : 'bad'}">${paid ? 'Paid' : o.paid === 'Proof sent' ? 'Paid online' : 'Not paid'}</span><span class="sub">${esc(o.pay)}</span>${o.proof ? `<a href="${esc(o.proof)}">Screenshot ↗</a>` : ''}</div>
         <div class="acts"><button target="_self" class="btn-main" onclick="openCollect('${esc(o.order)}')">${paid ? 'Hand over' : 'Take payment / hand over'}</button></div></div>`;
     }).join('') : '<div class="card">No open orders here.</div>';
   }
   let COL = null;
   function openCollect(id) {
     const o = ORD.find(x => x.order === id); if (!o) return;
-    const paid = o.paid === 'Yes', wait = o.items.some(i => i.status === 'Waiting for stock');
+    const paid = o.paid === 'Yes' || o.paid === 'Proof sent', wait = o.items.some(i => i.status === 'Waiting for stock');   /* paid online (screenshot sent) = no payment step here */
     COL = { o, take: !paid, hand: !wait, method: '', got: '', photo: false, err: '' };
     SHEET = 'collect'; drawCollectSheet(); openSheet();
   }
   function drawCollectSheet() {
-    const o = COL.o, paid = o.paid === 'Yes', tot = o.total, m = COL.method;
+    const o = COL.o, paid = o.paid === 'Yes' || o.paid === 'Proof sent', online = o.paid === 'Proof sent', tot = o.total, m = COL.method;
     let box = '';
     if (COL.take && m === 'cash') { const got = Number(String(COL.got).replace(/\D/g, '')) || 0, ch = got - tot; box = `<div class="ps-lbl">Cash received (optional)</div><input class="ps-in" id="colgot" inputmode="numeric" placeholder="${tot}" value="${esc(COL.got)}" oninput="COL.got=this.value;keepFocus(drawCollectSheet)">${got ? `<div class="change ${ch < 0 ? 'bad' : ''}">${ch < 0 ? 'Still missing' : 'Change to give back'}<b>${rp(Math.abs(ch))}</b></div>` : ''}`; }
     if (COL.take && m === 'qris') box = `<div class="payinfo"><img src="${QRIS_IMG}" alt="WOAH QRIS"><div class="amt">${rp(tot)}</div>${photoBox(COL)}</div>`;
     if (COL.take && m === 'xendit') box = `<div class="payinfo"><img src="${XENDIT_IMG}" alt="Xendit QR"><div class="amt">${rp(tot)}</div>${photoBox(COL)}</div>`;
     if (COL.take && m === 'transfer') box = `<div class="payinfo">${D.settings.bank ? `<div class="bank">${esc(D.settings.bank)}</div>` : ''}<div class="amt">${rp(tot)}</div>${photoBox(COL)}</div>`;
     const sc = document.getElementById('sheet').scrollTop;
-    document.getElementById('sheet').innerHTML = sheetHead(esc(o.order) + ' · ' + esc(o.name), esc(o.collect) + ' · ' + (paid ? 'already paid (' + esc(o.pay) + ')' : 'not paid yet'))
+    document.getElementById('sheet').innerHTML = sheetHead(esc(o.order) + ' · ' + esc(o.name), esc(o.collect) + ' · ' + (online ? 'paid online (' + esc(o.pay) + ')' : paid ? 'already paid (' + esc(o.pay) + ')' : 'not paid yet'))
       + `<div class="sh-sec" style="border-top:0;margin-top:4px;padding-top:0">${o.items.filter(i => i.status !== 'Cancelled').map(i => `<div class="cl"><div class="ln">${i.qty} × ${esc(i.product)} <div class="o">${esc(optText(i))} · ${esc(i.status)}</div></div><div class="pr">${rp(i.price * i.qty)}</div></div>`).join('')}</div>
-      ${paid ? '' : `<div class="sh-sec"><label class="tick"><input type="checkbox" ${COL.take ? 'checked' : ''} onchange="COL.take=this.checked;drawCollectSheet()"> Take payment now</label>
+      ${paid ? `<div class="sh-sec"><div class="paidline">✓ ${online ? 'Paid online (' + esc(o.pay) + '). Nothing to pay here, just hand over the items.' : 'Already paid (' + esc(o.pay) + '). Nothing to pay here.'}</div></div>` : `<div class="sh-sec"><label class="tick"><input type="checkbox" ${COL.take ? 'checked' : ''} onchange="COL.take=this.checked;drawCollectSheet()"> Take payment now</label>
         ${COL.take ? `<div class="pays" style="margin-top:10px">${[['cash', 'Cash'], ['qris', 'QRIS'], ['xendit', 'Card (Xendit)'], ['transfer', 'Transfer']].filter(x => payOn(x[0])).map(([k, l]) => `<button target="_self" class="${m === k ? 'on' : ''}" onclick="COL.method='${k}';COL.photo=false;drawCollectSheet()">${l}</button>`).join('')}</div>${box}` : ''}</div>`}
       <div class="sh-sec"><label class="tick"><input type="checkbox" ${COL.hand ? 'checked' : ''} onchange="COL.hand=this.checked;drawCollectSheet()"> Hand over the items now (Collected)</label>
       ${COL.hand && o.items.some(i => i.status === 'Waiting for stock') ? '<div class="warnline">Some items are still "Waiting for stock". Only tick this if you\'re really giving them the items.</div>' : ''}</div>
@@ -621,7 +643,7 @@
     document.getElementById('sheet').scrollTop = sc;
   }
   function doCollect(force) {
-    const paid = COL.o.paid === 'Yes', take = COL.take && !paid;
+    const paid = COL.o.paid === 'Yes' || COL.o.paid === 'Proof sent', take = COL.take && !paid;
     if (!take && !COL.hand) { COL.err = 'Tick "Take payment" or "Hand over".'; drawCollectSheet(); return; }
     if (take && !COL.method) { COL.err = 'Pick how they paid.'; drawCollectSheet(); return; }
     if (take && PHOTO.includes(COL.method) && !COL.photo) { COL.err = 'Take a photo of the payment with your phone and tick the box.'; drawCollectSheet(); return; }
@@ -659,6 +681,7 @@
       ${pend ? `<div class="ps-h">On this phone, not sent yet<span class="line"></span></div><div class="ps-list">${pend}</div>` : ''}
       <div class="ps-h">Sales <b>${day.sales.length}</b><span class="line"></span></div>
       <div class="ps-list">${day.sales.length ? day.sales.map(x => saleHTML(x, admin, day.name)).join('') : '<div class="card">No sales.</div>'}</div>
+      ${donationsHTML(day)}
       <div class="ps-h">End-of-day check<span class="line"></span></div>
       <div class="card"><div class="sub">Count the cash box and check the QRIS / Xendit / bank apps, then type what you found. Differences show in red.</div>
         <table class="ck" style="margin-top:8px"><tr><th>Method</th><th>System says</th><th>Counted</th><th>Difference</th></tr>
@@ -670,6 +693,25 @@
         <button target="_self" class="btn-main" style="width:100%;margin-top:12px" onclick="saveCheck()">Save the check</button></div>
       <div class="ps-h">Send to Dom's sheet<span class="line"></span></div>
       <div class="card" id="domBox">${domBoxHTML(day, admin)}</div>`;
+  }
+  /* All donations that day (POS checkout, kept change, donations on shop orders paid here). Dom copies them into his own donations sheet by hand. */
+  function dayDonations(day) {
+    const out = [];
+    (day.sales || []).forEach(x => (x.items || []).forEach(i => { if (!i.cancelled && !i.item && (i.kind === 'Donation' || /(^|: )Donation$/.test(i.product || ''))) out.push({ at: x.at, amount: Number(i.amount) || 0, pay: x.pay, by: x.by, sale: x.sale }); }));
+    return out.sort((a, b) => new Date(a.at) - new Date(b.at));
+  }
+  function donationsHTML(day) {
+    const d = dayDonations(day), tot = d.reduce((a, x) => a + x.amount, 0);
+    return `<div class="ps-h">All donations <b>${d.length}</b><span class="line"></span></div>
+      <div class="card">${d.length ? `<table class="ck dons"><tr><th>Time</th><th>Amount</th><th>Paid by</th><th>Sold by</th></tr>${d.map(x => `<tr><td>${esc(new Date(x.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}</td><td>${rp(x.amount)}</td><td>${esc(x.pay)}</td><td>${esc(x.by)}</td></tr>`).join('')}
+        <tr class="tot"><td>Total</td><td><b>${rp(tot)}</b></td><td colspan="2"></td></tr></table>
+        <div class="sub" style="margin-top:8px">Donations are not sent to Dom's sheet. Copy them into the donations sheet by hand.</div>
+        <button target="_self" style="margin-top:8px" onclick="copyDonations()">Copy the list</button>` : '<div class="sub">No donations this day.</div>'}</div>`;
+  }
+  function copyDonations() {
+    const d = dayDonations(DAY), day = DAY.name;
+    const txt = ['Date\tTime\tAmount\tPaid by\tSold by\tReceipt'].concat(d.map(x => [day, new Date(x.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), x.amount, x.pay, x.by, x.sale].join('\t'))).join('\n');
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast('Copied: paste it into the donations sheet')).catch(() => toast('Copy did not work on this phone'));
   }
   function drawCheckDiff() {
     const s = DAY.sum;
