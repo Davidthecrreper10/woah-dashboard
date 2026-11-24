@@ -180,6 +180,35 @@ const SIM = (() => {
     save();
     return { day: dayOut(b.day), revisitDays: revisitDays() };
   }
+  function refresh(name, why) {
+    const out = dayOut(name); if (!out || !Object.keys(out.counted).length) return;
+    const diff = diffOf(out), rv = get().revisit = get().revisit || {};
+    if (!Object.keys(diff).length) { delete rv[name]; return; }
+    const cur = rv[name]; if (cur && cur.state === 'accepted' && JSON.stringify(cur.diff) === JSON.stringify(diff)) return;
+    rv[name] = { state: 'revisit', by: me(), at: Date.now(), note: why, diff };
+  }
+  // Edit a sale after checkout: same rules as a new sale (sale() builds the items), then they replace the old ones.
+  function edit(b) {
+    const x = find(b), s = get(), admin = typeof ME !== 'undefined' && ME && ME.role === 'full';
+    if (!admin && x.by.split(' + ')[0] !== me()) throw err('Only the person who sold it (or an admin) can edit this sale.');
+    if (x.dom) throw err('This sale is already in Dom\'s sheet, so it can\'t be edited here. Fix it in Dom\'s sheet by hand.');
+    if (x.items.every(i => i.cancelled)) throw err('This sale is cancelled. Bring it back first, then edit it.');
+    const why = String(b.why || '').trim(); if (why.length < 3) throw err('Say why you\'re editing this sale.');
+    const e = b.edit || {}; if ((e.lines || []).some(l => l.pre)) throw err('Pre-orders can\'t be added in an edit. Make a new sale for them.');
+    const tmp = 'EDTMP' + Date.now();
+    sale({ sale: Object.assign({}, e, { id: tmp }) });
+    delete s.done[tmp];
+    const d = s.days[today()], i = d ? d.sales.findIndex(q => q.sale === tmp) : -1;
+    if (i < 0) throw err('Nothing left in this sale. Use Cancel sale instead.');
+    const t = d.sales.splice(i, 1)[0];
+    const was = x.items.filter(q => !q.cancelled).map(q => (q.qty > 1 ? q.qty + '× ' : '') + q.product + ' Rp ' + q.amount.toLocaleString('id-ID')).join(', ') + ' · ' + x.pay;
+    const old = (String(x.note || '').match(/Edited by .*/) || [''])[0];
+    x.items = t.items; x.pay = t.pay; x.by = String(e.seller || '').trim() || x.by;
+    x.note = [t.note, 'Edited by ' + me() + ': ' + why + ' (was: ' + was + ')', old].filter(Boolean).join(' · ');
+    refresh(b.day, 'A sale was edited after the check: recount.');
+    save();
+    return { day: dayOut(b.day), revisitDays: revisitDays() };
+  }
   function find(req) {
     const d = get().days[req.day]; if (!d) throw err('That selling day isn\'t in practice mode.');
     const x = d.sales.find(s => s.sale === req.sale); if (!x) throw err('Sale not found. Refresh the page.');
@@ -193,7 +222,8 @@ const SIM = (() => {
       if (a === 'posOrders') return wait({ orders: orders().filter(o => o.status !== 'Collected' && o.status !== 'Cancelled'), at: Date.now() });
       if (a === 'posCollect') return wait(collect(b));
       if (a === 'posDay') { const n = b.day || today(); return wait({ day: dayOut(n), days: Object.keys(get().days).reverse(), today: today(), revisitDays: revisitDays() }); }
-      if (a === 'posVoid') { const x = find(b); x.items.forEach(i => { if (i.kind === 'Sale') i.cancelled = !b.undo; }); save(); return wait({ day: dayOut(b.day) }); }
+      if (a === 'posVoid') { const x = find(b); x.items.forEach(i => { if (i.kind === 'Sale' || i.kind === 'Donation') i.cancelled = !b.undo; }); refresh(b.day, 'A sale was ' + (b.undo ? 'brought back' : 'cancelled') + ' after the check: recount.'); save(); return wait({ day: dayOut(b.day), revisitDays: revisitDays() }); }
+      if (a === 'posEdit') return wait(edit(b));
       if (a === 'posDom') { const x = find(b); x.dom = !!b.on; save(); return wait({ day: dayOut(b.day) }); }
       if (a === 'posDomSend') return wait(domSend(b));
       if (a === 'posCheck') return wait(check(b));

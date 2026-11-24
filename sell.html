@@ -114,6 +114,11 @@
   .qty.sm button { width: 30px; height: 30px; font-size: 15px; } .qty.sm span { min-width: 26px; font-size: 13px; }
   .ps-in { font: inherit; font-size: 16px; width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
   .ps-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ed-l { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin-top: 10px; }
+  .ed-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .ed-x { font-size: 13px; padding: 4px 10px; border-radius: 10px; border: 1px solid var(--line); background: none; color: var(--bad); }
+  .ed-g { display: grid; grid-template-columns: 90px 1fr; gap: 8px; margin-top: 8px; } .ed-g label { font-size: 12px; color: var(--muted); font-weight: 600; display: flex; flex-direction: column; gap: 4px; }
+  .ed-add { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; } .ed-add button { font-size: 14px; padding: 9px 12px; border-radius: 12px; border: 1px dashed var(--line); background: none; color: var(--ink); }
   .okline { font-size: 13.5px; color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); border-radius: 10px; padding: 8px 10px; margin-top: 10px; }
   .oc .it .neg { color: var(--bad); font-weight: 700; }
   .warnline { font-size: 13.5px; color: var(--warn); background: var(--warn-soft); border-radius: 10px; padding: 8px 10px; margin-top: 10px; }
@@ -224,7 +229,7 @@
 <script src="common.js?v=12"></script>
 <script src="extras.js?v=3"></script>
 <script src="phone.js?v=4"></script>
-<script src="practice.js?v=4"></script>
+<script src="practice.js?v=5"></script>
 <script>
   /* ---------- state ---------- */
   /* POS settings from the Control page (all on unless an admin switched one off) */
@@ -732,7 +737,7 @@
         <span class="pill ${x.pay === 'NOT YET PAID' ? 'bad' : x.pay === 'FOC' ? 'warn' : 'ok'}">${esc(x.pay)}</span></div>
       ${x.items.map(i => `<div class="it"><span>${i.qty} × ${esc(i.product)}${i.brand === 'SOAP' ? ' <span class="pill soap">SOAP</span>' : ''}${i.discount && x.pay !== 'FOC' ? ` <span class="sub">(−${rp(i.discount)} ${esc(i.reason)})</span>` : ''}</span><span>${rp(i.amount)}</span></div>`).join('')}
       <div class="ft"><b>${rp(x.total)}</b>${kind}${x.kind !== 'Sale' && x.sent && !cx ? '<span class="pill ok">In Dom\'s sheet</span>' : ''}${cx ? '<span class="pill bad">Cancelled</span>' : ''}${x.note ? `<span class="sub">${esc(x.note)}</span>` : ''}${x.pay === 'FOC' && x.items[0] ? `<span class="sub">${esc(x.items[0].reason)}</span>` : ''}</div>
-      ${x.kind === 'Sale' ? `<div class="acts">${(mine || admin) ? `<button target="_self" onclick="voidSale('${esc(dayName)}','${esc(x.sale)}',${cx})">${cx ? 'Undo cancel' : 'Cancel sale'}</button>` : ''}
+      ${x.kind === 'Sale' ? `<div class="acts">${(mine || admin) && !cx && !x.dom ? `<button target="_self" onclick="openEdit('${esc(dayName)}','${esc(x.sale)}')">Edit</button>` : ''}${(mine || admin) ? `<button target="_self" onclick="voidSale('${esc(dayName)}','${esc(x.sale)}',${cx})">${cx ? 'Undo cancel' : 'Cancel sale'}</button>` : ''}
         ${admin && !cx ? `<label class="pill ${x.dom ? 'ok' : ''}" style="cursor:pointer"><input type="checkbox" ${x.dom ? 'checked' : ''} onchange="domSale('${esc(dayName)}','${esc(x.sale)}',this.checked)"> In Dom's sheet</label>` : x.dom ? '<span class="pill ok">In Dom\'s sheet</span>' : ''}</div>` : ''}</div>`;
   }
   /* ---------- send the checked day to Dom's sheet (admins) ---------- */
@@ -765,9 +770,88 @@
     call({ action: 'posDomSend', day: p.day, confirm: true }).then(r => { DOMPREV = null; DAY = r.day; drawToday(); toast('Sent ' + r.sent + ' rows to Dom\'s sheet'); })
       .catch(e => { alert(e.message); DOMPREV = null; loadDay(DAY.name); });
   }
+  /* ---------- edit a sale after checkout (seller or admin; locked once in Dom's sheet) ---------- */
+  let ED = null;
+  const PAY_KEY = Object.keys(PAY_LABEL).reduce((a, k) => (a[PAY_LABEL[k]] = k, a), {});
+  function varOf(item) { for (const p of (D.products || [])) for (const v of p.variants) if (item && v.item === item) return { p, v }; return null; }
+  function openEdit(day, saleId) {
+    const x = (DAY.sales || []).find(s => s.sale === saleId); if (!x) return;
+    const live = x.items.filter(i => !i.cancelled);
+    const parts = String(x.note || '').split(' · ').filter(t => t && !/^Payment photo on /.test(t) && !/^Edited by /.test(t) && !/^\(was: /.test(t));
+    const owes = (parts.find(t => /^Owes: /.test(t)) || '').replace(/^Owes: /, '');
+    const pay = PAY_KEY[x.pay] || 'cash';
+    const lines = live.filter(i => i.kind !== 'Donation').map(i => {
+      const q = Number(i.qty) || 1, hit = varOf(i.item);
+      if (hit) return { key: hit.p.key, colour: hit.v.colour || '', fit: hit.v.fit || '', size: hit.v.size || '', qty: q, paid: String(i.amount), reason: /^FOC: /.test(i.reason || '') ? '' : (i.reason || '') };
+      return { custom: i.product, price: Math.round(((Number(i.amount) || 0) + (Number(i.discount) || 0)) / q), qty: q, paid: String(i.amount), reason: /^FOC: /.test(i.reason || '') ? '' : (i.reason || '') };
+    });
+    const don = live.filter(i => i.kind === 'Donation').reduce((a, i) => a + (Number(i.amount) || 0), 0);
+    const foc = (live.find(i => /^FOC: /.test(i.reason || '')) || {}).reason || '';
+    ED = { day, sale: saleId, x, orig: pay, pay, lines, don: don ? String(don) : '', seller: x.by, note: parts.filter(t => !/^Owes: /.test(t)).join(' · '), owes, foc: foc.replace(/^FOC: /, ''), why: '', photo: PHOTO.includes(pay), err: '', oldTotal: x.total };
+    SHEET = 'edit'; drawEdit(); openSheet();
+  }
+  function edFull(l) { if (l.custom) return (Number(l.price) || 0) * (Number(l.qty) || 1); const p = prod(l.key), v = p && p.variants.find(v => (v.colour || '') === l.colour && (v.fit || '') === l.fit && (v.size || '') === l.size); return v ? v.price * (Number(l.qty) || 1) : 0; }
+  function edPaid(l) { if (ED.pay === 'foc') return 0; const f = edFull(l), v = String(l.paid).replace(/\D/g, ''); return v === '' ? f : Math.min(f, Number(v)); }
+  function edTotal() { return ED.lines.reduce((a, l) => a + edPaid(l), 0) + (Number(String(ED.don).replace(/\D/g, '')) || 0); }
+  function edSet(i, k, v, redraw) { const l = ED.lines[i]; l[k] = v; if (k === 'key') { const p = prod(v), vv = p && (p.variants.find(x => x.price > 0) || p.variants[0]); l.colour = vv ? vv.colour || '' : ''; l.fit = vv ? vv.fit || '' : ''; l.size = vv ? vv.size || '' : ''; l.paid = ''; } if (k === 'opt') { const [c, f, z] = v.split('|'); l.colour = c; l.fit = f; l.size = z; delete l.opt; l.paid = ''; } if (k === 'qty') l.paid = ''; if (redraw) drawEdit(); else edTotals(); }
+  function edTotals() { const t = document.getElementById('edTot'); if (t) t.textContent = rp(edTotal()); ED.lines.forEach((l, i) => { const r = document.getElementById('edR' + i); if (r) r.style.display = edPaid(l) < edFull(l) && ED.pay !== 'foc' ? '' : 'none'; }); }
+  function edAdd(custom) { if (custom) ED.lines.push({ custom: '', price: '', qty: 1, paid: '', reason: '' }); else { const p = (D.products || []).find(p => p.variants.some(v => v.price > 0)); if (!p) return; const v = p.variants.find(v => v.price > 0); ED.lines.push({ key: p.key, colour: v.colour || '', fit: v.fit || '', size: v.size || '', qty: 1, paid: '', reason: '' }); } drawEdit(); }
+  function edDel(i) { ED.lines.splice(i, 1); drawEdit(); }
+  function drawEdit() {
+    const sc = document.getElementById('sheet').scrollTop, prods = (D.products || []).filter(p => p.variants.length);
+    const lineHTML = (l, i) => {
+      const full = edFull(l), p = !l.custom && prod(l.key);
+      const pick = l.custom != null
+        ? `<input class="ps-in" placeholder="Item name" value="${esc(l.custom)}" oninput="ED.lines[${i}].custom=this.value"><input class="ps-in" style="margin-top:6px" inputmode="numeric" placeholder="Price each (Rp)" value="${esc(l.price)}" oninput="edSet(${i},'price',this.value.replace(/\\D/g,''))">`
+        : `<select class="ps-in" onchange="edSet(${i},'key',this.value,true)">${prods.map(q => `<option value="${esc(q.key)}" ${q.key === l.key ? 'selected' : ''}>${esc(q.name)}</option>`).join('')}${p ? '' : '<option selected>(not in Dom\'s sheet any more)</option>'}</select>
+           ${p && p.variants.length > 1 ? `<select class="ps-in" style="margin-top:6px" onchange="edSet(${i},'opt',this.value,true)">${p.variants.map(v => { const k = [v.colour || '', v.fit || '', v.size || ''].join('|'); return `<option value="${esc(k)}" ${k === [l.colour, l.fit, l.size].join('|') ? 'selected' : ''}>${esc(optText(v) || 'One size')} · ${rp(v.price)}</option>`; }).join('')}</select>` : ''}`;
+      return `<div class="ed-l"><div class="ed-h"><b>Item ${i + 1}</b><button target="_self" class="ed-x" onclick="edDel(${i})" aria-label="Remove item">Remove</button></div>${pick}
+        <div class="ed-g"><label>Qty<input class="ps-in" inputmode="numeric" value="${esc(l.qty)}" onchange="edSet(${i},'qty',Math.max(1,Number(this.value.replace(/\\D/g,''))||1),true)"></label>
+          <label>Paid (full ${rp(full)})<input class="ps-in" inputmode="numeric" ${ED.pay === 'foc' ? 'disabled value="0"' : `placeholder="${full}" value="${esc(l.paid)}"`} oninput="edSet(${i},'paid',this.value.replace(/\\D/g,''))"></label></div>
+        <input class="ps-in" id="edR${i}" style="margin-top:6px;${edPaid(l) < full && ED.pay !== 'foc' ? '' : 'display:none'}" placeholder="Reason for the discount" value="${esc(l.reason)}" oninput="ED.lines[${i}].reason=this.value"></div>`;
+    };
+    const changedPay = ED.pay !== ED.orig;
+    document.getElementById('sheet').innerHTML = sheetHead('Edit sale', esc(new Date(ED.x.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) + ' · ' + esc(ED.day) + ' · was ' + rp(ED.oldTotal))
+      + `<div class="sh-sec" style="border-top:0;margin-top:4px;padding-top:0">${ED.lines.map(lineHTML).join('')}
+        <div class="ed-add"><button target="_self" onclick="edAdd(false)">+ Add item</button><button target="_self" onclick="edAdd(true)">+ Extra item (not in Dom's list)</button></div></div>
+      <div class="sh-sec"><div class="ps-lbl" style="margin-top:0">How they paid</div><div class="pays">${PAYS.filter(x => payOn(x[0]) || x[0] === ED.orig).map(([k, l]) => `<button target="_self" class="${ED.pay === k ? 'on' : ''}" onclick="ED.pay='${k}';ED.photo=ED.orig==='${k}'&&PHOTO.includes('${k}');drawEdit()">${l}</button>`).join('')}</div>
+        ${PHOTO.includes(ED.pay) && changedPay ? `<label class="photo ${ED.photo ? 'ok' : ''}"><input type="checkbox" ${ED.photo ? 'checked' : ''} onchange="ED.photo=this.checked;this.parentNode.classList.toggle('ok',this.checked)"><span>I saw this payment go through and took a photo of it<small>Required when you change the payment to ${esc(PAY_LABEL[ED.pay])}.</small></span></label>` : ''}
+        ${ED.pay === 'later' ? `<div class="ps-lbl">Who still has to pay (name and phone)</div><input class="ps-in" value="${esc(ED.owes)}" oninput="ED.owes=this.value">` : ''}
+        ${ED.pay === 'foc' ? `<div class="ps-lbl">Why it's free</div><input class="ps-in" value="${esc(ED.foc)}" oninput="ED.foc=this.value">` : ''}
+        ${ED.pay !== 'later' && ED.pay !== 'foc' ? `<div class="ps-lbl">Donation (Rp)</div><input class="ps-in" inputmode="numeric" placeholder="0" value="${esc(ED.don)}" oninput="ED.don=this.value.replace(/\\D/g,'');edTotals()">` : ''}</div>
+      <div class="sh-sec"><div class="ps-lbl" style="margin-top:0">Sold by</div><input class="ps-in" value="${esc(ED.seller)}" oninput="ED.seller=this.value">
+        <div class="ps-lbl">Note</div><input class="ps-in" value="${esc(ED.note)}" oninput="ED.note=this.value">
+        <div class="ps-lbl">Why are you editing this sale? (required)</div><input class="ps-in" id="edWhy" placeholder="e.g. Wrong size rung up, they took a M" value="${esc(ED.why)}" oninput="ED.why=this.value">
+        <div class="sub" style="margin-top:6px">The Sales Tracker keeps a note of who edited it and what it was before. Stock and the end-of-day check update by themselves.</div></div>
+      <div class="badline">${esc(ED.err)}</div>
+      <div class="sh-f"><div class="tot">New total<b id="edTot">${rp(edTotal())}</b></div><button target="_self" class="btn-main" ${BUSY ? 'disabled' : ''} onclick="saveEdit()">${BUSY ? 'Saving…' : 'Save changes'}</button></div>`;
+    document.getElementById('sheet').scrollTop = sc;
+  }
+  function saveEdit() {
+    const err = t => { ED.err = t; drawEdit(); };
+    if (ED.why.trim().length < 3) return err('Say why you\'re editing this sale.');
+    const don = ED.pay === 'later' || ED.pay === 'foc' ? 0 : (Number(String(ED.don).replace(/\D/g, '')) || 0);
+    if (!ED.lines.length && !don) return err('Nothing left in this sale. Close this and use Cancel sale instead.');
+    for (const l of ED.lines) {
+      if (l.custom != null && !String(l.custom).trim()) return err('Type a name for the extra item.');
+      if (l.custom == null && !prod(l.key)) return err('Pick an item from Dom\'s sheet for every line.');
+      if (ED.pay !== 'foc' && edPaid(l) < edFull(l) && !String(l.reason || '').trim()) return err('Give a reason for each discount.');
+    }
+    if (PHOTO.includes(ED.pay) && ED.pay !== ED.orig && !ED.photo) return err('Tick the box to say you saw the payment and took a photo.');
+    if (ED.pay === 'later' && ED.lines.length && !ED.owes.trim()) return err('Type who still has to pay (name and phone).');
+    if (ED.pay === 'foc' && !ED.foc.trim()) return err('Say why it\'s free (FOC).');
+    const lines = ED.lines.map(l => { const full = edFull(l), disc = ED.pay === 'foc' ? 0 : full - edPaid(l), base = { qty: Number(l.qty) || 1, discount: disc, reason: disc ? String(l.reason || '').trim() : '' };
+      return l.custom != null ? Object.assign(base, { custom: String(l.custom).trim(), price: Number(l.price) || 0 }) : Object.assign(base, { key: l.key, colour: l.colour, fit: l.fit, size: l.size }); });
+    const edit = { pay: ED.pay, lines, donation: don, photo: PHOTO.includes(ED.pay), note: ED.note, owes: ED.owes, reason: ED.foc, seller: ED.seller.trim() };
+    BUSY = true; ED.err = ''; drawEdit();
+    call({ action: 'posEdit', day: ED.day, sale: ED.sale, why: ED.why.trim(), edit }).then(r => {
+      BUSY = false; DAY = r.day; if (r.revisitDays) RV = r.revisitDays; closeSheet(); drawTabs(); drawToday();
+      toast(DAY.revisit && DAY.revisit.state === 'revisit' ? 'Sale updated. The check no longer adds up: it\'s in To confirm' : 'Sale updated');
+    }).catch(e => { BUSY = false; err(e.message); });
+  }
   function voidSale(day, sale, undo) {
     if (!undo && !confirm('Cancel this sale? Use this for mistakes. Its stock comes back.')) return;
-    call({ action: 'posVoid', day, sale, undo }).then(r => { DAY = r.day; drawToday(); toast(undo ? 'Sale back' : 'Sale cancelled'); }).catch(e => alert(e.message));
+    call({ action: 'posVoid', day, sale, undo }).then(r => { DAY = r.day; if (r.revisitDays) { RV = r.revisitDays; drawTabs(); } drawToday(); toast(undo ? 'Sale back' : 'Sale cancelled'); }).catch(e => alert(e.message));
   }
   function domSale(day, sale, on) {
     call({ action: 'posDom', day, sale, on }).then(r => { DAY = r.day; drawToday(); }).catch(e => { alert(e.message); drawToday(); });
