@@ -114,6 +114,8 @@
   .qty.sm button { width: 30px; height: 30px; font-size: 15px; } .qty.sm span { min-width: 26px; font-size: 13px; }
   .ps-in { font: inherit; font-size: 16px; width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
   .ps-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .okline { font-size: 13.5px; color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); border-radius: 10px; padding: 8px 10px; margin-top: 10px; }
+  .oc .it .neg { color: var(--bad); font-weight: 700; }
   .warnline { font-size: 13.5px; color: var(--warn); background: var(--warn-soft); border-radius: 10px; padding: 8px 10px; margin-top: 10px; }
   .badline { font-size: 14px; color: var(--bad); font-weight: 600; margin-top: 8px; min-height: 1em; }
   /* cart lines */
@@ -222,7 +224,7 @@
 <script src="common.js?v=12"></script>
 <script src="extras.js?v=3"></script>
 <script src="phone.js?v=4"></script>
-<script src="practice.js?v=3"></script>
+<script src="practice.js?v=4"></script>
 <script>
   /* ---------- state ---------- */
   /* POS settings from the Control page (all on unless an admin switched one off) */
@@ -235,7 +237,7 @@
   const METHODS = ['CASH', 'QRIS', 'CARD (XENDIT)', 'TRANSFER', 'NOT YET PAID', 'FOC', 'XENDIT (WEBSITE)', 'QRIS (WEBSITE)', 'TRANSFER (WEBSITE)'];
   const COUNTED = ['CASH', 'QRIS', 'CARD (XENDIT)', 'TRANSFER'];
   const QRIS_IMG = 'https://shopwoahfestival.org/img/qris.png', XENDIT_IMG = 'img/xendit-qr.png', XENDIT_LINK = 'https://checkout.xendit.co/od/25-26-HS-WOAH-Merchandise';
-  let D = null, TAB = 'sell', BR = 'all', SQ = '', CART = [], PRE = [], PAY = null, DAY = null, DAYS = [], DAYSEL = '', ORD = null, OQ = '', BUSY = false, PICK = null, CK = {}, SHEET = '';
+  let D = null, TAB = 'sell', BR = 'all', SQ = '', CART = [], PRE = [], PAY = null, DAY = null, DAYS = [], DAYSEL = '', ORD = null, OQ = '', BUSY = false, PICK = null, CK = {}, SHEET = '', RV = [];
   const pk = k => PRACTICE ? 'P.' + k : k;
   const ls = { get(k, d) { try { const v = localStorage.getItem(pk(k)); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(pk(k), JSON.stringify(v)); } catch (e) {} } };
   TAB = ls.get('woahPosTab', 'sell'); BR = ls.get('woahPosBrand', 'all'); CART = ls.get('woahPosCart', []); PRE = ls.get('woahPosPre', []);
@@ -269,13 +271,14 @@
     D = d;
     if (!fromCache) { try { localStorage.setItem('woahPosLast', JSON.stringify(d)); } catch (e) {} const b = document.getElementById('banner'); if (b && /No internet/.test(b.textContent)) { b.className = 'banner'; b.textContent = ''; } }
     if (d.day) DAY = d.day;
+    if (d.revisitDays) RV = d.revisitDays;
     document.getElementById('updated').textContent = 'Items and prices from Dom\'s sheet · ' + when(d.at) + ' · today: ' + d.today;
     CART = CART.filter(l => !l.pre || canPre(prod(l.key))); saveCarts();
     drawPractice(); drawTabs(); drawQueue(); draw();
-    if (TAB === 'collect') loadOrders(); else if (TAB === 'today') loadDay(DAYSEL);
+    if (TAB === 'collect') loadOrders(); else if (TAB === 'today') loadDay(DAYSEL); else if (TAB === 'confirm') loadRevisit();
     syncSoon();
   }
-  function setTab(t) { TAB = t; ls.set('woahPosTab', t); drawTabs(); draw(); window.scrollTo(0, 0); if (t === 'collect') loadOrders(); if (t === 'today') loadDay(DAYSEL); }
+  function setTab(t) { TAB = t; ls.set('woahPosTab', t); drawTabs(); draw(); window.scrollTo(0, 0); if (t === 'collect') loadOrders(); if (t === 'today') loadDay(DAYSEL); if (t === 'confirm') loadRevisit(); }
   function cartChanged() { if (PAY) { PAY.got = ''; PAY.photo = false; } saveCarts(); drawTabs(); drawShop(); drawSide(); if (SHEET === 'cart') drawCart(); }
 
   /* ---------- catalogue ---------- */
@@ -372,8 +375,9 @@
 
   function drawTabs() {
     const tabs = [['sell', 'Sell'], ['collect', 'Collect'], ['today', 'Sales & check']];
+    if (RV.length || TAB === 'confirm') { tabs.push(['confirm', 'To confirm']); if (window.matchMedia && matchMedia('(max-width: 699px)').matches) { tabs[2][1] = 'Sales'; tabs[3][1] = 'Confirm'; } }
     document.getElementById('tabs').innerHTML = tabs.map(([k, l]) => {
-      const n = k === 'sell' ? countOf(CART) : 0;
+      const n = k === 'sell' ? countOf(CART) : k === 'confirm' ? RV.length : 0;
       return `<button target="_self" class="${TAB === k ? 'on' : ''}" onclick="setTab('${k}')">${l}${n ? `<span class="n">${n}</span>` : ''}</button>`;
     }).join('') + (PRACTICE ? '' : `<button target="_self" class="prac" onclick="setPractice(true)">Practice mode</button>`);
   }
@@ -388,6 +392,7 @@
     document.getElementById('side').style.display = shop ? '' : 'none';
     if (shop) { drawShop(); drawSide(); }
     else if (TAB === 'collect') drawCollect();
+    else if (TAB === 'confirm') drawConfirm();
     else drawToday();
   }
   function usedHere(item) {
@@ -662,7 +667,7 @@
 
   /* ---------- today: sales list + end-of-day check ---------- */
   function loadDay(name) {
-    return call({ action: 'posDay', day: name || '' }).then(d => { DAY = d.day; DAYS = d.days; DAYSEL = d.day ? d.day.name : (name || d.today); D.today = d.today; if (TAB === 'today') drawToday(); }).catch(e => fail(e));
+    return call({ action: 'posDay', day: name || '' }).then(d => { DAY = d.day; DAYS = d.days; DAYSEL = d.day ? d.day.name : (name || d.today); D.today = d.today; if (d.revisitDays) { RV = d.revisitDays; drawTabs(); } if (TAB === 'today') drawToday(); }).catch(e => fail(e));
   }
   function drawToday() {
     const day = DAY, admin = ME && ME.role === 'full';
@@ -674,6 +679,7 @@
     document.getElementById('view').innerHTML = `
       <div class="ps-tool">${days}<span style="flex:1"></span>${day.url ? `<a class="pill" href="${esc(day.url)}">Open in the Sales Tracker ↗</a>` : '<span class="pill warn">Practice: not in the Sales Tracker</span>'}</div>
       <div class="ps-h">${esc(day.name)}<span class="line"></span></div>
+      ${revisitLine(day)}
       <div class="stats">
         <div class="stat"><b>${day.count}</b>stall sales</div><div class="stat"><b>${rp(day.paid)}</b>paid</div><div class="stat"><b>${rp(day.owed)}</b>not paid yet</div>
         ${METHODS.filter(m => s[m] && s[m].n).map(m => `<div class="stat"><b>${rp(s[m].amount)}</b>${esc(m)} · ${s[m].n}</div>`).join('')}
@@ -690,7 +696,7 @@
         </table>
         <div class="ps-lbl">Note (explain any difference)</div><input class="ps-in" id="ckNote" value="${esc(CK.note != null ? CK.note : day.check.note)}" oninput="CK.note=this.value">
         <div class="sub" style="margin-top:6px">${day.check.by ? 'Last checked by ' + esc(day.check.by) + (day.check.at ? ' · ' + when(day.check.at) : '') : 'Not checked yet.'}</div>
-        <button target="_self" class="btn-main" style="width:100%;margin-top:12px" onclick="saveCheck()">Save the check</button></div>
+        <div id="ckBtns">${ckBtnsHTML()}</div></div>
       <div class="ps-h">Send to Dom's sheet<span class="line"></span></div>
       <div class="card" id="domBox">${domBoxHTML(day, admin)}</div>`;
   }
@@ -717,6 +723,7 @@
     const s = DAY.sum;
     COUNTED.forEach(m => { const el = document.getElementById('df-' + m.replace(/\W/g, '')); if (!el) return; const v = CK[m] != null ? CK[m] : (DAY.counted[m] != null ? String(DAY.counted[m]) : '');
       const d = v === '' ? null : Number(v) - ((s[m] || {}).amount || 0); el.className = 'diff ' + (d == null ? '' : d === 0 ? 'ok' : 'bad'); el.textContent = d == null ? '' : d === 0 ? 'OK' : (d > 0 ? '+' : '−') + rp(Math.abs(d)); });
+    const b = document.getElementById('ckBtns'); if (b) b.innerHTML = ckBtnsHTML();
   }
   function saleHTML(x, admin, dayName) {
     const cx = x.status === 'Cancelled', mine = ME && x.by.split(' + ')[0] === ME.name;
@@ -734,6 +741,7 @@
     const wait = day.toDom || 0;
     const head = `<div class="sub">Sales stay in our Sales Tracker until an admin checks them and sends them. Sending adds one row per item to Dom's <i>1. Daily sales</i> tab and ticks "In Dom's sheet" here, so nothing goes twice.</div>
       <div style="margin-top:8px"><b>${wait}</b> ${wait === 1 ? 'row' : 'rows'} waiting to go to Dom's sheet${day.sentDom ? ` <span class="sub">· last sent: ${esc(day.sentDom)}</span>` : ''}</div>`;
+    if (checkLocked(day)) return head + `<div class="warnline">🔒 Locked: the end-of-day check doesn't add up yet, so this day is in <b>To confirm</b>. Recount and save the check${admin ? ', or confirm the difference with a note' : ''}. Then it can be sent.</div>`;
     if (!admin) return head + `<div class="sub" style="margin-top:6px">An admin sends these after the end-of-day check.</div>`;
     if (!DOMPREV || DOMPREV.day !== day.name) return head + (wait ? `<button target="_self" class="btn-main" style="width:100%;margin-top:12px" onclick="domPreview()">Check what will be sent…</button>` : '<div class="sub" style="margin-top:6px">Nothing to send right now.</div>');
     const p = DOMPREV;
@@ -764,14 +772,50 @@
   function domSale(day, sale, on) {
     call({ action: 'posDom', day, sale, on }).then(r => { DAY = r.day; drawToday(); }).catch(e => { alert(e.message); drawToday(); });
   }
-  function saveCheck() {
-    const counted = {};
-    COUNTED.forEach(m => { const v = CK[m] != null ? CK[m] : (DAY.counted[m] != null ? String(DAY.counted[m]) : ''); counted[m] = v === '' ? '' : Number(v); });
-    const note = document.getElementById('ckNote').value;
-    const bad = COUNTED.some(m => counted[m] !== '' && counted[m] !== ((DAY.sum[m] || {}).amount || 0));
-    if (bad && note.trim().length < 3) { alert('There\'s a difference. Write a short note explaining it first.'); return; }
-    call({ action: 'posCheck', day: DAY.name, counted, note }).then(r => { DAY = r.day; CK = {}; drawToday(); toast('Check saved'); }).catch(e => alert(e.message));
+  /* ---------- end-of-day check: doesn't add up -> "To confirm" (sending locked) ---------- */
+  function typedCounted() { const c = {}; COUNTED.forEach(m => { const v = CK[m] != null ? CK[m] : (DAY.counted[m] != null ? String(DAY.counted[m]) : ''); c[m] = v === '' ? '' : Number(v); }); return c; }
+  function diffOf(sum, counted) { const d = {}; COUNTED.forEach(m => { const sys = (sum[m] || {}).amount || 0; if (counted[m] !== '' && counted[m] != null && Number(counted[m]) !== sys) d[m] = Number(counted[m]) - sys; }); return d; }
+  function sameDiff(a, b) { const ka = Object.keys(a || {}), kb = Object.keys(b || {}); return ka.length === kb.length && ka.every(k => Number(a[k]) === Number(b[k])); }
+  function checkLocked(day) { const d = diffOf(day.sum, day.counted); if (!Object.keys(d).length) return false; const rv = day.revisit; return !(rv && rv.state === 'accepted' && sameDiff(rv.diff, d)); }
+  function diffText(d) { return Object.keys(d || {}).map(m => `${esc(m)} ${d[m] > 0 ? '+' : '−'}${rp(Math.abs(d[m]))}`).join(' · '); }
+  function revisitLine(day) {
+    const rv = day.revisit; if (!rv) return '';
+    if (rv.state === 'accepted') return `<div class="okline">✓ Difference confirmed by ${esc(rv.by)} (${diffText(rv.diff)})${rv.note ? ': ' + esc(rv.note) : ''}</div>`;
+    return `<div class="warnline"><b>To confirm.</b> The check didn't add up (${diffText(rv.diff)}). Saved by ${esc(rv.by)} · ${when(rv.at)}${rv.note ? ' · “' + esc(rv.note) + '”' : ''}. Recount below and save again.</div>`;
   }
+  function ckBtnsHTML() {
+    if (!DAY) return '';
+    const d = diffOf(DAY.sum, typedCounted()), off = Object.keys(d).length, admin = ME && ME.role === 'full';
+    if (!off) return `<button target="_self" class="btn-main" style="width:100%;margin-top:12px" onclick="saveCheck('')">Save the check</button>`;
+    return `<div class="sub" style="margin-top:10px">It doesn't add up (${diffText(d)}). Save it to revisit: the day goes to <b>To confirm</b> and can't be sent to Dom's sheet until it's sorted.</div>
+      <button target="_self" class="btn-main" style="width:100%;margin-top:8px" onclick="saveCheck('revisit')">Save to revisit</button>
+      ${admin ? `<button target="_self" style="width:100%;margin-top:8px" onclick="saveCheck('accept')">Confirm with difference (admin)…</button>` : ''}`;
+  }
+  function saveCheck(mode) {
+    const counted = typedCounted();
+    const note = document.getElementById('ckNote').value;
+    if (mode === 'accept') {
+      if (note.trim().length < 3) { alert('Write a note saying why the difference is OK first (in the Note box).'); document.getElementById('ckNote').focus(); return; }
+      if (!confirm('Confirm this check even though it doesn\'t add up (' + diffText(diffOf(DAY.sum, counted)).replace(/<[^>]+>/g, '') + ')? The day can then be sent to Dom\'s sheet.')) return;
+    }
+    call({ action: 'posCheck', day: DAY.name, counted, note, mode }).then(r => {
+      DAY = r.day; CK = {}; if (r.revisitDays) RV = r.revisitDays; drawTabs(); drawToday();
+      toast(mode === 'accept' ? 'Confirmed with the difference' : DAY.revisit && DAY.revisit.state === 'revisit' ? 'Saved to revisit: it\'s in To confirm' : 'Check saved: it adds up');
+    }).catch(e => alert(e.message));
+  }
+  function loadRevisit() {
+    return call({ action: 'posDay', day: DAYSEL || '' }).then(d => { if (d.revisitDays) RV = d.revisitDays; if (d.day && (!DAY || d.day.name === DAY.name)) DAY = d.day; drawTabs(); if (TAB === 'confirm') drawConfirm(); }).catch(e => fail(e));
+  }
+  function drawConfirm() {
+    document.getElementById('view').innerHTML = `<div class="ps-h">To be confirmed <b>${RV.length}</b><span class="line"></span></div>
+      <div class="card"><div class="sub">Days whose end-of-day check didn't add up. Recount the money, fix any wrong sale (cancel it or ring it up again), then save the check again. When it adds up, the day leaves this list and can be sent to Dom's sheet.${ME && ME.role === 'full' ? ' If money is really missing, an admin can confirm the difference with a note.' : ''}</div></div>
+      <div class="ps-list" style="margin-top:12px">${RV.length ? RV.map(r => `<div class="oc"><div class="h"><div><b>${esc(r.name)}</b></div><span class="pill bad">Doesn't add up</span></div>
+        ${Object.keys(r.diff || {}).map(m => `<div class="it"><span>${esc(m)}</span><span class="${r.diff[m] < 0 ? 'neg' : ''}">${r.diff[m] > 0 ? '+' : '−'}${rp(Math.abs(r.diff[m]))} ${r.diff[m] < 0 ? 'short' : 'over'}</span></div>`).join('')}
+        <div class="ft"><span class="sub">Saved by ${esc(r.by)} · ${when(r.at)}</span>${r.note ? `<span class="sub">“${esc(r.note)}”</span>` : ''}</div>
+        <div class="acts"><button target="_self" class="btn-main" onclick="openRecount(${esc(JSON.stringify(r.name))})">Open and recount</button></div></div>`).join('')
+        : '<div class="card">Nothing to confirm. Every saved check adds up.</div>'}</div>`;
+  }
+  function openRecount(name) { DAYSEL = name; CK = {}; TAB = 'today'; ls.set('woahPosTab', 'today'); drawTabs(); draw(); window.scrollTo(0, 0); loadDay(name).then(() => { const el = document.querySelector('#view .ck'); if (el) el.scrollIntoView({ block: 'center' }); }); }
 
   const failOnline = fail;
   fail = function (err) {

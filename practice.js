@@ -39,7 +39,7 @@ const SIM = (() => {
     live.forEach(s => { sum[s.pay].n++; sum[s.pay].amount += s.total; });
     const toDom = live.filter(s => !s.dom && s.pay !== 'NOT YET PAID').reduce((a, s) => a + s.items.filter(i => !i.cancelled && i.item).length, 0);
     sales.forEach(x => { x.sent = !!x.dom; });
-    return { name: d.name, sales: sales.slice().reverse(), sum, counted: d.counted || {}, check: d.check || { note: '', by: '', at: 0 }, toDom, sentDom: d.sentDom || '',
+    return { name: d.name, revisit: (get().revisit || {})[d.name] || null, sales: sales.slice().reverse(), sum, counted: d.counted || {}, check: d.check || { note: '', by: '', at: 0 }, toDom, sentDom: d.sentDom || '',
       count: live.filter(s => s.kind === 'Sale').length, paid: live.filter(s => s.pay !== 'NOT YET PAID').reduce((a, s) => a + s.total, 0),
       owed: live.filter(s => s.pay === 'NOT YET PAID').reduce((a, s) => a + s.total, 0), url: '' };
   }
@@ -152,13 +152,33 @@ const SIM = (() => {
     const warn = [];
     if (!out.check.at) warn.push('The end-of-day check for ' + out.name + ' isn\'t saved yet.');
     ['CASH', 'QRIS', 'CARD (XENDIT)', 'TRANSFER'].forEach(m => { if (out.counted[m] != null && out.counted[m] !== (out.sum[m] || {}).amount) warn.push(m + ': counted Rp ' + out.counted[m].toLocaleString('id-ID') + ' but the sales say Rp ' + ((out.sum[m] || {}).amount || 0).toLocaleString('id-ID') + '.'); });
-    const preview = { day: out.name, rows, skipped, already, warn, total: rows.reduce((a, r) => a + r.amount, 0), domUrl: '' };
+    const preview = { day: out.name, rows, skipped, already, warn, total: rows.reduce((a, r) => a + r.amount, 0), domUrl: '', locked: locked(out) };
     if (!b.confirm) return { preview, day: out };
+    if (preview.locked) throw err('The end-of-day check for ' + out.name + ' doesn\'t add up yet (it\'s in To confirm). Recount and save the check, or an admin confirms the difference with a note. Then send.');
     if (!rows.length) throw err('Nothing to send for ' + out.name + '.');
     use.forEach(s => { s.dom = true; });
     d.sentDom = me() + ' · practice · ' + rows.length + ' rows';
     save();
     return { sent: rows.length, added: rows.length, preview, day: dayOut(b.day) };
+  }
+  // End-of-day check that doesn't add up -> "To confirm" (same rules as the real POS).
+  const COUNTED = ['CASH', 'QRIS', 'CARD (XENDIT)', 'TRANSFER'];
+  function diffOf(out) { const d = {}; COUNTED.forEach(m => { const sys = (out.sum[m] || {}).amount || 0; if (out.counted[m] != null && out.counted[m] !== sys) d[m] = out.counted[m] - sys; }); return d; }
+  function locked(out) { const d = diffOf(out); if (!Object.keys(d).length) return false; const rv = out.revisit; return !(rv && rv.state === 'accepted' && JSON.stringify(rv.diff) === JSON.stringify(d)); }
+  function revisitDays() { const all = get().revisit || {}; return Object.keys(all).filter(n => all[n].state === 'revisit' && get().days[n]).map(n => Object.assign({ name: n }, all[n])).sort((a, b) => b.at - a.at); }
+  function check(b) {
+    const s = get(), d = s.days[b.day]; if (!d) throw err('That selling day isn\'t in practice mode.');
+    const c = b.counted || {}; d.counted = {}; Object.keys(c).forEach(m => { if (c[m] !== '' && c[m] != null) d.counted[m] = Math.round(Number(c[m]) || 0); });
+    const note = String(b.note || ''); d.check = { note, by: me(), at: Date.now() };
+    const rv = s.revisit = s.revisit || {}, diff = diffOf(dayOut(b.day));
+    if (b.mode === 'accept') {
+      if (!(typeof ME !== 'undefined' && ME && ME.role === 'full')) throw err('Only an admin can confirm a check that doesn\'t add up.');
+      if (!Object.keys(diff).length) delete rv[b.day];
+      else { if (note.trim().length < 3) throw err('Write a note saying why the difference is OK.'); rv[b.day] = { state: 'accepted', by: me(), at: Date.now(), note, diff }; }
+    } else if (Object.keys(diff).length) rv[b.day] = { state: 'revisit', by: me(), at: Date.now(), note, diff };
+    else delete rv[b.day];
+    save();
+    return { day: dayOut(b.day), revisitDays: revisitDays() };
   }
   function find(req) {
     const d = get().days[req.day]; if (!d) throw err('That selling day isn\'t in practice mode.');
@@ -172,11 +192,11 @@ const SIM = (() => {
       if (a === 'posSale') return wait(sale(b));
       if (a === 'posOrders') return wait({ orders: orders().filter(o => o.status !== 'Collected' && o.status !== 'Cancelled'), at: Date.now() });
       if (a === 'posCollect') return wait(collect(b));
-      if (a === 'posDay') { const n = b.day || today(); return wait({ day: dayOut(n), days: Object.keys(get().days).reverse(), today: today() }); }
+      if (a === 'posDay') { const n = b.day || today(); return wait({ day: dayOut(n), days: Object.keys(get().days).reverse(), today: today(), revisitDays: revisitDays() }); }
       if (a === 'posVoid') { const x = find(b); x.items.forEach(i => { if (i.kind === 'Sale') i.cancelled = !b.undo; }); save(); return wait({ day: dayOut(b.day) }); }
       if (a === 'posDom') { const x = find(b); x.dom = !!b.on; save(); return wait({ day: dayOut(b.day) }); }
       if (a === 'posDomSend') return wait(domSend(b));
-      if (a === 'posCheck') { const d = get().days[b.day]; if (!d) throw err('That selling day isn\'t in practice mode.'); const c = b.counted || {}; d.counted = {}; Object.keys(c).forEach(m => { if (c[m] !== '' && c[m] != null) d.counted[m] = Math.round(Number(c[m]) || 0); }); d.check = { note: String(b.note || ''), by: me(), at: Date.now() }; save(); return wait({ day: dayOut(b.day) }); }
+      if (a === 'posCheck') return wait(check(b));
       return wait(err('Not available in practice mode.'));
     } catch (e) { return wait(e); }
   }
@@ -185,13 +205,13 @@ const SIM = (() => {
     let n = 0; Object.values(get().days).forEach(d => d.sales.forEach(s => { if (s.dom) return; s.items.forEach(i => { if (i.kind === 'Sale' && !i.cancelled && i.item === item) n += i.qty; }); }));
     return n;
   }
-  return { run, dayOut, used, reset };
+  return { run, dayOut, used, reset, revisitDays };
 })();
 
 if (PRACTICE) {
   const realCall = call;
   window.call = function (body, tries) {
-    if (body && body.action === 'pos') return realCall(body, tries).then(d => { d.day = SIM.dayOut(d.today); return d; });
+    if (body && body.action === 'pos') return realCall(body, tries).then(d => { d.day = SIM.dayOut(d.today); d.revisitDays = SIM.revisitDays(); return d; });
     return SIM.run(body || {});
   };
 }
