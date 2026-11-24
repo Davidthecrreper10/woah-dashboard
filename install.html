@@ -33,7 +33,7 @@
   <header>
     <div>
       <h1><span>WOAH</span> Get the app</h1>
-      <div class="sub">Put the dashboard and the POS on your phone's home screen, like a normal app. Free, for iPhone and Android, no App Store needed.</div>
+      <div class="sub">Put the dashboard and the POS on your phone or computer, like a normal app with its own icon. Free, for iPhone, Android, Mac and Windows, no App Store needed.</div>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><a class="btn" href="./">← Dashboard</a></div>
   </header>
@@ -46,10 +46,13 @@
   </div>
 
   <div class="card" style="margin-top:14px">
-    <div class="tabs2" role="group" aria-label="Your phone">
+    <div class="tabs2" role="group" aria-label="Your device">
       <button type="button" id="b-ios" onclick="showOs('ios')">iPhone / iPad</button>
       <button type="button" id="b-and" onclick="showOs('and')">Android</button>
+      <button type="button" id="b-mac" onclick="showOs('mac')">Mac</button>
+      <button type="button" id="b-win" onclick="showOs('win')">Windows</button>
     </div>
+    <div id="installBox" style="display:none;margin:10px 0"><button class="primary big" type="button" onclick="doInstall()">Install the WOAH app</button></div>
 
     <div class="os" id="os-ios">
       <b>On iPhone (use Safari)</b>
@@ -64,7 +67,6 @@
 
     <div class="os" id="os-and">
       <b>On Android (use Chrome)</b>
-      <div id="installBox" style="display:none;margin:10px 0"><button class="primary big" type="button" onclick="doInstall()">Install the WOAH app</button></div>
       <ol class="steps">
         <li>Open this site in <b>Chrome</b>.</li>
         <li>Go to the page you want as an app: the <a href="./">Dashboard</a> for <b>WOAH</b>, or the <a href="sell.html">POS</a> for <b>WOAH POS</b>.</li>
@@ -73,12 +75,34 @@
       </ol>
       <div class="sub">Tip: press and hold the WOAH icon to jump straight to the POS, Email handlers or Partners.</div>
     </div>
+
+    <div class="os" id="os-mac">
+      <b>On a Mac (Chrome, Edge or Safari)</b>
+      <ol class="steps">
+        <li>Go to the page you want as an app: the <a href="./">Dashboard</a> for <b>WOAH</b>, or the <a href="sell.html">POS</a> for <b>WOAH POS</b>.</li>
+        <li><b>Chrome or Edge:</b> click the small <b>install icon</b> at the right end of the address bar (a screen with an arrow), or the <b>⋮</b> menu → <b>Cast, save and share</b> → <b>Install page as app</b>. Then <b>Install</b>.</li>
+        <li><b>Safari:</b> in the menu bar choose <b>File</b> → <b>Add to Dock</b>, then <b>Add</b>.</li>
+        <li>WOAH opens in its own window and gets an icon in your <b>Dock</b> and <b>Launchpad</b>. Log in once with the WOAH password and <b>your own</b> email.</li>
+      </ol>
+      <div class="sub">To keep it in the Dock: right-click the WOAH icon → Options → Keep in Dock.</div>
+    </div>
+
+    <div class="os" id="os-win">
+      <b>On Windows (Edge or Chrome)</b>
+      <ol class="steps">
+        <li>Go to the page you want as an app: the <a href="./">Dashboard</a> for <b>WOAH</b>, or the <a href="sell.html">POS</a> for <b>WOAH POS</b>.</li>
+        <li><b>Edge:</b> click the <b>…</b> menu (top right) → <b>Apps</b> → <b>Install this site as an app</b>, then <b>Install</b>.</li>
+        <li><b>Chrome:</b> click the small <b>install icon</b> at the right end of the address bar, or the <b>⋮</b> menu → <b>Cast, save and share</b> → <b>Install page as app</b>.</li>
+        <li>WOAH opens in its own window and shows up in the <b>Start menu</b>. Log in once with the WOAH password and <b>your own</b> email.</li>
+      </ol>
+      <div class="sub">To pin it: right-click the WOAH icon in the taskbar → Pin to taskbar.</div>
+    </div>
   </div>
 
   <div class="card how" style="margin-top:14px">
     <b>Good to know</b>
     <ul class="steps">
-      <li><b>Log in with your own email.</b> Every sale and reply is saved under the name of whoever is logged in, so don't share one phone's login.</li>
+      <li><b>Log in with your own email.</b> Every sale and reply is saved under the name of whoever is logged in, so don't share one phone's or computer's login.</li>
       <li><b>It updates by itself.</b> When the site changes, the app changes too. Nothing to reinstall.</li>
       <li><b>No wifi at the stand?</b> The POS still opens with the last product list, and sales are saved on the phone and sent as soon as it's back online. Pre-orders need internet.</li>
       <li>Links to Gmail or Google Sheets open in their own app or the browser, then you can come back to WOAH.</li>
@@ -88,15 +112,16 @@
 <script>
   const ua = navigator.userAgent || '';
   const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isMac = !isIOS && /Macintosh|Mac OS X/.test(ua), isWin = /Windows/.test(ua);
   function showOs(k) {
-    document.getElementById('os-ios').classList.toggle('on', k === 'ios');
-    document.getElementById('os-and').classList.toggle('on', k === 'and');
-    document.getElementById('b-ios').className = k === 'ios' ? 'primary' : '';
-    document.getElementById('b-and').className = k === 'and' ? 'primary' : '';
+    ['ios', 'and', 'mac', 'win'].forEach(o => {
+      document.getElementById('os-' + o).classList.toggle('on', k === o);
+      document.getElementById('b-' + o).className = k === o ? 'primary' : '';
+    });
   }
-  showOs(isIOS ? 'ios' : 'and');
+  showOs(isIOS ? 'ios' : isMac ? 'mac' : isWin ? 'win' : 'and');
   const standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
-  if (standalone) { const b = document.getElementById('already'); b.className = 'banner'; b.style.display = 'block'; b.innerHTML = '<span class="ok">You\'re already using the app.</span> To also get the other one (WOAH or WOAH POS), open the site in Safari or Chrome and follow the steps below.'; }
+  if (standalone) { const b = document.getElementById('already'); b.className = 'banner'; b.style.display = 'block'; b.innerHTML = '<span class="ok">You\'re already using the app.</span> To also get the other one (WOAH or WOAH POS), open the site in your browser and follow the steps below.'; }
   let promptEv = null;
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); promptEv = e; document.getElementById('installBox').style.display = 'block'; });
   function doInstall() { if (!promptEv) return; promptEv.prompt(); promptEv.userChoice.finally(() => { promptEv = null; document.getElementById('installBox').style.display = 'none'; }); }
