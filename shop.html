@@ -76,6 +76,9 @@
   .sp-tbl td.neg { color: var(--bad); font-weight: 700; }
   .c-msg { font-size: 13px; } .c-msg.bad { color: var(--bad); } .c-msg.ok { color: var(--ok); }
   .sp-gone { font-size: 13px; }
+  .sp-look { margin: 0 0 14px; background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 35%, var(--line)); }
+  .sp-look ul { margin: 6px 0 8px; padding-left: 20px; } .sp-look li { margin: 3px 0; }
+  .sp-look code { font-family: "JetBrains Mono", monospace; font-size: 12px; background: var(--card); padding: 1px 6px; border-radius: 6px; }
   .sp-tabs { display: flex; gap: 0; margin: 4px 0 14px; border-bottom: 2px solid var(--line); }
   .sp-tabs button { background: none; border: 0; border-bottom: 3px solid transparent; margin-bottom: -2px; padding: 10px 18px; font-size: 15px; font-weight: 700; color: var(--muted); border-radius: 0; }
   .sp-tabs button.on { color: var(--ink); border-bottom-color: var(--brand); }
@@ -174,6 +177,7 @@
   <div id="visitsView" style="display:none"></div>
   <div id="productsView">
   <div class="card" id="topCard"></div>
+  <div id="look"></div>
   <div class="sp-seg" id="seg"></div>
   <div class="sp-grid" id="grid"></div>
   <div id="gone"></div>
@@ -234,6 +238,11 @@
     list.sort((a, b) => (b.isNew - a.isNew) || (order[a.section] - order[b.section]) || a.name.localeCompare(b.name));
     document.getElementById('grid').innerHTML = list.length ? list.map(cardHTML).join('') : '<div class="card" style="grid-column:1/-1">Nothing here.</div>';
     const g = D.gone || [];
+    const lk = D.lookalike || [];   // names Chris may have read as two products when they are one (backend shopLookalikes_)
+    document.getElementById('look').innerHTML = lk.length ? `<div class="card sp-look"><b>Check ${lk.length === 1 ? 'these names' : 'these ' + lk.length + ' pairs of names'} in Dom's sheet</b>
+      <div class="sp-meta">Chris read these as separate products, but they look like <b>one product in different colours</b>:</div>
+      <ul>${lk.map(([a, b]) => `<li><b>${esc(a)}</b> and <b>${esc(b)}</b></li>`).join('')}</ul>
+      <div class="sp-meta">If they are one product, ask Dom to write the rows as <code>Product Colour (Size)</code>, for example <i>SOAP Fleece Hoodies Army Green (L)</i>, and they join up within a few minutes. If they really are different products, you can ignore this.</div></div>` : '';
     document.getElementById('gone').innerHTML = g.length ? `<div class="card sp-gone" style="margin-top:14px"><b>No longer in Dom's sheet:</b> ${g.map(x => esc(x.key)).join(', ')}. Their photos and description are kept in the WOAH Shop sheet. If a row was only renamed, tell David so the photos can be moved over.</div>` : '';
   }
   function setFilter(k) { FILTER = k; try { localStorage.setItem('woahShopFilter', k); } catch (e) {} draw(); }
