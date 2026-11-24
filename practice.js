@@ -70,7 +70,10 @@ const SIM = (() => {
     const x = req.sale || {}, s = get(), id = String(x.id || '');
     if (s.done[id]) return s.done[id];
     const pay = String(x.pay || ''); if (!PAY[pay]) throw err('Pick how they paid.');
-    const lines = Array.isArray(x.lines) ? x.lines : []; if (!lines.length) throw err('The cart is empty.');
+    const lines = Array.isArray(x.lines) ? x.lines : [];
+    const don = Math.max(0, Math.round(Number(String(x.donation == null ? '' : x.donation).replace(/[^\d]/g, '')) || 0));
+    if (!lines.length && !don) throw err('The cart is empty.');
+    if (don && (pay === 'later' || pay === 'foc')) throw err('A donation has to be paid: pick Cash, QRIS, Card or Transfer (or take the donation out).');
     const nowL = lines.filter(l => !l.pre), preL = lines.filter(l => l.pre);
     const reason = String(x.reason || '').trim(), owes = String(x.owes || '').trim();
     if (pay === 'foc' && preL.length) throw err('FOC can\'t include pre-orders. Take the pre-order items out or pick another payment.');
@@ -104,6 +107,7 @@ const SIM = (() => {
       if (paidNow) pre.forEach(l => items.push({ product: 'Pre-order ' + order + ': ' + nm(l), item: l.item, qty: l.qty, amount: l.price * l.qty, discount: 0, reason: '', brand: brand(l.product), kind: 'Pre-order', cancelled: false }));
       Object.assign(res, { order, buyer: buyer.name, collect: D.settings.collect[x.collect], paidNow, preTotal: pre.reduce((a, l) => a + l.price * l.qty, 0) });
     }
+    if (don) items.push({ product: 'Donation', item: '', qty: 1, amount: don, discount: 0, reason: x.keptChange ? 'Kept the change' : '', brand: '', kind: 'Donation', cancelled: false });
     if (items.length) addSale(id, items[0].kind, PAY[pay], by, note, items);
     res.total = items.reduce((a, i) => a + i.amount, 0); res.day = dayOut();
     s.done[id] = res; save();
