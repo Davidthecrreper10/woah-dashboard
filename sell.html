@@ -413,6 +413,12 @@
       : '<div class="empty">Tap an item to add it.</div>'}`;
   }
   function clearCart() { if (!confirm('Empty the cart?')) return; CART = []; PAY = null; cartChanged(); }
+  // The photo for a colour (set with the per-colour photo boxes on the dashboard Shop page); falls back to the cover photo.
+  function photoFor(p, colour) {
+    const ph = (p && p.photos) || [];
+    const hit = colour && ph.find(x => x.colour === colour);
+    return (hit || ph.find(x => !x.colour) || {}).thumb || (p && p.photo) || '';
+  }
   function openPick(key) {
     const p = prod(key); if (!p) return;
     if (CFG().recount === false && stockOf(p) <= 0 && !canPre(p)) { toast(p.name + ' is sold out'); return; }
@@ -435,7 +441,7 @@
     const mode = canPre(p) ? `<div class="ps-lbl">Take it now or pre-order?</div><div class="bseg" style="display:flex"><button target="_self" style="flex:1" class="${pre ? '' : 'on'}" onclick="PICK.mode='now';drawPick()">Take now</button><button target="_self" style="flex:1" class="${pre ? 'on' : ''}" onclick="PICK.mode='pre';drawPick()">Pre-order</button></div>
       <div class="ps-note">${pre ? 'Pre-order: they pay now (or later) and collect when it arrives. We\'ll ask for their name and phone at checkout.' : 'Take now: they get it from the stall today.'}</div>` : '';
     document.getElementById('sheet').innerHTML = sheetHead(esc(p.name), (p.section === 'hidden' ? 'Not on the website' : 'Also on the website') + (brandOf(p.name) === 'soap' ? ' · SOAP' : ''))
-      + `${p.photo ? `<div class="pk-img"><img src="${esc(p.photo)}" alt=""></div>` : ''}<div class="bigprice">${v ? rp(v.price) : priceOf(p)}</div>${mode}
+      + `${photoFor(p, PICK.colour) ? `<div class="pk-img"><img src="${esc(photoFor(p, PICK.colour))}" alt=""></div>` : ''}<div class="bigprice">${v ? rp(v.price) : priceOf(p)}</div>${mode}
       ${p.colours.length ? `<div class="ps-lbl">Colour</div><div class="chips">${chips('colour', p.colours)}</div>` : ''}
       ${p.fits.length ? `<div class="ps-lbl">Fit</div><div class="chips">${chips('fit', p.fits)}</div>` : ''}
       ${p.sizes.length ? `<div class="ps-lbl">Size</div><div class="chips">${chips('size', p.sizes)}</div>` : ''}
@@ -452,7 +458,7 @@
   function lineHTML(l, i, side) {
     const p = l.custom ? null : prod(l.key), name = l.custom ? l.custom : p ? p.name : '(gone from Dom\'s sheet)';
     const full = lineFull(l), net = lineNet(l), pre = !!l.pre;
-    return `<div class="cl">${p && p.photo ? `<div class="th"><img src="${esc(p.photo)}" alt="" loading="lazy"></div>` : ''}<div class="ln"><b>${esc(name)}</b>${pre ? ' <span class="pill warn">pre-order</span>' : ''}${l.custom ? ' <span class="pill">not in Dom\'s sheet</span>' : ''}<div class="o">${esc(optText(l))}${optText(l) ? ' · ' : ''}${rp(linePrice(l))} each</div>
+    return `<div class="cl">${p && photoFor(p, l.colour) ? `<div class="th"><img src="${esc(photoFor(p, l.colour))}" alt="" loading="lazy"></div>` : ''}<div class="ln"><b>${esc(name)}</b>${pre ? ' <span class="pill warn">pre-order</span>' : ''}${l.custom ? ' <span class="pill">not in Dom\'s sheet</span>' : ''}<div class="o">${esc(optText(l))}${optText(l) ? ' · ' : ''}${rp(linePrice(l))} each</div>
         <div class="ctl"><span class="qty sm"><button target="_self" onclick="lineQty(${i},-1)">−</button><span>${l.qty}</span><button target="_self" onclick="lineQty(${i},1)">+</button></span>
         ${pre ? '' : `<button target="_self" class="lnk" onclick="lineDisc(${i})">${l.discount ? 'Change discount' : 'Discount'}</button>`}<button target="_self" class="lnk" onclick="lineDel(${i})">Remove</button></div>
         ${l.dopen && !side && !pre ? `<div class="ps-lbl" style="margin-top:8px">Discount: how much LESS they pay (Rp off, not the new price)</div><div class="disc"><input class="ps-in" id="dd${i}" inputmode="numeric" placeholder="Rp off, e.g. 20000" value="${l.discount || ''}" oninput="discSet(${i},'discount',this.value)"><input class="ps-in" id="dr${i}" placeholder="Reason (e.g. small stain)" value="${esc(l.reason || '')}" oninput="discSet(${i},'reason',this.value)"></div>${l.discount ? `<div class="o">They pay ${rp(net)} instead of ${rp(full)}${net === 0 ? ': that makes it free' : ''}</div>` : ''}` : l.discount && !pre ? `<div class="o">−${rp(l.discount)}: ${esc(l.reason || 'no reason yet')}</div>` : ''}</div>

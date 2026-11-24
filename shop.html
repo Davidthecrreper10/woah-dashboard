@@ -74,6 +74,10 @@
   .sp-add { width: 78px; height: 78px; border-radius: 10px; border: 2px dashed var(--line-2, var(--line)); display: flex; align-items: center; justify-content: center; flex-direction: column; font-size: 12px; color: var(--muted); cursor: pointer; text-align: center; }
   .sp-add:hover { border-color: var(--brand); color: var(--brand); }
   .sp-add span { font-size: 22px; line-height: 1; }
+  .sp-thw { display: flex; flex-direction: column; gap: 4px; width: 78px; }
+  .sp-phcol { width: 78px; margin: 0; padding: 2px 4px; font-size: 11px; border-radius: 7px; border: 1px solid var(--line); background: var(--card); color: var(--ink); min-height: 0 !important; }
+  .sp-colbox { border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin: 0 0 8px; background: var(--card-2, var(--bg)); }
+  .sp-colh { font-size: 13px; margin-bottom: 8px; } .sp-colh span { color: var(--muted); margin-left: 6px; font-size: 12px; }
   .sp-th.up { display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--muted); }
   details.sp-stock summary { cursor: pointer; font-size: 13px; color: var(--sea, var(--brand)); }
   .sp-tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 6px; }
@@ -205,7 +209,7 @@
 <script>
   const SHOP_URL = 'https://shopwoahfestival.org/';
   const SEC = { current: 'Current merch', preorder: 'Pre-order', old: 'Vintage merch', hidden: 'Not in shop' };
-  let D = null, FILTER = 'all', DRAFT = {}, BUSY = {}, MSG = {}, BR = 'all', SQ = '';
+  let D = null, FILTER = 'all', DRAFT = {}, BUSY = {}, BUSYC = {}, MSG = {}, BR = 'all', SQ = '';
   try { FILTER = localStorage.getItem('woahShopFilter') || 'all'; BR = localStorage.getItem('woahShopBrand') || 'all'; } catch (e) {}
   // same rule as the shop website: SOAP in the name = SOAP merch, everything else = WOAH merch
   function brandOf(name) { return /soap/i.test(name || '') ? 'soap' : 'woah'; }
@@ -295,12 +299,7 @@
         <div><span class="sp-lbl">Description</span>
           <textarea id="desc-${k}" placeholder="What buyers see under the name: material, fit, the story behind the design…" oninput="descInput('${k}')">${esc(desc)}</textarea>
           <div class="sp-row" style="margin-top:6px"><button target="_self" id="dsave-${k}" onclick="saveDesc('${k}')" ${descChanged && !busy ? '' : 'disabled'}>Save description</button></div></div>
-        <div><span class="sp-lbl">Photos ${photos.length ? '· ' + photos.length : ''}</span>
-          <div class="sp-ph">${photos.map((ph, i) => `<div class="sp-th ${i === 0 ? 'cover' : ''}">${i === 0 ? '<span class="cv">COVER</span>' : ''}<img src="${esc(ph.thumb)}" alt="" loading="lazy">
-              <div class="acts"><button target="_self" title="Move left" onclick="movePh('${k}',${i},-1)" ${i === 0 || busy ? 'disabled' : ''}>◀</button><button target="_self" title="Make cover" onclick="movePh('${k}',${i},-${i})" ${i === 0 || busy ? 'disabled' : ''}>★</button><button target="_self" title="Move right" onclick="movePh('${k}',${i},1)" ${i === photos.length - 1 || busy ? 'disabled' : ''}>▶</button><button target="_self" title="Take this photo off the product (the file stays in Drive)" onclick="dropPh('${k}',${i})" ${busy ? 'disabled' : ''}>✕</button></div></div>`).join('')}
-            ${busy ? `<div class="sp-th up">Uploading ${busy}…</div>` : ''}
-            <label class="sp-add" title="Add photos"><span>+</span>Add photos<input type="file" accept="image/*" multiple hidden onchange="addPh('${k}', this)"></label>
-          </div></div>
+        ${photosHTML(p, photos, busy)}
         ${stockHTML(p)}
         <div class="c-msg ${m.cls || ''}" id="msg-${k}">${esc(m.t || '')}</div>
       </div></div>`;
@@ -335,12 +334,43 @@
     const b = document.getElementById('dsave-' + k); if (b) b.disabled = v === p.desc;
   }
   function saveDesc(k) { const v = document.getElementById('desc-' + k).value; save(k, { desc: v }, 'Description saved.').catch(() => {}); }
+  // ---------- Photos: one box per colour (plus "All colours") when the product has colours ----------
+  // All photos stay in one ordered list (the first one is the cover); each photo can belong to one colour.
+  // The shop website and the POS show a colour's photos when someone picks that colour.
+  function thumbHTML(k, photos, i, busy, cols) {
+    const ph = photos[i], same = j => (photos[j].colour || '') === (ph.colour || '');
+    let prev = -1, next = -1;
+    for (let j = i - 1; j >= 0; j--) if (same(j)) { prev = j; break; }
+    for (let j = i + 1; j < photos.length; j++) if (same(j)) { next = j; break; }
+    const pick = cols.length ? `<select class="sp-phcol" title="Which colour this photo shows" onchange="colPh('${k}',${i},this.value)" ${busy ? 'disabled' : ''}><option value="">All colours</option>${cols.map(c => `<option ${ph.colour === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>` : '';
+    return `<div class="sp-thw"><div class="sp-th ${i === 0 ? 'cover' : ''}">${i === 0 ? '<span class="cv">COVER</span>' : ''}<img src="${esc(ph.thumb)}" alt="" loading="lazy">
+      <div class="acts"><button target="_self" title="Move left" onclick="swapPh('${k}',${i},${prev})" ${prev < 0 || busy ? 'disabled' : ''}>◀</button><button target="_self" title="Make cover (first photo in the shop list)" onclick="movePh('${k}',${i},-${i})" ${i === 0 || busy ? 'disabled' : ''}>★</button><button target="_self" title="Move right" onclick="swapPh('${k}',${i},${next})" ${next < 0 || busy ? 'disabled' : ''}>▶</button><button target="_self" title="Take this photo off the product (the file stays in Drive)" onclick="dropPh('${k}',${i})" ${busy ? 'disabled' : ''}>✕</button></div></div>${pick}</div>`;
+  }
+  function addBox(k, colour, busy) {
+    const up = busy && (BUSYC[k] || '') === colour ? `<div class="sp-th up">Uploading ${busy}…</div>` : '';
+    return `${up}<label class="sp-add" title="Add photos${colour ? ' of ' + esc(colour) : ''}"><span>+</span>${colour ? 'Add ' + esc(colour) : 'Add photos'}<input type="file" accept="image/*" multiple hidden onchange="addPh('${k}', this, '${esc(colour).replace(/'/g, "\\'")}')"></label>`;
+  }
+  function photosHTML(p, photos, busy) {
+    const k = p.key, cols = p.colours || [];
+    if (!cols.length) return `<div><span class="sp-lbl">Photos ${photos.length ? '· ' + photos.length : ''}</span>
+      <div class="sp-ph">${photos.map((ph, i) => thumbHTML(k, photos, i, busy, cols)).join('')}${addBox(k, '', busy)}</div></div>`;
+    const group = c => photos.map((ph, i) => ((ph.colour || '') === c && (c === '' || cols.includes(c))) || (c === '' && ph.colour && !cols.includes(ph.colour)) ? i : -1).filter(i => i >= 0);
+    const box = (c, title, hint) => { const idx = group(c);
+      return `<div class="sp-colbox"><div class="sp-colh"><b>${title}</b> ${idx.length ? '· ' + idx.length : ''}<span>${hint}</span></div>
+        <div class="sp-ph">${idx.map(i => thumbHTML(k, photos, i, busy, cols)).join('')}${addBox(k, c, busy)}</div></div>`; };
+    return `<div><span class="sp-lbl">Photos ${photos.length ? '· ' + photos.length : ''}</span>
+      <div class="sp-meta" style="margin:2px 0 8px">Each colour has its own photos. When a buyer or the POS picks a colour, those photos show. "All colours" photos (size chart, group shot) show for every colour.</div>
+      ${cols.map(c => box(c, esc(c), '')).join('')}${box('', 'All colours', 'shown for every colour')}</div>`;
+  }
+  function swapPh(k, i, j) { if (j < 0) return; const l = curPhotos(k); [l[i], l[j]] = [l[j], l[i]]; savePhotos(k, l, 'Photo order saved.'); }
+  function colPh(k, i, c) { const l = curPhotos(k); l[i] = Object.assign({}, l[i], { colour: c || '' }); savePhotos(k, l, c ? 'Photo moved to ' + c + '.' : 'Photo now shows for all colours.'); }
   function curPhotos(k) { const p = find(k); return (DRAFT[k] && DRAFT[k].photos ? DRAFT[k].photos : p.photos).slice(); }
   function keepDesc(k) { const el = document.getElementById('desc-' + k); return el ? el.value : find(k).desc; }
   function savePhotos(k, list, txt) {
     const p = find(k), d = keepDesc(k);
     DRAFT[k] = { photos: list, desc: d }; draw();
-    return save(k, { photos: list.map(x => x.id), desc: p.desc }, txt).then(() => { if (d !== find(k).desc) { DRAFT[k] = { photos: find(k).photos, desc: d }; draw(); } }).catch(() => { DRAFT[k] = null; draw(); });
+    const photoCol = {}; list.forEach(x => { if (x.colour) photoCol[x.id] = x.colour; });
+    return save(k, { photos: list.map(x => x.id), photoCol, desc: p.desc }, txt).then(() => { if (d !== find(k).desc) { DRAFT[k] = { photos: find(k).photos, desc: d }; draw(); } }).catch(() => { DRAFT[k] = null; draw(); });
   }
   function movePh(k, i, by) { const l = curPhotos(k); const [x] = l.splice(i, 1); l.splice(Math.max(0, Math.min(l.length, i + by)), 0, x); savePhotos(k, l, by === -i ? 'New cover photo saved.' : 'Photo order saved.'); }
   function dropPh(k, i) { if (!confirm('Take this photo off the product? (The file stays in the Drive folder.)')) return; const l = curPhotos(k); l.splice(i, 1); savePhotos(k, l, 'Photo taken off.'); }
@@ -361,21 +391,21 @@
       img.src = url;
     });
   }
-  async function addPh(k, input) {
+  async function addPh(k, input, colour) {
     const files = Array.from(input.files || []).slice(0, 12); input.value = '';
     if (!files.length) return;
     const added = [];
-    BUSY[k] = files.length; draw();
+    BUSY[k] = files.length; BUSYC[k] = colour || ''; draw();
     for (const f of files) {
       try {
         const s = await shrink(f);
         const r = await call({ action: 'shopUpload', pkey: k, type: s.type, data: s.data });
-        added.push(r);
+        added.push(Object.assign(r, { colour: colour || '' }));
       } catch (e) { setMsg(k, e.message, 'bad'); }
       BUSY[k] = Math.max(0, BUSY[k] - 1); draw();
     }
     BUSY[k] = 0;
-    if (added.length) savePhotos(k, curPhotos(k).concat(added), added.length + ' photo' + (added.length > 1 ? 's' : '') + ' added.');
+    if (added.length) savePhotos(k, curPhotos(k).concat(added), added.length + ' photo' + (added.length > 1 ? 's' : '') + ' added' + (colour ? ' to ' + colour : '') + '.');
     else draw();
   }
 
