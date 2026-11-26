@@ -1,8 +1,3 @@
-// "Mass email" on the Partners page: the New or Returning sponsor template to many contacts at once.
-// Chris picks the contacts from the Possible Partners list (e.g. "all hotels"), you tick who gets it, and the WOAH Inbox
-// sends each one as its OWN email (own thread, Dear <name>, subject "<base> - <Company>"), 20 every 5 minutes.
-// Skipped: anyone who already replied to / wrote to WOAH this year, and anyone WOAH emailed in the last 14 days
-// (shown in the list where Chris knows it, and checked again in the WOAH inbox right before each email is sent).
 const MS = { open: false, step: 1, kind: 'new', tab: 'Sponsors', query: '', tpl: null, tplErr: '', loading: false, finding: false,
   findErr: '', res: null, ticked: {}, body: '', edited: false, busy: false, done: null, err: '' };
 const MS_PRESETS = ['All restaurants and bars in the Sanur area', 'All hotels', 'Cafés and restaurants anywhere in Bali', 'Beach clubs', 'Hotels and villas in Sanur',
@@ -11,7 +6,7 @@ const MS_PRESETS = ['All restaurants and bars in the Sanur area', 'All hotels', 
 const MS_MAX = 200;
 function msBase() { return MS.kind === 'returning' ? 'Supporting WOAH Festival again this year' : 'Sponsorship invitation: WOAH Festival'; }
 function msMe() { const n = String((ME && (ME.nick || ME.name)) || ''); return (n.split(',')[0].trim().split(' ')[0]) || ''; }
-// Template -> the shared text: no doc title, no greeting line (each person gets their own "Dear ..."), signed with your name
+// no title or greeting line, signed with your name
 function msFill(raw) {
   const lines = String(raw || '').replace(/\r/g, '').split('\n');
   while (lines.length && !lines[0].trim()) lines.shift();
@@ -134,7 +129,6 @@ function msDraw() {
   if (keep) { const e = document.getElementById(keep); if (e && e.focus) e.focus(); }
   msCount();
 }
-// Small card on the Partners page that opens it
 function massCard() {
   const c = document.getElementById('massCard'); if (!c) return;
   c.style.display = 'block';

@@ -22,7 +22,7 @@
 <link rel="stylesheet" href="phone.css?v=4">
 <script src="theme.js?v=8"></script>
 <style>
-  /* No tap animations on this page: the till must feel instant (and the swap animation used to cover the Close button). */
+  /* no tap animations: the till must feel instant */
   #view.w-swap, #view .w-swap, #view .w-row, #view .w-in, #sheet.w-swap, #sheet .w-swap, #sheet .w-row, #sheet .w-in, #side.w-swap, #side .w-swap, #side .w-row, #side .w-in, #tabs .w-row { animation: none !important; }
 
   /* tabs */
@@ -231,8 +231,8 @@
 <script src="phone.js?v=6"></script>
 <script src="practice.js?v=5"></script>
 <script>
-  /* ---------- state ---------- */
-  /* POS settings from the Control page (all on unless an admin switched one off) */
+  /* state */
+  /* POS settings from Control (default on) */
   function CFG() { return Object.assign({ recount: true, preorders: true, cash: true, qris: true, xendit: true, transfer: true, later: true, foc: true }, (D && D.settings && D.settings.pos) || {}); }
   function canPre(p) { return !!(p && p.preorder) && CFG().preorders !== false; }
   function payOn(k) { return CFG()[k] !== false; }
@@ -271,7 +271,7 @@
   function priceOf(p) { const ps = p.variants.map(v => v.price).filter(Boolean); if (!ps.length) return 'No price'; const lo = Math.min.apply(null, ps), hi = Math.max.apply(null, ps); return lo === hi ? rp(lo) : 'from ' + rp(lo); }
   function sheetHead(title, sub) { return `<div class="sh-h"><div class="tt"><h2>${title}</h2>${sub ? `<div class="sub">${sub}</div>` : ''}</div><button target="_self" class="sh-x" aria-label="Close" onclick="closeSheet()">✕</button></div>`; }
 
-  /* ---------- page ---------- */
+  /* page */
   function render(d, fromCache) {
     D = d;
     if (!fromCache) { try { localStorage.setItem('woahPosLast', JSON.stringify(d)); } catch (e) {} const b = document.getElementById('banner'); if (b && /No internet/.test(b.textContent)) { b.className = 'banner'; b.textContent = ''; } }
@@ -286,11 +286,11 @@
   function setTab(t) { TAB = t; ls.set('woahPosTab', t); drawTabs(); draw(); window.scrollTo(0, 0); if (t === 'collect') loadOrders(); if (t === 'today') loadDay(DAYSEL); if (t === 'confirm') loadRevisit(); }
   function cartChanged() { if (PAY) { PAY.got = ''; PAY.photo = false; } saveCarts(); drawTabs(); drawShop(); drawSide(); if (SHEET === 'cart') drawCart(); }
 
-  /* ---------- catalogue ---------- */
+  /* catalogue */
   function setBrand(b) { BR = b; ls.set('woahPosBrand', b); drawShop(); }
   /* cart panel on wide screens */
 
-  /* ---------- picker ---------- */
+  /* picker */
   function pickSet(k, val) { PICK[k] = PICK[k] === val ? '' : val; drawPick(); }
   function pickQty(d) { PICK.qty = Math.max(1, Math.min(50, PICK.qty + d)); drawPick(); }
   function openCustom() {
@@ -310,7 +310,7 @@
   function closeSheet() { document.getElementById('ov').classList.remove('on'); document.body.style.overflow = ''; SHEET = ''; }
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && SHEET) closeSheet(); });
 
-  /* ---------- cart + checkout ---------- */
+  /* cart + checkout */
   function newPay() { return { don: 0, donOther: false, kept: false, method: '', got: '', photo: false, owes: '', reason: '', helper: ls.get('woahPosHelper', ''), note: '', buyer: { name: '', phone: '', cemail: '', role: 'Student' }, collect: '', err: '' }; }
   function openCart() { PAY = PAY || newPay(); SHEET = 'cart'; drawCart(); openSheet(); }
   function photoBox(obj) {
@@ -342,7 +342,7 @@
     const ch = got - tot;
     return `<div id="chg"><div class="change ${ch < 0 ? 'bad' : ''}">${ch < 0 ? 'Still missing' : 'Change to give back'}<b>${rp(Math.abs(ch))}</b></div>${ch > 0 ? `<button target="_self" class="keepch" onclick="keepChange()">They say keep the change: add ${rp(ch)} as a donation</button>` : ''}</div>`;
   }
-  /* donation (optional): its own line, never sent to Dom's sheet; listed in "All donations" on Sales & check */
+  /* donation: own line, never sent to Dom's sheet */
   function donOf() { return PAY ? Math.max(0, Number(PAY.don) || 0) : 0; }
   function grandTot() { return (PAY && PAY.method === 'foc' ? 0 : totalOf(CART)) + donOf(); }
   function setDon(v) { PAY.don = v === 'other' ? PAY.don : v; PAY.donOther = v === 'other'; PAY.kept = false; PAY.err = ''; drawCart(); if (v === 'other') { const e = document.getElementById('donIn'); if (e) e.focus(); } }
@@ -363,7 +363,7 @@
     c[i].qty = Math.max(1, Math.min(50, c[i].qty + d)); if (c[i].discount > lineFull(c[i])) c[i].discount = lineFull(c[i]); cartChanged(); }
   function lineDel(i) { cartFor().splice(i, 1); cartChanged(); }
   function lineDisc(i) { const l = cartFor()[i]; l.dopen = !l.dopen; if (SHEET !== 'cart') { l.dopen = true; openCart(); } else drawCart(); }
-  /* redraw a sheet while someone is typing: keep the box they're in focused, with the caret where it was */
+  /* keep focus and caret when redrawing while typing */
   function keepFocus(draw) {
     const a = document.activeElement, id = a && a.id, end = a && a.value != null ? a.value.length - (a.selectionStart || 0) : 0;
     draw();
@@ -442,7 +442,7 @@
       : '<div class="empty">Tap an item to add it.</div>'}`;
   }
   function clearCart() { if (!confirm('Empty the cart?')) return; CART = []; PAY = null; cartChanged(); }
-  // The photo for a colour (set with the per-colour photo boxes on the dashboard Shop page); falls back to the cover photo.
+  // colour photo, else the cover
   function photoFor(p, colour) {
     const ph = (p && p.photos) || [];
     const hit = colour && ph.find(x => x.colour === colour);
@@ -568,7 +568,7 @@
     }).catch(e => { BUSY = false; PAY.err = e.message; drawCart(); });
   }
 
-  /* ---------- sending sales (works with bad wifi) ---------- */
+  /* sending sales (offline-safe) */
   let SYNCING = false;
   function drawQueue() {
     const q = document.getElementById('queue'), bad = QUEUE.filter(x => x.err);
@@ -603,7 +603,7 @@
   window.addEventListener('online', () => sync());
   window.addEventListener('offline', drawQueue);
 
-  /* ---------- collect shop orders (also for paying at Shanti House) ---------- */
+  /* collect shop orders */
   function loadOrders() {
     if (!ORD) document.getElementById('view').innerHTML = '<div class="card">Loading orders…</div>';
     return call({ action: 'posOrders' }).then(d => { ORD = d.orders; if (TAB === 'collect') drawCollect(); }).catch(e => { document.getElementById('view').innerHTML = `<div class="card bad">${esc(e.message)}</div>`; });
@@ -670,7 +670,7 @@
     });
   }
 
-  /* ---------- today: sales list + end-of-day check ---------- */
+  /* today: sales + end-of-day check */
   function loadDay(name) {
     return call({ action: 'posDay', day: name || '' }).then(d => { DAY = d.day; DAYS = d.days; DAYSEL = d.day ? d.day.name : (name || d.today); D.today = d.today; if (d.revisitDays) { RV = d.revisitDays; drawTabs(); } if (TAB === 'today') drawToday(); }).catch(e => fail(e));
   }
@@ -705,7 +705,7 @@
       <div class="ps-h">Send to Dom's sheet<span class="line"></span></div>
       <div class="card" id="domBox">${domBoxHTML(day, admin)}</div>`;
   }
-  /* All donations that day (POS checkout, kept change, donations on shop orders paid here). Dom copies them into his own donations sheet by hand. */
+  /* all donations that day; Dom copies them by hand */
   function dayDonations(day) {
     const out = [];
     (day.sales || []).forEach(x => (x.items || []).forEach(i => { if (!i.cancelled && !i.item && (i.kind === 'Donation' || /(^|: )Donation$/.test(i.product || ''))) out.push({ at: x.at, amount: Number(i.amount) || 0, pay: x.pay, by: x.by, sale: x.sale }); }));
@@ -740,7 +740,7 @@
       ${x.kind === 'Sale' ? `<div class="acts">${(mine || admin) && !cx && !x.dom ? `<button target="_self" onclick="openEdit('${esc(dayName)}','${esc(x.sale)}')">Edit</button>` : ''}${(mine || admin) ? `<button target="_self" onclick="voidSale('${esc(dayName)}','${esc(x.sale)}',${cx})">${cx ? 'Undo cancel' : 'Cancel sale'}</button>` : ''}
         ${admin && !cx ? `<label class="pill ${x.dom ? 'ok' : ''}" style="cursor:pointer"><input type="checkbox" ${x.dom ? 'checked' : ''} onchange="domSale('${esc(dayName)}','${esc(x.sale)}',this.checked)"> In Dom's sheet</label>` : x.dom ? '<span class="pill ok">In Dom\'s sheet</span>' : ''}</div>` : ''}</div>`;
   }
-  /* ---------- send the checked day to Dom's sheet (admins) ---------- */
+  /* send to Dom's sheet (admins) */
   let DOMPREV = null;
   function domBoxHTML(day, admin) {
     const wait = day.toDom || 0;
@@ -770,7 +770,7 @@
     call({ action: 'posDomSend', day: p.day, confirm: true }).then(r => { DOMPREV = null; DAY = r.day; drawToday(); toast('Sent ' + r.sent + ' rows to Dom\'s sheet'); })
       .catch(e => { alert(e.message); DOMPREV = null; loadDay(DAY.name); });
   }
-  /* ---------- edit a sale after checkout (seller or admin; locked once in Dom's sheet) ---------- */
+  /* edit a sale (locked once in Dom's sheet) */
   let ED = null;
   const PAY_KEY = Object.keys(PAY_LABEL).reduce((a, k) => (a[PAY_LABEL[k]] = k, a), {});
   function varOf(item) { for (const p of (D.products || [])) for (const v of p.variants) if (item && v.item === item) return { p, v }; return null; }
@@ -856,7 +856,7 @@
   function domSale(day, sale, on) {
     call({ action: 'posDom', day, sale, on }).then(r => { DAY = r.day; drawToday(); }).catch(e => { alert(e.message); drawToday(); });
   }
-  /* ---------- end-of-day check: doesn't add up -> "To confirm" (sending locked) ---------- */
+  /* end-of-day check doesn't add up -> "To confirm" */
   function typedCounted() { const c = {}; COUNTED.forEach(m => { const v = CK[m] != null ? CK[m] : (DAY.counted[m] != null ? String(DAY.counted[m]) : ''); c[m] = v === '' ? '' : Number(v); }); return c; }
   function diffOf(sum, counted) { const d = {}; COUNTED.forEach(m => { const sys = (sum[m] || {}).amount || 0; if (counted[m] !== '' && counted[m] != null && Number(counted[m]) !== sys) d[m] = Number(counted[m]) - sys; }); return d; }
   function sameDiff(a, b) { const ka = Object.keys(a || {}), kb = Object.keys(b || {}); return ka.length === kb.length && ka.every(k => Number(a[k]) === Number(b[k])); }
@@ -908,7 +908,7 @@
     failOnline(err);
   };
   start({ title: 'POS', need: 'handler', action: 'pos', onData: d => render(d) });
-  /* Opens straight away with the last product list saved on this phone (no wifi at the stand), then swaps in fresh data */
+  /* show the cached product list first (no wifi at the stand), then refresh */
   try { const last = JSON.parse(localStorage.getItem('woahPosLast') || 'null'); if (KEY && last && last.products && !D) render(last, true); } catch (e) {}
 </script>
 </body>

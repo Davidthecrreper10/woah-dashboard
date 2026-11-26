@@ -1,13 +1,10 @@
-// Shared by every WOAH page: login (password + your email, remembered on this device), talking to Chris's script, small helpers.
-// The password is checked by the script (not here): the full password opens everything, the handler password only the Email handlers page.
-// The email must be in the Planner's Team tab, so taking someone off the Team tab logs them out.
 const API = 'https://script.google.com/macros/s/AKfycbzAV1IE_Y6-IlgkQh3MGRTc6aspuaZSu00y5QXu_8R8e1nTgch3XUhUyFR2wdqgZICg/exec';
 const RANK = { handler: 1, full: 2 };
 let KEY = '', EMAIL = '', ME = null, PAGE = { need: 'handler', onData: () => {} };
 try { KEY = localStorage.getItem('woahKey') || localStorage.getItem('woahDashPw') || ''; EMAIL = localStorage.getItem('woahEmail') || localStorage.getItem('woahMyEmail') || ''; } catch (e) {}
 if (!EMAIL) KEY = '';   // old logins without an email: ask once
 
-// Plain-text POST without any Google cookies, so it works whatever accounts the browser is signed into.
+// plain text, no cookies: works whatever Google accounts the browser has
 function call(body, tries) {
   return fetch(API, { method: 'POST', credentials: 'omit', redirect: 'follow',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ key: KEY, email: EMAIL }, body)) })
@@ -18,13 +15,12 @@ function call(body, tries) {
       return res.data;
     })
     .catch(e => {
-      // "Failed to fetch" now and then on the first call: try again once before showing an error
+      // first call sometimes fails with "Failed to fetch", retry once
       if (e instanceof TypeError && !tries) return new Promise(r => setTimeout(r, 800)).then(() => call(body, 1));
       if (e.auth) logout(e.message); throw e;
     });
 }
 
-// Send people to the page they're allowed to see
 function gate(me) {
   ME = me;
   if (RANK[me.role] < RANK[PAGE.need]) { location.replace(me.role === 'handler' ? 'home.html' : './'); throw new Error('Moving you to your page…'); }
@@ -57,7 +53,7 @@ function loginBox(title) {
 function tryLogin() {
   KEY = document.getElementById('pw').value.trim();
   EMAIL = document.getElementById('em').value.trim().toLowerCase();
-  try { localStorage.setItem('woahKey', KEY); localStorage.setItem('woahEmail', EMAIL); } catch (e) {}   // remembered so every page opens straight away; the password is removed again if it's wrong
+  try { localStorage.setItem('woahKey', KEY); localStorage.setItem('woahEmail', EMAIL); } catch (e) {}   // remembered; cleared again if the password is wrong
   document.getElementById('loginErr').textContent = 'Checking…';
   call(Object.assign({ action: PAGE.action || 'data' }, PAGE.params || {})).then(d => {
     try { localStorage.setItem('woahKey', KEY); localStorage.removeItem('woahDashPw'); localStorage.removeItem('woahMyEmail'); } catch (e) {}
@@ -70,7 +66,7 @@ function logout(msg) {
   KEY = ''; ME = null; showApp(false);
   const e = document.getElementById('loginErr'); if (e) e.textContent = msg || '';
 }
-// Each page calls this once: need = lowest role allowed, onData = draws the page, every = auto refresh (minutes)
+// need = lowest role allowed, every = refresh minutes
 function start(opts) {
   PAGE = opts;
   loginBox(opts.title);
@@ -87,7 +83,7 @@ function fail(err) {
   const b = document.getElementById('banner'); if (b) { b.className = 'banner bad'; b.textContent = 'Something went wrong: ' + (err && err.message || err); }
 }
 
-// ---------- helpers ----------
+// helpers
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function days(t) { return Math.max(0, Math.floor((Date.now() - t) / 86400000)); }
 function ago(t) { const d = days(t); return d === 0 ? 'today' : d === 1 ? '1 day' : d + ' days'; }
@@ -99,7 +95,7 @@ function first(e) { e = String(e).toLowerCase(); return NAMES[e] || e.split('@')
 function myEmail() { return ME ? String(ME.email || '').toLowerCase() : ''; }
 // Always open the exact thread in the WOAH inbox
 function fixLink(l) { const m = String(l || '').match(/#all\/([0-9a-f]+)/i); return m ? 'https://mail.google.com/mail/?authuser=woahfestival@greenschool.org#all/' + m[1] : l; }
-// "find in my email": searches the logged-in person's OWN Gmail for the email or Chris's forward/reminder about it
+// searches the user's own Gmail, not the WOAH inbox
 function mineLink(x) {
   const id = (String(x.link || '').match(/#all\/([0-9a-f]+)/i) || [])[1] || '';
   const subj = String(x.subject || '').replace(/^\s*((re|fwd?|aw)\s*:\s*)+/i, '').replace(/"/g, '').trim();
@@ -113,8 +109,7 @@ function mineLink(x) {
 }
 function links(x) { return `<a href="${esc(fixLink(x.link))}" title="Open in the WOAH inbox">${esc(x.subject)}</a> <a class="mine" href="${esc(mineLink(x))}" title="Search your own Gmail for this email or Chris's forward/reminder about it">find in my email</a>`; }
 
-// Sponsor templates come in a Sanur and a Green School version (the festival isn't always in the same place).
-// Each person picks on the page; the choice is remembered on this device. Used by outreach.js, reach.js and mass.js.
+// Sanur / Green School template version, remembered per device
 let VENUE = 'sanur';
 try { if (localStorage.getItem('woahVenue') === 'gs') VENUE = 'gs'; } catch (e) {}
 function setVenue(v) { VENUE = v === 'gs' ? 'gs' : 'sanur'; try { localStorage.setItem('woahVenue', VENUE); } catch (e) {} }
@@ -130,6 +125,6 @@ function venueHTML(fn) {
   (document.head || document.documentElement).appendChild(s);
 })();
 
-// The phone app (installed from the browser): keeps the pages on the phone so the app opens with bad wifi. See sw.js and install.html.
+// service worker for the installed app (sw.js)
 const APP_MODE = !!((window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone);
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

@@ -179,7 +179,7 @@
   }
   function nameOf(e) { const p = (D.team || []).find(t => t.email === String(e).toLowerCase()); return p ? p.name : e; }
 
-  // ---------- 2 Health ----------
+  // health
   function drawHealth() {
     const h = D.health || {}, p = D.partners || {};
     const mins = h.lastRun ? Math.round((Date.now() - h.lastRun) / 60000) : null;
@@ -226,7 +226,7 @@
     } catch (e) { m.textContent = e.message || 'Something went wrong'; } finally { b.disabled = false; }
   }
 
-  // ---------- 3 Switches ----------
+  // switches
   function drawSwitches() {
     const e = eff(), f = Object.assign({ autoReply: true, reminders: true, followups: true, promises: true, ai: true, deptCc: true }, e.features || {});
     const c = D.control || {};
@@ -246,7 +246,7 @@
       <div class="card"><div class="sw-name">Possible Partners</div><div class="sw-note">The partners sheet has its own switches (updates from emails, PIC reassigning, moving rows).</div><div style="margin-top:10px"><a href="partners.html" target="_self">Open the Partners controls →</a></div></div>`;
     document.getElementById('switchBox').innerHTML = h + `</div>` + posSwitches() + `<div class="c-msg" id="swMsg"></div>`;
   }
-  // ---------- POS (sales stand) switches: saved in settings.pos, read by the POS page ----------
+  // POS switches (settings.pos)
   const POS_PAYS = [['cash', 'Cash'], ['qris', 'QRIS'], ['xendit', 'Card (Xendit)'], ['transfer', 'Transfer'], ['later', 'Not paid yet'], ['foc', 'FOC (free)']];
   function posCfg() { return Object.assign({ recount: true, preorders: true, cash: true, qris: true, xendit: true, transfer: true, later: true, foc: true }, (D.settings || {}).pos || {}); }
   function setPos(k, v) { save({ action: 'controlSet', settings: { pos: { [k]: v } } }, 'swMsg', 'Saved. The POS uses it the next time the page loads or refreshes.'); }
@@ -280,7 +280,7 @@
     box.style.display = 'block';
   }
 
-  // ---------- 4 Settings ----------
+  // settings
   const SET_LISTS = [
     ['alerts', "Who gets Chris's alerts", 'Emails about problems (and Test mode emails, to the first person). At least one.'],
     ['ccEvery', "CC'd on every reminder and forward", 'Usually the teacher in charge.'],
@@ -320,7 +320,7 @@
     save({ action: 'controlSet', settings: s }, 'setMsg');
   }
 
-  // ---------- 5 Team & departments ----------
+  // team & departments
   function admins() { return D.admins || []; }
   function drawTeam() {
     const ad = admins(), me = myEmail();
@@ -395,7 +395,7 @@
     save(body, 'routeMsg', mode === 'remove' ? 'Department removed.' : 'Saved. Chris uses it from his next check.');
   }
 
-  // ---------- 6 Run ----------
+  // run
   function drawRun() {
     const pend = D.pending || [];
     document.getElementById('runBox').innerHTML = `<div class="card">${Object.keys(OPS).map(op => { const w = pend.find(p => p.op === op); return `<div class="pp-row" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0">
@@ -408,7 +408,7 @@
   }
   function runOp(op) { save({ action: 'controlRun', op }, 'runMsg', 'Queued. Chris does it within about 5 minutes; the result shows in Activity.'); }
 
-  // ---------- 7 Activity ----------
+  // activity
   function drawActivity() {
     const ch = D.changes || [], act = D.activity || [], al = D.alerts || [];
     document.getElementById('activityBox').innerHTML = `
@@ -421,7 +421,7 @@
   }
 
 
-  // ---------- 5 Linked files ----------
+  // linked files
   let LF = null, LF_LOADING = false, LF_OPEN = -1;
   const LF_TYPE = { doc: 'Google Doc', sheet: 'Google Sheet', folder: 'Drive folder' };
   function loadFiles() {

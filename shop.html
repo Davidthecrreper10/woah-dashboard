@@ -242,7 +242,7 @@
   const SEC = { current: 'Current merch', preorder: 'Pre-order', old: 'Vintage merch', hidden: 'Not in shop' };
   let D = null, FILTER = 'all', DRAFT = {}, BUSY = {}, BUSYC = {}, MSG = {}, BR = 'all', SQ = '';
   try { FILTER = localStorage.getItem('woahShopFilter') || 'all'; BR = localStorage.getItem('woahShopBrand') || 'all'; } catch (e) {}
-  // same rule as the shop website: SOAP in the name = SOAP merch, everything else = WOAH merch
+  // same rule as the shop site: SOAP in the name = SOAP merch
   function brandOf(name) { return /soap/i.test(name || '') ? 'soap' : 'woah'; }
   function inBrand(name) { return BR === 'all' || brandOf(name) === BR; }
   function setBrand(b) { BR = b; try { localStorage.setItem('woahShopBrand', b); } catch (e) {} drawTabs(); draw(); if (OD) drawOrders(); if (OD && SD) drawPre(); if (HD) drawHist(); }
@@ -276,7 +276,7 @@
       </div></div>`;
     const tabs = [['all', 'All', ps.length], ['current', 'Current merch', n('current')], ['preorder', 'Pre-order', n('preorder')], ['old', 'Vintage merch', n('old')], ['hidden', 'Not in shop', n('hidden')], ['new', 'New', nNew]];
     document.getElementById('seg').innerHTML = tabs.map(([k, l, c]) => `<button target="_self" class="${FILTER === k ? 'on' : ''}" onclick="setFilter('${k}')">${l} · ${c}</button>`).join('');
-    // search box: every word typed must appear in the name, a colour, a size, the group or Dom's row names
+    // every word must match name, colour, size, group or Dom's row
     const words = SQ.toLowerCase().split(/\s+/).filter(Boolean);
     const hay = p => [p.name, p.group || '', ...(p.colours || []), ...(p.fits || []), ...(p.sizes || []), ...(p.variants || []).map(v => v.item || '')].join(' ').toLowerCase();
     const list = ps.filter(p => FILTER === 'all' || (FILTER === 'new' ? p.isNew : p.section === FILTER)).filter(p => !words.length || words.every(w => hay(p).includes(w)));
@@ -285,7 +285,7 @@
     document.getElementById('grid').innerHTML = list.length ? list.map(cardHTML).join('') : `<div class="card" style="grid-column:1/-1">${words.length ? 'No products match <b>' + esc(SQ) + '</b>' + (FILTER !== 'all' ? ' in this tab. Try <a href="#" target="_self" onclick="setFilter(\'all\');return false">All</a>.' : '.') : 'Nothing here.'}</div>`;
     const sc = document.getElementById('spCount'); if (sc) sc.textContent = words.length ? list.length + ' found' : '';
     const g = D.gone || [];
-    const lk = D.lookalike || [];   // names Chris may have read as two products when they are one (backend shopLookalikes_)
+    const lk = D.lookalike || [];   // lookalike names (backend shopLookalikes_)
     document.getElementById('look').innerHTML = lk.length ? `<div class="card sp-look"><b>Check ${lk.length === 1 ? 'these names' : 'these ' + lk.length + ' pairs of names'} in Dom's sheet</b>
       <div class="sp-meta">Chris read these as separate products, but they look like <b>one product in different colours</b>:</div>
       <ul>${lk.map(([a, b]) => `<li><b>${esc(a)}</b> and <b>${esc(b)}</b></li>`).join('')}</ul>
@@ -351,7 +351,7 @@
     const p = find(k); if (!p) return;
     const off = (p.preOff || []).filter(x => x.toLowerCase() !== c.toLowerCase()), was = off.length !== (p.preOff || []).length;
     if (!was) off.push(c);
-    const before = p.preOff; p.preOff = off; draw();   // show the change straight away; saving takes a few seconds
+    const before = p.preOff; p.preOff = off; draw();   // optimistic update
     save(k, { preOff: off }, was ? 'Pre-orders back on for ' + c + '.' : 'No pre-orders for ' + c + ' any more (website and POS page).').catch(() => { p.preOff = before; draw(); });
   }
   function setSection(k, s) {
@@ -365,9 +365,8 @@
     const b = document.getElementById('dsave-' + k); if (b) b.disabled = v === p.desc;
   }
   function saveDesc(k) { const v = document.getElementById('desc-' + k).value; save(k, { desc: v }, 'Description saved.').catch(() => {}); }
-  // ---------- Photos: one box per colour (plus "All colours") when the product has colours ----------
-  // All photos stay in one ordered list (the first one is the cover); each photo can belong to one colour.
-  // The shop website and the POS show a colour's photos when someone picks that colour.
+  // photos per colour
+  // one ordered list, first is the cover; each photo can belong to one colour
   function thumbHTML(k, photos, i, busy, cols) {
     const ph = photos[i], same = j => (photos[j].colour || '') === (ph.colour || '');
     let prev = -1, next = -1;
@@ -406,7 +405,7 @@
   function movePh(k, i, by) { const l = curPhotos(k); const [x] = l.splice(i, 1); l.splice(Math.max(0, Math.min(l.length, i + by)), 0, x); savePhotos(k, l, by === -i ? 'New cover photo saved.' : 'Photo order saved.'); }
   function dropPh(k, i) { if (!confirm('Take this photo off the product? (The file stays in the Drive folder.)')) return; const l = curPhotos(k); l.splice(i, 1); savePhotos(k, l, 'Photo taken off.'); }
 
-  // Photos are shrunk on this device first (max 1600px), then sent one by one to Chris, which saves them in Drive.
+  // shrink to 1600px max, then upload one by one
   function shrink(file) {
     return new Promise((res, rej) => {
       const img = new Image(), url = URL.createObjectURL(file);
@@ -440,7 +439,7 @@
     else draw();
   }
 
-  // ---------- Orders tab ----------
+  // orders
   let TAB = 'products', OD = null, OF = 'todo', OQ = '', OBUSY = {}, OPAY = {};
   try { TAB = localStorage.getItem('woahShopTab') || 'products'; OF = localStorage.getItem('woahShopOF') || 'todo'; } catch (e) {}
   function drawTabs() {
@@ -460,9 +459,9 @@
     if (!OD) document.getElementById('ordersView').innerHTML = '<div class="card">Loading orders…</div>';
     return call({ action: 'shopOrders' }).then(d => { OD = d; drawOrders(); drawTabs(); }).catch(e => { document.getElementById('ordersView').innerHTML = `<div class="card bad">${esc(e.message)}</div>`; });
   }
-  // ---------- Pre-orders tab: how many of what to order ----------
+  // pre-orders
   let SD = null;
-  function preItems() {   // every pre-order item still waiting for stock (same rule as the Stock page)
+  function preItems() {   // pre-order items still waiting for stock (same rule as Stock)
     const out = [];
     (OD ? OD.orders : []).forEach(o => o.items.forEach(i => { if (i.type === 'Pre-order' && i.status === 'Waiting for stock' && inBrand(i.product)) out.push({ o, i, qty: Number(i.qty) || 0 }); }));
     return out;
@@ -522,7 +521,7 @@
       }).join('') : '<div class="card" style="margin-top:12px;text-align:center;color:var(--muted)">No pre-orders waiting for stock.</div>'}`;
   }
 
-  // ---------- Visitors tab: anonymous visit counts from the shop website ----------
+  // visitors
   let VD = null;
   function loadVisits() {
     if (!VD) document.getElementById('visitsView').innerHTML = '<div class="card">Loading visitors…</div>';
@@ -549,7 +548,7 @@
         ${last7.slice().reverse().map(d => `<tr><td class="l">${esc(vsDay(d.day, true))}</td><td>${d.visitors}</td><td>${d.views}</td></tr>`).join('')}</table></div>`;
   }
 
-  // ---------- POS sales tab: every selling day from the Sales Tracker ----------
+  // POS sales
   let HD = null, HQ = '', HPAY = 'all', HOPEN = {};
   function loadHist() {
     if (!HD) document.getElementById('histView').innerHTML = '<div class="card">Loading POS sales…</div>';
@@ -557,7 +556,7 @@
   }
   function hsDon(i) { return !i.item && (i.kind === 'Donation' || /(^|: )Donation$/.test(i.product || '')); }
   function hsItemBrand(i) { return hsDon(i) ? 'all' : (String(i.brand || '').toLowerCase() || brandOf(i.product)); }
-  // The sales that match the search / payment / brand, each with only the matching items.
+  // matching sales, with only the matching items
   function hsDays() {
     const q = HQ.trim().toLowerCase();
     return (HD.days || []).map(d => {
@@ -621,7 +620,7 @@
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'woah-pos-sales-' + new Date().toISOString().slice(0, 10) + '.csv'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }
 
-  // ---------- Accounts tab ----------
+  // accounts
   let AD = null, AQ = '', ABUSY = {}, APW = {};
   function loadAccounts() {
     if (!AD) document.getElementById('accountsView').innerHTML = '<div class="card">Loading accounts…</div>';
@@ -672,7 +671,7 @@
     const unpaid = todo.filter(o => o.paid !== 'Yes');
     const proofs = todo.filter(o => o.paid === 'Proof sent');
     const ready = todo.filter(o => o.status === 'Ready to collect');
-    // how many pre-order items to get, per product + option (not cancelled, not collected)
+    // pre-order items to get per product + option
     const need = {};
     todo.forEach(o => o.items.forEach(i => { if (i.type !== 'Pre-order' || i.status === 'Cancelled' || i.status === 'Collected' || !inBrand(i.product)) return; const k = i.product + '|' + opt(i); need[k] = (need[k] || 0) + i.qty; }));
     const needRows = Object.keys(need).sort().map(k => { const [p, o] = k.split('|'); return `<tr><td>${esc(p)}</td><td>${esc(o || '–')}</td><td class="n">${need[k]}</td></tr>`; }).join('');
@@ -732,7 +731,7 @@
       ${OPAY[o.order] && !done && o.paid !== 'Yes' ? odPayHTML(o) : ''}
     </div>`;
   }
-  // Payment taken in person (e.g. at Shanti House): marks it paid and adds it to that day's tab in the Sales Tracker, like the POS page.
+  // paid in person: mark paid and add to that day's Sales Tracker tab
   function odPayOpen(id) { OPAY[id] = OPAY[id] ? null : { method: '', hand: false, photo: false }; drawOrdersList(); }
   function odPayHTML(o) {
     const s = OPAY[o.order], id = esc(o.order);

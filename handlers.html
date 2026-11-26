@@ -86,9 +86,9 @@
          <b>Dismiss</b> = off the list in one click, no more reminders.
          You can still reply from Chris's forward in your own inbox.`) + ' Click an email\'s subject to see the whole email.';
   }
-  // Sent / done from the page: hidden straight away while Chris carries it out (within about 5 minutes)
+  // hide right away, Chris does it within ~5 min
   const leaving = x => ((DATA && DATA.pending) || []).some(a => a.id === x.id && ['reply', 'followup', 'done'].includes(a.op));
-  // "Sent, waiting for confirmation": nothing can be pressed again here, so nothing gets sent twice
+  // waiting for confirmation: buttons stay disabled so nothing is sent twice
   const sentSection = (list, them) => {
     const s = list.filter(leaving);
     if (!s.length) return '';
@@ -98,7 +98,7 @@
   };
   const section = (title, list, note, fn, me) => list.length ? `<div class="gh">${title} <span class="sub">· ${list.length}</span></div>${note ? `<div class="sub" style="margin:-4px 0 8px">${note}</div>` : ''}` + list.map(x => fn(x, me)).join('') : '';
 
-  // To answer: No owner first, then the queue (most urgent first), then snoozed
+  // no owner, then queue by urgency, then snoozed
   function renderHandle(p) {
     const me = myEmail(), now = Date.now();
     const allUs = lists().us.filter(x => x.id);
@@ -117,7 +117,7 @@
     p.innerHTML = h;
   }
 
-  // Waiting on them: Gone quiet (nudged twice), Waiting, Reminder set
+  // gone quiet, waiting, reminder set
   function renderThem(p) {
     const me = myEmail(), now = Date.now();
     const allThem = lists().them.filter(x => x.id);

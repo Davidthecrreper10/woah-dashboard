@@ -1,5 +1,3 @@
-// Shared by every WOAH page, once you're logged in: the festival countdown bar and the "Ask Chris" chat.
-// common.js calls woahExtras(me) the first time it knows who is logged in.
 (function () {
   let started = false;
   window.woahExtras = function (me) {
@@ -58,7 +56,7 @@
     document.head.appendChild(s);
   }
 
-  // ---------- Festival countdown ----------
+  // countdown
   function countdown(me) {
     const cached = store.get('woahCd', null);
     if (cached && cached.d) draw(cached.d, me);
@@ -95,7 +93,7 @@
     pop.innerHTML = `<b>Overdue in the Planner</b>${(d.late || []).map(x => `<div>${esc(x.dueText)} · ${esc(x.item)} <span class="sub">· ${esc(x.planner)}${x.owner && x.owner !== 'No owner' ? ' · ' + esc(x.owner) : ''}</span></div>`).join('')}${d.overdue > (d.late || []).length ? `<div class="sub">and ${d.overdue - d.late.length} more${full ? ' · see the Dashboard' : ''}</div>` : ''}`;
   }
 
-  // ---------- Ask Chris ----------
+  // Ask Chris
   const SUGS = ["What's overdue?", "Where's the WOAH 2027 folder?", 'Who is handling Bali United?', 'Which sponsors replied recently?', 'What emails are waiting on me?'];
   let busy = false;
   function chat(me) {

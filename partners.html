@@ -133,13 +133,13 @@
       <div class="pp-ed" id="ed-${PP.rows.indexOf(r)}"></div>
     </div>`;
   }
-  // ---------- open emails with this contact (from the Email handlers page) ----------
+  // open emails with this contact
   function mailsHtml(r) {
     const l = (PP.emails || {})[keyOf(r)] || [];
     if (!l.length) return '';
     return `<div class="pp-mails">✉ ${l.length} open email${l.length === 1 ? '' : 's'}: ${l.slice(0, 3).map(m => `<a href="email.html?id=${encodeURIComponent(m.id)}" target="_self" title="${m.kind === 'us' ? 'Waiting for us to answer' : 'Waiting for them to answer'}">${esc(m.subject || '(no subject)')}</a>`).join('')}${l.length > 3 ? ' …' : ''}</div>`;
   }
-  // ---------- Edit (everyone): Chris writes the row within about 5 minutes ----------
+  // edit
   let OPEN_ED = '';
   function editPending(r) { return (PP.editPending || []).some(p => String(p.id).toLowerCase() === keyOf(r)); }
   const ED_LABELS = { contact: 'Contact person', progress: 'Progress', offer: 'What they offer', coming: 'Coming?' };
@@ -168,7 +168,7 @@
     msg.className = 'c-msg'; msg.textContent = 'Sending to Chris…';
     call(body).then(d => { OPEN_ED = ''; render(d); }).catch(e => { msg.className = 'c-msg bad'; msg.textContent = e.message; });
   }
-  // ---------- Confirmed sponsors ("supporting us!"): paid? (admins edit, everyone sees) ----------
+  // confirmed sponsors: paid?
   const PAID = [['not', 'Not paid yet'], ['invoiced', 'Invoiced'], ['partly', 'Partly paid'], ['paid', 'Paid'], ['inkind', 'In-kind (not money)']];
   const rp = n => 'Rp ' + Math.round(Number(n) || 0).toLocaleString('en-US');
   function drawSponsors() {
@@ -199,7 +199,7 @@
     call({ action: 'sponsorsSet', pkey: keyOf(r), company: r.company, paid: document.getElementById('spp-' + id).value, amount: document.getElementById('spa-' + id).value, received: document.getElementById('spr-' + id).value, note: document.getElementById('spn-' + id).value })
       .then(d => { render(d); }).catch(e => { m.className = 'c-msg bad'; m.textContent = e.message; });
   }
-  // ---------- Remove (admins): Chris moves it to the Removed tab or deletes it, within about 5 minutes ----------
+  // remove (admins)
   const REASONS = ['Email not valid', 'Not interested', 'No reply', 'Duplicate', 'Other'];
   function reachRow(i) { const r = PP.rows[i]; if (r) reachOpen({ email: r.email, name: r.contact, company: r.company }); }
   function keyOf(r) { return (r.tab + '|' + (r.email || r.company)).toLowerCase().slice(0, 200); }
@@ -227,7 +227,7 @@
   function undoRemove(row, company) {
     call({ action: 'partnersRemove', mode: 'restore', removedRow: row, company }).then(render).catch(fail);
   }
-  // ---------- Change PIC (everyone): Chris writes the new name(s) into the row and emails them, within about 5 minutes ----------
+  // change PIC
   let OPEN_PIC = '', PIC_SEL = [];
   function canPic(r) { return (PP.team || []).length && !(PP.noPic || []).includes(r.tab); }
   function picPending(r) { return (PP.picPending || []).some(p => String(p.id).toLowerCase() === keyOf(r)); }
@@ -328,7 +328,7 @@
     drawResults();
   }
 
-  // ---------- controls (full password only) ----------
+  // controls (full only)
   const SW = [
     ['sync', 'Updates from emails', 'Chris reads the WOAH emails with outside companies and updates their row: colour, latest contact, progress, PIC and what they offer. New companies WOAH emails get a new row.'],
     ['pics', 'Reassign PICs who left', "Once a day, contacts whose PIC isn't on the Team tab anymore go to someone in the right department (Chris works out the department from the company). You get an email with the list."],

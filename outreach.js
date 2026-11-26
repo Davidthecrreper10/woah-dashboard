@@ -1,16 +1,12 @@
-// "New sponsor email" tab on the Email handlers page.
-// The student picks New or Returning sponsor; the text comes live from that template doc (read again every time the
-// tab opens, on Reload, and on each auto-refresh while the email hasn't been edited). They fill in the sponsor's details,
-// check the email, and Chris sends it from the WOAH email within about 5 minutes.
 const OUT = { kind: 'new', name: '', company: '', to: '', subject: '', body: '', edited: false, subjEdited: false, tpl: null, loading: false, err: '', sent: null };
 try { const k = localStorage.getItem('woahOutKind'); if (k === 'returning') OUT.kind = 'returning'; } catch (e) {}
 
-// The subject is always "<base> - <Company Name>" (set automatically, can't be typed over)
+// subject is fixed: "<base> - <Company Name>"
 function outSubject() {
   const c = OUT.company.trim() || '[Company Name]';
   return (OUT.kind === 'returning' ? 'Supporting WOAH Festival again this year' : 'Sponsorship invitation: WOAH Festival') + ' - ' + c;
 }
-// Template text -> the email: drop the doc's title line, tidy blank lines, put the name after "Dear", sign with your nickname
+// drop title line, tidy blank lines, fill in Dear and signature
 function outFill(raw) {
   const lines = String(raw || '').replace(/\r/g, '').split('\n');
   while (lines.length && !lines[0].trim()) lines.shift();
@@ -111,7 +107,7 @@ function outDraw() {
     <div class="confirm" id="outMsg"></div>
     <div id="outList">${outList()}</div>`;
 }
-// Called by the page on every (auto) refresh while this tab is open: keeps what's typed, refreshes the template if it wasn't edited
+// on refresh: keep typed text, reload template if not edited
 function renderOutreach(p, refreshed) {
   if (!document.getElementById('outBody') || !refreshed) { outDraw(); if (!OUT.tpl) outLoad(); return; }
   if (!OUT.edited) outLoad(true);

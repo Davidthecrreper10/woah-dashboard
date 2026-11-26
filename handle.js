@@ -1,5 +1,3 @@
-// Shared by handlers.html (the lists) and email.html (one email in full): the cards, the buttons and the follow-up composer.
-// Clicks become requests that Chris (the WOAH inbox) carries out on its next check, within about 5 minutes.
 let DATA = null;
 const ADMIN = 'david.mantzios@student.greenschool.org';
 const OPS = { claim: 'Claim', unclaim: 'Unclaim', snooze: 'Snooze', unsnooze: 'Wake up', done: 'Mark done', reassign: 'Reassign' };
@@ -14,16 +12,15 @@ function findItem(id) {
   const u = l.us.find(x => x.id === id); if (u) return { x: u, kind: 'us' };
   const t = l.them.find(x => x.id === id); return t ? { x: t, kind: 'them' } : null;
 }
-// Short name = the nickname from the Team tab (Raja, Angela, Dina…), else the first word of the name
+// nickname from the Team tab, else first name
 function shortOf(t) { return (t.nick || '').trim() || String(t.name || '').split(' ')[0]; }
 function teamName(e) { const p = ((DATA && DATA.team) || []).find(t => t.email === String(e).toLowerCase()); return p ? shortOf(p) : first(e); }
 function teamNames(v) { return String(v || '').split(',').filter(Boolean).map(teamName).join(', '); }
 function urgency(x) { return days(x.since) + (x.reminders || 0) * 2; }
 function chasing(x, me) { return x.claimedBy ? x.claimedBy === me : (x.to || []).includes(me); }
 function shortDay(t) { return new Date(t).toLocaleDateString([], { day: 'numeric', month: 'short' }); }
-function canFollowUp(x) { return true; }   // emails a team member sent from their own inbox (WOAH CC'd) are followed up from the WOAH email too
+function canFollowUp(x) { return true; }   // sent from a member's own inbox with WOAH cc'd: still follow up from WOAH
 
-// The subject opens the email in full; "find in my email" searches your own Gmail
 function subjLink(x) {
   return `<a href="email.html?id=${encodeURIComponent(x.id)}" target="_self" title="Open the full email">${esc(x.subject)}</a> <a class="mine" href="${esc(mineLink(x))}" title="Search your own Gmail for this email or Chris's forward/reminder about it">find in my email</a>`;
 }
@@ -31,7 +28,6 @@ function pendHtml(x, them) {
   const L = them ? THEM_OPS : OPS;
   return ((DATA && DATA.pending) || []).filter(a => a.id === x.id).map(a => `<div class="pend">Waiting for Chris: ${esc(L[a.op] || a.op)}${a.op === 'reassign' ? ' to ' + esc(teamNames(a.value)) : a.op === 'snooze' ? (them ? ' in ' : ' ') + esc(a.value) + ' days' : ''} (by ${esc(teamName(a.by))})</div>`).join('');
 }
-// The partner behind this email (from the Possible Partners List), linking to their profile
 function ppChip(x) {
   const l = DATA && DATA.ppLinks && DATA.ppLinks[String(x.sender || '').toLowerCase()];
   if (!l) return '';
@@ -41,7 +37,7 @@ function flagHtml(x) {
   return (x.flags || []).length ? `<div class="flagbox"><b>Check with a teacher before replying</b> · this email ${esc(x.flags.map(f => FLAG_TIPS[f] || f).join(', '))}.</div>` : '';
 }
 
-// ---------- To answer ----------
+// to answer
 function usMeta(x) {
   const sn = x.snoozeUntil > Date.now();
   return `From ${esc(x.from)} · sent to ${esc(x.owners || '—')}${x.topic ? ' · ' + esc(x.topic) : ''} · reminders ${x.reminders || 0}/3${sn ? ' · snoozed until ' + esc(shortDay(x.snoozeUntil)) : ''}`;
@@ -72,7 +68,7 @@ function item(x, me) {
     <div class="confirm" id="hc-${x.id}"></div></div>`;
 }
 
-// ---------- Waiting on them ----------
+// waiting on them
 function themMeta(x) {
   const later = x.snoozeUntil > Date.now();
   return `Waiting on ${esc(x.who || '—')} · ${x.claimedBy ? 'chased by' : 'sent by'} ${esc(x.owners || '—')} · nudges ${x.nudges || 0}${x.followedUp ? ' · followed up by ' + esc(x.followedBy || 'the team') + ' ' + esc(agoText(x.followedUp)) : ''}${later ? ' · reminder on ' + esc(shortDay(x.snoozeUntil)) : ''}`;
@@ -103,9 +99,9 @@ function themItem(x, me) {
     <div class="confirm" id="hc-${x.id}"></div></div>`;
 }
 
-// ---------- Reassign / Pass on: tick one or more people ----------
+// reassign / pass on
 function initials(n) { return String(n || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join(''); }
-// Card label: nickname first when it isn't already the first name (e.g. Raja, with the full name underneath)
+// nickname first when it differs from the first name
 function cardName(t) {
   const words = String(t.name || '').replace(/\([^)]*\)/g, ' ').split(/\s+/).filter(Boolean), s = shortOf(t);
   const differs = s.toLowerCase() !== (words[0] || '').toLowerCase();
@@ -117,7 +113,7 @@ function pickPeople(id) {
   const now = x.claimedBy ? [x.claimedBy] : (x.to || []);
   const team = ((DATA && DATA.team) || []).slice().sort((a, b) => cardName(a).main.localeCompare(cardName(b).main));
   const byEmail = {}; team.forEach(t => { byEmail[t.email] = t; });
-  // Departments = the Routing topics, with the people the team doc gives that role (someone can be in several departments)
+  // departments = Routing topics; people can be in several
   const depts = ((DATA && DATA.depts) || []).map(d => ({ name: d.name, members: (d.members || []).filter(e => byEmail[e]) })).filter(d => d.members.length);
   const chip = t => { const c = cardName(t), sub = [c.full, now.includes(t.email) ? 'has it now' : ''].filter(Boolean).join(' · ');
     return `<label class="chip${now.includes(t.email) ? ' now' : ''}" title="${esc(t.name)}"><input type="checkbox" value="${esc(t.email)}" onchange="pickSync('${id}',this)"><span class="av">${esc(c.av)}</span><span class="nm">${esc(c.main)}${sub ? `<small>${esc(sub)}</small>` : ''}</span><span class="tick">✓</span></label>`; };
@@ -130,7 +126,7 @@ function pickPeople(id) {
   box.style.display = 'block';
 }
 function pickSync(id, input) { pickCount(id); }
-// Department button: ticks everyone in it (press again to untick them). Several departments can be on at once.
+// toggles everyone in the department
 function pickDept(id, i) {
   const box = document.getElementById('hc-' + id), d = (box._depts || [])[i]; if (!d) return;
   const off = box._on.has(i);
@@ -144,8 +140,7 @@ function pickChosen(box) { return [...new Set([...box.querySelectorAll('.pick in
 function pickCount(id) {
   const box = document.getElementById('hc-' + id), n = pickChosen(box).length, go = box.querySelector('.go');
   go.disabled = !n; go.textContent = !n ? 'Pick someone' : n === 1 ? 'Next: 1 person' : `Next: ${n} people`;
-  // Only departments that were pressed light up (someone in Sports and Local doesn't light up Local).
-  // Unticking one of a department's people by hand turns that department off.
+  // only pressed departments light up; unticking a member turns theirs off
   const on = new Set(pickChosen(box));
   [...box._on].forEach(j => { if (!box._depts[j].members.every(e => on.has(e))) box._on.delete(j); });
   box.querySelectorAll('.pick-depts .dept').forEach(b => { const lit = box._on.has(+b.dataset.i); b.classList.toggle('on', lit); b.setAttribute('aria-pressed', lit); });
@@ -159,7 +154,7 @@ function pickGo(id) {
   act(id, 'reassign', picked.join(','));
 }
 
-// ---------- buttons ----------
+// buttons
 function act(id, op, value) {
   const box = document.getElementById('hc-' + id);
   const f = findItem(id), them = f && f.kind === 'them', x = f ? f.x : {};
@@ -183,7 +178,7 @@ function act(id, op, value) {
 function doAct(id, op, value) {
   const WORD = { dismiss: 'Dismissing…', done: 'Marking as done…', reassign: 'Passing it on…', claim: 'Claiming…', snooze: 'Snoozing…', unsnooze: 'Waking it up…' };
   const box = document.getElementById('hc-' + id); if (box) { box.innerHTML = WORD[op] || 'Sending…'; box.style.display = 'block'; }
-  if (op === 'dismiss') { op = 'done'; value = 'dismiss'; }   // Dismiss = done in one click, no questions
+  if (op === 'dismiss') { op = 'done'; value = 'dismiss'; }
   if (op === 'followup' || op === 'reply') value = (DRAFTS[id] || {}).text || '';
   call({ action: 'inbox', op, id, value: value || '' })
     .then(d => { if ((op === 'followup' || op === 'reply') && DRAFTS[id]) DRAFTS[id].sent = true; (window.afterAct || render)(d); })

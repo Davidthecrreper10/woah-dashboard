@@ -74,7 +74,7 @@
     if (/^#(followup|reply)$/.test(location.hash)) { const c = document.getElementById('compose'); if (c) c.scrollIntoView(); }
   }
 
-  // ---------- reply / follow-up: Chris suggests one (or start blank), the student edits it, then sends it from the WOAH email ----------
+  // reply / follow-up composer
   function composerCard(x, them) {
     const op = them ? 'followup' : 'reply', title = them ? 'Follow up' : 'Reply';
     const dr = DRAFTS[x.id];
@@ -107,7 +107,7 @@
     DRAFTS[id] = { text: `Hi ,\n\n\n\nBest,\n${name}\nWOAH Festival Team`, blank: true, ai: false };
     redrawComposer(id);
   }
-  // "Improve my text": only for a reply they wrote themselves. Chris fixes grammar and tone, keeps every fact.
+  // "Improve my text": only for their own text
   function polish(id) {
     const dr = DRAFTS[id]; if (!dr || !dr.blank || dr.polishing) return;
     const t = document.getElementById('draft'); if (t) dr.text = t.value;
@@ -134,7 +134,7 @@
     }).catch(err => { DRAFTS[id] = { text: '', ai: false, check: [err.message] }; redrawComposer(id); });
   }
 
-  // ---------- the whole conversation, oldest first ----------
+  // conversation, oldest first
   function convoCard(t) {
     if (!t || !(t.msgs || []).length) return `<div class="card" style="margin-top:14px"><b>The email</b><div class="sub" style="margin-top:4px">The full email isn't ready yet (Chris saves it within the hour). Use "find in my email" to read it in Gmail.</div></div>`;
     const more = t.count > t.msgs.length ? `<div class="sub">Showing the last ${t.msgs.length} of ${t.count} emails in this conversation.</div>` : '';

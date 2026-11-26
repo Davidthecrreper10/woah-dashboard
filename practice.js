@@ -1,5 +1,3 @@
-/* Practice mode for the Sell page: real products and prices, everything else pretend.
-   Sales, orders, payments and the end-of-day check stay on this phone only (localStorage) and never reach the Sales Tracker, the orders or the stock. */
 const PRACTICE = (() => { try { return localStorage.getItem('woahPosPractice') === '1'; } catch (e) { return false; } })();
 const SIM = (() => {
   const KEY = 'woahPosSim';
@@ -130,7 +128,7 @@ const SIM = (() => {
     save();
     return { ok: true, order: id, took: take, handed: hand, day: take ? dayOut() : null };
   }
-  // "Send to Dom's sheet" in practice: same preview, but sending only ticks the sales on this phone.
+  // practice: same preview, sending only marks them on this phone
   function domSend(b) {
     const d = get().days[b.day]; if (!d) throw err('That selling day isn\'t in practice mode.');
     const VIA = { CASH: 'Cash', QRIS: 'QRIS', 'CARD (XENDIT)': 'Card', TRANSFER: 'Transfer', FOC: 'FOC' };
@@ -161,7 +159,7 @@ const SIM = (() => {
     save();
     return { sent: rows.length, added: rows.length, preview, day: dayOut(b.day) };
   }
-  // End-of-day check that doesn't add up -> "To confirm" (same rules as the real POS).
+  // doesn't add up -> "To confirm", like the real POS
   const COUNTED = ['CASH', 'QRIS', 'CARD (XENDIT)', 'TRANSFER'];
   function diffOf(out) { const d = {}; COUNTED.forEach(m => { const sys = (out.sum[m] || {}).amount || 0; if (out.counted[m] != null && out.counted[m] !== sys) d[m] = out.counted[m] - sys; }); return d; }
   function locked(out) { const d = diffOf(out); if (!Object.keys(d).length) return false; const rv = out.revisit; return !(rv && rv.state === 'accepted' && JSON.stringify(rv.diff) === JSON.stringify(d)); }
@@ -187,7 +185,7 @@ const SIM = (() => {
     const cur = rv[name]; if (cur && cur.state === 'accepted' && JSON.stringify(cur.diff) === JSON.stringify(diff)) return;
     rv[name] = { state: 'revisit', by: me(), at: Date.now(), note: why, diff };
   }
-  // Edit a sale after checkout: same rules as a new sale (sale() builds the items), then they replace the old ones.
+  // edit after checkout: rebuild items via sale()
   function edit(b) {
     const x = find(b), s = get(), admin = typeof ME !== 'undefined' && ME && ME.role === 'full';
     if (!admin && x.by.split(' + ')[0] !== me()) throw err('Only the person who sold it (or an admin) can edit this sale.');
@@ -230,7 +228,7 @@ const SIM = (() => {
       return wait(err('Not available in practice mode.'));
     } catch (e) { return wait(e); }
   }
-  // stock taken by practice sales (so practice sales count down the stock on this phone only)
+  // stock used by practice sales (this phone only)
   function used(item) {
     let n = 0; Object.values(get().days).forEach(d => d.sales.forEach(s => { if (s.dom) return; s.items.forEach(i => { if (i.kind === 'Sale' && !i.cancelled && i.item === item) n += i.qty; }); }));
     return n;

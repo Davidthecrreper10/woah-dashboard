@@ -1,6 +1,3 @@
-// "Reach out" on the Partners page and partner profiles: starts a NEW email thread to a contact from the WOAH email.
-// Three choices: the New or Returning sponsor template (Sanur or Green School version, read live from the doc), or write your own
-// (with "Improve my text": Chris fixes grammar only and keeps everything you wrote). Sent by Chris within about 5 minutes.
 const RO = { open: false, kind: 'returning', name: '', company: '', to: '', subject: '', body: '', edited: false, tpl: null, loading: false, err: '', before: null, polishing: false, pmsg: '', busy: false, sent: '' };
 (function () {
   const css = `.ro-wrap{position:fixed;inset:0;z-index:900;background:rgba(4,33,47,.55);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow:auto}
@@ -36,7 +33,7 @@ function roRebuild(force) {
     RO.subject = roSubject();
   } else if (force || !RO.edited) { RO.body = roStarter(); RO.edited = false; }
 }
-// Open the box for one contact: { email, name, company }
+// { email, name, company }
 function reachOpen(c) {
   const first = String(c.name || '').trim();
   Object.assign(RO, { open: true, to: String(c.email || '').trim(), name: first, company: String(c.company || '').trim(), edited: false, before: null, pmsg: '', busy: false, sent: '', err: '' });

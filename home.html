@@ -71,8 +71,6 @@
 <script src="phone.js?v=6"></script>
 <script src="home.js?v=2"></script>
 <script>
-  // Student dashboard: your own emails, Planner items and partners, the team, and read-only team numbers.
-  // Nothing on this page changes how Chris works (no switches or settings). Blocks live in home.js.
   function greet() { const h = new Date().getHours(); return h < 11 ? 'Good morning' : h < 17 ? 'Hi' : 'Good evening'; }
   function render(d) {
     if (d.me && d.me.role === 'full') { location.replace('./'); return; }   // admins have all of this on the Dashboard

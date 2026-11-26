@@ -1,6 +1,3 @@
-// WOAH look & feel: picks the UI (WOAH or Retro), the theme (Light / Dark / Match system) and the animation level,
-// remembered on this device. Loaded in <head> so the right colours are there before the page draws (no flash).
-// It only changes how pages look: no page logic, data or emails depend on it.
 (function () {
   const KEY = 'woahUI';
   const DEF = { ui: 'woah', theme: 'system', motion: 'auto' };
@@ -40,8 +37,8 @@
   const CAME_BY_LINK = (() => { try { const v = sessionStorage.getItem('wNav'); sessionStorage.removeItem('wNav'); return !!v && Date.now() - Number(v) < 8000; } catch (e) { return false; } })();
   if (CAME_BY_LINK && MAX()) html.classList.add('w-arrive');
 
-  // ---------- page decoration (WOAH UI only; Retro stays exactly as it was) ----------
-  // The logo switches to another WOAH design every 2 minutes (same one on every page and device at the same time), with a slow cross-fade.
+  // decoration (WOAH UI only)
+  // logo rotates every 2 min, same on every device
   const LOGOS = [''].concat(Array.from({ length: 9 }, (_, i) => 'img/logos/logo-' + String(i + 1).padStart(2, '0') + '.webp'));
   const LOGO_MS = 120000;
   const logoNow = () => Math.floor(Date.now() / LOGO_MS) % LOGOS.length;
@@ -117,7 +114,7 @@
     new MutationObserver(sync).observe(app, { attributes: true, attributeFilter: ['style'] });
   }
 
-  // ---------- animations ----------
+  // animations
   let firstRender = Date.now(), lastAction = 0;
   const ANIM = '.card, .hitem, .gap, .pp-item, .banner, .msg, .owner-h, .c-sec, .flow .card, .confirm, .okbox, .waitfor, .checkbox';
   let lastDir = 1;
@@ -186,7 +183,7 @@
     setTimeout(() => el.classList.remove('w-swap'), 700);
   }
 
-  // ---------- settings panel (both UIs) ----------
+  // settings panel
   const GEAR = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4zM13 15.5A3.5 3.5 0 1 1 13 8.5a3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>';
   function drawPanel() {
     const p = document.getElementById('wPanel'); if (!p) return;
@@ -220,9 +217,9 @@
     }
   }
 
-  // ---------- loading screen (centre, with %) + thin bar for background refreshes ----------
+  // loader
   const MSGS = ['Asking Chris…', 'Reading the WOAH inbox…', 'Checking the Planner…', 'Counting reminders…', 'Lining up the emails…', 'Almost there…'];
-  // logging in: Chris checks the door first, then easter eggs and WOAH facts while the page loads
+  // login lines
   const LOGIN_FIRST = "Asking Chris if you're allowed in…";
   const LOGIN_FUN = [
     'Chris is checking the guest list…', 'Making sure you’re not a cartoon fish…', 'Fun fact: every letter in the WOAH logo is a different sea creature.',
@@ -259,7 +256,7 @@
   function tick() {
     const t = (performance.now() - Lt0) / 1000;
     Lp = Math.max(Lp, 94 * (1 - Math.exp(-t / 2.3)));
-    if (Lfin) { const k = Math.min(1, (performance.now() - Lfin.t) / 2000); Lp = Lfin.from + (100 - Lfin.from) * (1 - Math.pow(1 - k, 2)); }   // the extra 2 s fill the ring smoothly to 100%   // real calls have no progress events, so it eases towards 94% and jumps to 100% when Chris answers
+    if (Lfin) { const k = Math.min(1, (performance.now() - Lfin.t) / 2000); Lp = Lfin.from + (100 - Lfin.from) * (1 - Math.pow(1 - k, 2)); }   // eases to 94%, then 2 s to 100% once Chris answers
     const m = Math.min(MSGSET.length - 1, Math.floor(t / (Llogin ? 2.2 : 1.4)));
     if (m !== Lmsg) { Lmsg = m; const e = L.querySelector('.w-load-msg'); e.classList.remove('w-msg-in'); void e.offsetWidth; e.textContent = MSGSET[m]; e.classList.add('w-msg-in'); }
     paint(); Lraf = requestAnimationFrame(tick);
@@ -281,7 +278,7 @@
   let Lhold = 0, Lfin = null;
   function endLoad() {
     Lopen = Math.max(0, Lopen - 1); if (Lopen) return;
-    if (Llogin && !Lhold && Lbig) {   // logging in: stay 2 seconds longer on purpose so the jokes and facts get a turn
+    if (Llogin && !Lhold && Lbig) {   // stay 2 s longer at login so the lines get a turn
       Lfin = { t: performance.now(), from: Lp };
       Lhold = setTimeout(() => { Lhold = 0; Lfin = null; Llogin = false; if (!Lopen) { Lopen = 1; endLoad(); } }, 2000);
       return;
@@ -302,7 +299,7 @@
   document.addEventListener('click', e => { if (e.target.closest('#refresh')) bigNext = true; }, true);
   document.addEventListener('submit', e => { if (e.target.closest('#login')) { bigNext = true; loginNext = true; } }, true);
 
-  // ---------- page change: the page sinks away, the loader takes over, the next page rises ----------
+  // page change
   document.addEventListener('click', e => {
     const a = e.target.closest('a[href]');
     if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;

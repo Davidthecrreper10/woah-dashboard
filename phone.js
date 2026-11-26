@@ -1,9 +1,3 @@
-// Phone layout for every WOAH page (screens up to 700px wide, and the installed app).
-// The computer view is not touched: everything here only applies while <html> has the class "m".
-// Adds a slim top bar, a bottom tab bar (Home, Emails, Partners, POS, More) and two sheets (More pages, and You).
-// The normal header, menu and photo strip stay in the page (hidden on phones), so nothing else has to change.
-// Also profile pictures (phones and computers): add one under your initial (phone) or "Photo" next to your name (computer);
-// the whole team sees it on the avatar buttons and in the Reassign / Change PIC pickers. Chris keeps them (actions photos / photoSet).
 (function () {
   const html = document.documentElement;
   const MQ = window.matchMedia ? matchMedia('(max-width: 700px)') : { matches: false, addEventListener() {} };
@@ -38,7 +32,7 @@
   };
   const ico = (k, s) => `<svg viewBox="0 0 24 24" width="${s || 22}" height="${s || 22}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[k] || ''}</svg>`;
 
-  // every page, who may open it, and a one-line explanation (shown in the More sheet)
+  // pages, who can open them, and the More sheet text
   const PAGES = [
     { href: './', file: 'index.html', label: 'Home', icon: 'home', need: 'full', desc: 'Switches, numbers and the Planner' },
     { href: 'home.html', file: 'home.html', label: 'Home', icon: 'home', need: 'handler', desc: 'Your emails, Planner items, partners and team numbers' },
@@ -64,7 +58,7 @@
   }
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-  // ---------- top bar ----------
+  // top bar
   function top() {
     if (document.getElementById('mTop')) return;
     const t = document.createElement('div');
@@ -88,10 +82,10 @@
     if (u) { sync(); new MutationObserver(sync).observe(u, { childList: true, characterData: true, subtree: true }); }
   }
 
-  // ---------- bottom tab bar ----------
+  // bottom tab bar
   function tabs(me) {
     if (document.getElementById('mTabs')) return;
-    // admins: Home = the full Dashboard (it has the student blocks too); students: Home = the Student dashboard
+    // Home: full Dashboard for admins, Student dashboard for students
     const ok = PAGES.filter(p => RK[me.role] >= RK[p.need] && !(p.file === 'home.html' && me.role === 'full'));
     if (ok.length < 2) return;
     const homeFile = me.role === 'full' ? 'index.html' : 'home.html';
@@ -109,7 +103,7 @@
   }
   let REST = [], ME = null;
 
-  // ---------- sheets ----------
+  // sheets
   function sheetEl() {
     let s = document.getElementById('mSheet');
     if (s) return s;
@@ -155,7 +149,7 @@
     }
     s.classList.add('open'); html.classList.add('m-lock');
   }
-  // ---------- profile pictures ----------
+  // profile pictures
   let PH = { v: '', map: {} };
   try { PH = JSON.parse(localStorage.getItem('woahPhotos') || 'null') || PH; } catch (e) {}
   const myPhoto = () => ME && PH.map[String(ME.email || '').toLowerCase()];
@@ -176,7 +170,7 @@
     if (d) d.onclick = () => savePhoto('');
   }
   function phMsg(t, bad) { const m = document.getElementById('mPhMsg'); if (m) { m.textContent = t; m.style.color = bad ? 'var(--bad)' : ''; } }
-  // crop the middle square and shrink it on the phone, so only a small picture (about 6 KB) is sent
+  // center crop + shrink before upload (~6 KB)
   function uploadPhoto(file) {
     phMsg('Getting your photo ready…');
     const url = URL.createObjectURL(file), img = new Image();
@@ -228,7 +222,7 @@
     setAv(document.getElementById('mMe'), mine); setAv(document.getElementById('mMeBig'), mine); setAv(document.getElementById('wAv'), mine);
     document.querySelectorAll('.chip input[value]').forEach(i => setAv(i.parentNode.querySelector('.av'), PH.map[String(i.value).toLowerCase()]));
   }
-  // computers: a small photo + "Photo" link next to "Logged in as …"
+  // desktop: photo + "Photo" link next to the login name
   function whoLine() {
     const w = document.getElementById('who'); if (!w || !ME || w.querySelector('#wAv')) return;
     w.insertAdjacentHTML('afterbegin', `<span class="w-av" id="wAv">${esc(initial(ME.name))}</span>`);
@@ -243,7 +237,7 @@
 
   function initial(n) { return String(n || '?').trim().charAt(0).toUpperCase() || '?'; }
 
-  // ---------- countdown: one thin line, tap to see the rest ----------
+  // countdown
   function countdown() {
     const c = document.getElementById('wCountdown');
     if (!c || c.dataset.m) return;
@@ -252,7 +246,7 @@
   }
 
   // start once we know who is logged in (common.js calls woahExtras(me))
-  // Reassign / Pass on opens a people picker under the email card: bring it into view on phones
+  // scroll the Reassign picker into view on phones
   function wrapPick() {
     if (typeof window.pickPeople !== 'function' || window.pickPeople.mWrapped) return;
     const o = window.pickPeople;
@@ -274,6 +268,6 @@
   }
   const prev = window.woahExtras;
   window.woahExtras = function (me) { try { prev && prev(me); } finally { try { boot(me); } catch (e) { console.error(e); } } };
-  // top bar straight away (before the data arrives), so the page doesn't jump
+  // draw the top bar before data arrives so the page doesn't jump
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', top); else top();
 })();

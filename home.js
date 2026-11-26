@@ -1,7 +1,3 @@
-// Student dashboard blocks, shared by home.html (students) and the main Dashboard (admins):
-// my emails, my Planner items, my partners, team numbers, and the Team (departments, photos, profiles).
-// Data comes from Chris's 'home' call. Nothing here changes how Chris works; the only action is
-// "Pass an email to them", which is the same as Reassign on the Email handlers page.
 let HD = null;
 const H_MAX = 6;
 
@@ -72,7 +68,7 @@ const H_MAX = 6;
   (document.head || document.documentElement).appendChild(s);
 })();
 
-// ---------- helpers ----------
+// helpers
 function hPhotos() { try { return (JSON.parse(localStorage.getItem('woahPhotos') || 'null') || {}).map || {}; } catch (e) { return {}; } }
 function hInit(p) { return String((p && (p.nick || p.name)) || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('').slice(0, 2); }
 function hShort(p) { return p ? ((p.nick || '').trim() || String(p.name || '').split(' ')[0]) : ''; }
@@ -95,7 +91,7 @@ function hMine() {
 }
 function hSet(id, html) { const el = document.getElementById(id); if (el) el.innerHTML = html; }
 
-// ---------- blocks ----------
+// blocks
 function hEmails(id) {
   const m = hMine();
   const usRows = m.us.slice(0, H_MAX).map(x => `<li><span class="t">${hEmailLink(x)}<small>From ${esc(x.from || '—')}${x.reminders ? ' · reminder ' + x.reminders + '/3' : ''}</small></span><span class="r ${ageClass(x.since, 3, 5)}">${ago(x.since)}</span></li>`).join('');
@@ -125,7 +121,7 @@ function hPartners(id) {
     ${all > 8 ? `<div class="h-more">+${all - 8} more. Tick "Only mine" on the Pipeline.</div>` : ''}`);
 }
 
-// ---------- team ----------
+// team
 function hCard(p, me) {
   const busy = [p.usN ? hPlural(p.usN, 'email') : '', p.overdueN ? p.overdueN + ' overdue' : ''].filter(Boolean).join(' · ');
   const sub = p.email === me ? 'You' : (p.depts.length ? p.depts.join(', ') : (p.name !== hShort(p) ? p.name : ''));
@@ -146,7 +142,7 @@ function hTeam(id) {
     <div class="h-note">Tap someone to see what they're on, email them, or pass one of your emails to them.</div>`);
 }
 
-// ---------- profile ----------
+// profile
 let H_OPEN = '', H_EDIT = false;
 function hModal() {
   let m = document.getElementById('hModal');
@@ -206,7 +202,7 @@ function hSave() {
   }).catch(e => { if (b) { b.disabled = false; b.textContent = 'Save'; } hDraw(e.message, 'bad'); H_EDIT = true; });
 }
 
-// ---------- pass one of my emails to someone ----------
+// pass an email on
 function hPassOpen() {
   const p = hPerson(H_OPEN), el = document.getElementById('hPass'); if (!p || !el) return;
   const m = hMine(), nm = hShort(p);
@@ -231,12 +227,11 @@ function hPassGo(id) {
     if (typeof window.hReload === 'function') setTimeout(window.hReload, 300);
   }).catch(e => { go.disabled = false; go.textContent = 'Yes, pass it on'; q.className = 'h-msg bad'; q.textContent = e.message; });
 }
-// redraw the team + open profile after fresh data (keeps an open profile open)
+// redraw after fresh data, keeping an open profile open
 function hRedraw() { if (document.getElementById('team')) hTeam('team'); if (H_OPEN && !H_EDIT && !document.querySelector('#hPass .h-pass')) hDraw(); }
 
-// ---------- departments (admins only): add / remove someone ----------
-// The backend changes the team roles doc (their role line + the Department table) or Routing "Send to",
-// so Chris's routing, reminders, department CCs and partner PICs all follow.
+// departments (admins)
+// backend edits the team doc or Routing "Send to"
 function hDeptHTML(p) {
   const all = ((HD && HD.depts) || []).map(d => d.name);
   if (!all.length) return '';
