@@ -10,7 +10,7 @@
 
   function resolved() {
     return {
-      ui: P.ui === 'retro' ? 'retro' : 'woah',
+      ui: P.ui === 'retro' || P.ui === 'ledger' ? P.ui : 'woah',
       theme: P.theme === 'light' || P.theme === 'dark' ? P.theme : (mqDark.matches ? 'dark' : 'light'),
       motion: P.motion === 'max' || P.motion === 'full' || P.motion === 'reduced' || P.motion === 'off' ? P.motion : (mqCalm.matches ? 'reduced' : 'full'),
     };
@@ -21,7 +21,7 @@
     html.dataset.ui = r.ui; html.dataset.theme = r.theme; html.dataset.motion = r.motion;
     let m = document.querySelector('meta[name="theme-color"]');
     if (!m) { m = document.createElement('meta'); m.name = 'theme-color'; (document.head || html).appendChild(m); }
-    m.content = r.ui === 'woah' ? (r.theme === 'dark' ? '#04212F' : '#F5F1E8') : (r.theme === 'dark' ? '#0e171b' : '#f4f7f8');
+    m.content = r.ui === 'woah' ? (r.theme === 'dark' ? '#04212F' : '#F5F1E8') : r.ui === 'ledger' ? (r.theme === 'dark' ? '#1B2F4A' : '#1F4E8C') : (r.theme === 'dark' ? '#0e171b' : '#f4f7f8');
     if (document.body) decorate();
     drawPanel();
   }
@@ -188,7 +188,7 @@
   function drawPanel() {
     const p = document.getElementById('wPanel'); if (!p) return;
     const opt = (k, v, label) => `<button type="button" target="_self" class="${(P[k] === v || (k === 'motion' && v === 'full' && P.motion === 'auto' && !mqCalm.matches) || (k === 'motion' && v === 'reduced' && P.motion === 'auto' && mqCalm.matches)) ? 'on' : ''}" data-k="${k}" data-v="${v}">${label}</button>`;
-    p.innerHTML = `<div class="w-ph-h">Look</div><div class="w-seg">${opt('ui', 'woah', 'WOAH')}${opt('ui', 'retro', 'Retro')}</div>
+    p.innerHTML = `<div class="w-ph-h">Look</div><div class="w-seg">${opt('ui', 'woah', 'WOAH')}${opt('ui', 'ledger', 'Ledger')}${opt('ui', 'retro', 'Retro')}</div>
       <div class="w-ph-h">Theme</div><div class="w-seg">${opt('theme', 'light', 'Light')}${opt('theme', 'dark', 'Dark')}${opt('theme', 'system', 'System')}</div>
       <div class="w-ph-h">Animations</div><div class="w-seg">${opt('motion', 'max', 'Max')}${opt('motion', 'full', 'Full')}${opt('motion', 'reduced', 'Calm')}${opt('motion', 'off', 'Off')}</div>
       <div class="w-ph-note">Max adds a loading screen and page-change animation. Saved on this device only.${mqCalm.matches ? ' Your device asks for less motion, so Calm is the default.' : ''}</div>`;
