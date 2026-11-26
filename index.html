@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="woah.css?v=6">
 <link rel="stylesheet" href="phone.css?v=4">
 <script src="theme.js?v=8"></script>
+<style>.h-three { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-bottom: 14px; } .h-three > .card { min-width: 0; }</style>
 </head>
 <body>
 <div class="wrap">
@@ -38,15 +39,22 @@
     <div class="card" id="sw-planner"></div>
   </div>
   <div class="grid stats" id="stats"></div>
+  <div class="h-three">
+    <div class="card" id="emails"></div>
+    <div class="card" id="tasks"></div>
+    <div class="card" id="partners"></div>
+  </div>
+  <div class="card" id="team" style="margin-bottom:14px"></div>
   <div class="card">
     <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><div class="tabs" id="tabs"></div><button onclick="openPlanner()" style="align-self:flex-start">Open Planner</button></div>
     <div id="panel" class="scroll"></div>
   </div>
   </div>
 </div>
-<script src="common.js?v=13"></script>
+<script src="common.js?v=14"></script>
 <script src="extras.js?v=3"></script>
-<script src="phone.js?v=5"></script>
+<script src="phone.js?v=6"></script>
+<script src="home.js?v=1"></script>
 <script>
   let DATA = null, TAB = 'us';
   const SW = {
@@ -69,7 +77,16 @@
     else { b.className = 'banner'; b.textContent = ''; }
     renderSwitch('inbox'); renderSwitch('planner');
     renderStats(); renderTabs(); renderPanel();
+    hLoad();
   }
+
+  // Your own emails, Planner items, partners and the Team (same blocks as the Student dashboard, home.js)
+  function hLoad() {
+    if (hLoad.busy) return; hLoad.busy = true;
+    call({ action: 'home' }).then(h => { HD = h; hEmails('emails'); hTasks('tasks'); hPartners('partners'); hTeam('team'); hRedraw(); setTimeout(() => hTeam('team'), 2500); })
+      .catch(() => {}).finally(() => { hLoad.busy = false; });
+  }
+  window.hReload = () => load();
 
   function renderSwitch(which) {
     const c = DATA.control, v = c[which], info = SW[which], isOn = v === 'ON';

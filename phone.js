@@ -91,8 +91,8 @@
   // ---------- bottom tab bar ----------
   function tabs(me) {
     if (document.getElementById('mTabs')) return;
-    // admins: Home = the full Dashboard, and the Student dashboard sits under More; students: Home = the Student dashboard
-    const ok = PAGES.filter(p => RK[me.role] >= RK[p.need]).map(p => p.file === 'home.html' && me.role === 'full' ? Object.assign({}, p, { label: 'Student dashboard', desc: 'What students see as their home page' }) : p);
+    // admins: Home = the full Dashboard (it has the student blocks too); students: Home = the Student dashboard
+    const ok = PAGES.filter(p => RK[me.role] >= RK[p.need] && !(p.file === 'home.html' && me.role === 'full'));
     if (ok.length < 2) return;
     const homeFile = me.role === 'full' ? 'index.html' : 'home.html';
     const main = ok.filter(p => [homeFile, 'handlers.html', 'partners.html', 'sell.html'].includes(p.file));
