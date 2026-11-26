@@ -60,6 +60,10 @@ const H_MAX = 6;
   .h-form label { display: block; font-size: 13px; font-weight: 600; margin: 10px 0 4px; }
   .h-form input, .h-form textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
   .h-form textarea { min-height: 64px; resize: vertical; }
+  .h-deps { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .h-deps button { margin: 0; padding: 5px 11px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px dashed var(--line-2, var(--line)); background: transparent; color: var(--muted); cursor: pointer; }
+  .h-deps button.on { border-style: solid; border-color: transparent; background: var(--brand-soft); color: var(--brand); }
+  .h-deps button:disabled { opacity: .5; cursor: default; }
   .h-form .cnt { font-size: 11px; color: var(--muted); text-align: right; }
   html.m .h-two { grid-template-columns: 1fr; }
   html.m .h-team { grid-template-columns: 1fr 1fr; }
@@ -180,6 +184,7 @@ function hDraw(msg, cls) {
   html += `<div class="h-acts">${self
     ? `<button class="pri" onclick="H_EDIT=true;hDraw()">Edit about me &amp; skills</button><button onclick="hPhoto()">Change my photo</button>`
     : `<a class="pri" href="${esc(gm)}" target="_blank" rel="noopener">Email ${esc(nm)}</a><button onclick="hPassOpen()">Pass an email to ${esc(nm)}</button>`}</div>`;
+  if (ME && ME.role === 'full') html += hDeptHTML(p);
   html += `<div id="hPass"></div>`;
   html += hList(self ? 'Emails I have to answer' : 'Emails to answer', (p.us || []).map(x => `<li><span class="t">${hEmailLink(x)}<small>From ${esc(x.from || '—')}</small></span><span class="r ${ageClass(x.since, 3, 5)}">${ago(x.since)}</span></li>`), p.usN, 'Nothing waiting.');
   html += hList(self ? "I'm chasing" : 'Chasing', (p.them || []).map(x => `<li><span class="t">${hEmailLink(x)}<small>Waiting on ${esc(x.who || '—')}</small></span><span class="r">${x.since ? agoText(x.since) : ''}</span></li>`), p.themN, 'No one to chase.');
@@ -228,3 +233,32 @@ function hPassGo(id) {
 }
 // redraw the team + open profile after fresh data (keeps an open profile open)
 function hRedraw() { if (document.getElementById('team')) hTeam('team'); if (H_OPEN && !H_EDIT && !document.querySelector('#hPass .h-pass')) hDraw(); }
+
+// ---------- departments (admins only): add / remove someone ----------
+// The backend changes the team roles doc (their role line + the Department table) or Routing "Send to",
+// so Chris's routing, reminders, department CCs and partner PICs all follow.
+function hDeptHTML(p) {
+  const all = ((HD && HD.depts) || []).map(d => d.name);
+  if (!all.length) return '';
+  return `<div class="h-sec">Departments <span style="text-transform:none;font-weight:500;letter-spacing:0">· admins: tap to add or remove</span></div>
+    <div class="h-deps">${all.map(n => `<button type="button" class="${p.depts.includes(n) ? 'on' : ''}" onclick="hDeptAsk('${esc(n).replace(/'/g, '&#39;')}')">${p.depts.includes(n) ? '✓ ' : '+ '}${esc(n)}</button>`).join('')}</div>
+    <div id="hDeptQ"></div>`;
+}
+function hDeptAsk(dept) {
+  const p = hPerson(H_OPEN), q = document.getElementById('hDeptQ'); if (!p || !q) return;
+  const on = !p.depts.includes(dept), nm = hShort(p);
+  q.innerHTML = `<div class="h-msg">${on
+    ? `Add <b>${esc(nm)}</b> to <b>${esc(dept)}</b>? Chris adds the role to their line in the team roles doc (or to "Send to" in Routing), so they start getting ${esc(dept)} emails, reminders and CCs.`
+    : `Take <b>${esc(nm)}</b> out of <b>${esc(dept)}</b>? Chris removes that role from their line in the team roles doc (and their name from "Send to"), so they stop getting ${esc(dept)} emails.`}</div>
+    <div class="h-acts"><button class="pri" id="hDeptGo">${on ? 'Yes, add' : 'Yes, remove'}</button><button onclick="document.getElementById('hDeptQ').innerHTML=''">Cancel</button></div>`;
+  document.getElementById('hDeptGo').onclick = () => hDeptGo(dept, on);
+}
+function hDeptGo(dept, on) {
+  const p = hPerson(H_OPEN), b = document.getElementById('hDeptGo'), q = document.getElementById('hDeptQ'); if (!p) return;
+  b.disabled = true; b.textContent = on ? 'Adding…' : 'Removing…';
+  call({ action: 'deptSet', member: p.email, dept, on }).then(d => {
+    if (d.depts) { HD.depts = d.depts; (HD.people || []).forEach(x => { x.depts = d.depts.filter(t => (t.members || []).includes(x.email)).map(t => t.name); }); }
+    hDraw(); hTeam('team');
+    const q2 = document.getElementById('hDeptQ'); if (q2) q2.innerHTML = `<div class="h-msg ok">Done: ${esc(d.msg || '')}.</div>`;
+  }).catch(e => { b.disabled = false; b.textContent = on ? 'Yes, add' : 'Yes, remove'; q.insertAdjacentHTML('beforeend', `<div class="h-msg bad">${esc(e.message)}</div>`); });
+}
