@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WOAH Student Dashboard</title>
+<base target="_blank">
+<link rel="stylesheet" href="style.css?v=11">
+<link rel="icon" href="img/icon.png?v=2">
+<link rel="manifest" href="app.webmanifest">
+<link rel="apple-touch-icon" href="img/app/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="WOAH">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="woah.css?v=6">
+<link rel="stylesheet" href="phone.css?v=4">
+<script src="theme.js?v=8"></script>
+<style>
+  .h-hi { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .h-hi h2 { margin: 0 0 4px; font-size: 24px; }
+  .h-hi p { margin: 0; color: var(--muted); font-size: 14px; }
+  .h-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; margin-bottom: 14px; }
+  .h-two > .card { min-width: 0; }
+  .h-card-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 0 10px; }
+  .h-card-h h3 { margin: 0; font-size: 16px; }
+  .h-card-h a { font-size: 13px; white-space: nowrap; }
+  .h-sec { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 12px 0 4px; }
+  .h-sec:first-child { margin-top: 0; }
+  .h-list { list-style: none; margin: 0; padding: 0; }
+  .h-list li { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  .h-list li:first-child { border-top: 0; }
+  .h-list .t { min-width: 0; overflow-wrap: anywhere; }
+  .h-list .t small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .h-list .r { white-space: nowrap; font-size: 12px; color: var(--muted); text-align: right; }
+  .h-list .r.age-bad, .h-list .r.bad { color: var(--bad); font-weight: 600; }
+  .h-list .r.age-warn { color: var(--warn); font-weight: 600; }
+  .h-empty { color: var(--muted); font-size: 14px; padding: 6px 0; }
+  .h-more { font-size: 13px; color: var(--muted); padding-top: 6px; }
+  .h-go { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .h-go a, .h-go button { display: flex; flex-direction: column; gap: 3px; margin: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); text-decoration: none; text-align: left; font: inherit; cursor: pointer; transition: border-color .15s, transform .15s; }
+  .h-go a:hover, .h-go button:hover { border-color: var(--brand); transform: translateY(-1px); }
+  .h-go b { font-size: 15px; }
+  .h-go small { color: var(--muted); font-size: 12px; line-height: 1.3; }
+  .h-pulse { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .h-pulse div { padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+  .h-pulse b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .h-pulse span { color: var(--muted); font-size: 12px; }
+  .h-bar { display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: var(--bg); margin: 6px 0 8px; }
+  .h-bar i { display: block; height: 100%; min-width: 3px; }
+  .h-key { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); }
+  .h-key span { display: inline-flex; align-items: center; gap: 5px; }
+  .h-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--line-2, var(--line)); flex: none; }
+  .h-st { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .h-note { color: var(--muted); font-size: 12px; margin-top: 10px; }
+  html.m .h-hi h2 { font-size: 20px; }
+  html.m .h-two { grid-template-columns: 1fr; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="login" class="card"></div>
+  <div id="app">
+  <header>
+    <div>
+      <h1><span>WOAH</span> Student Dashboard</h1>
+      <div class="sub" id="updated">Loading…</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><nav class="pages" id="nav"></nav><button id="refresh" onclick="load()" target="_self">Refresh</button></div>
+      <div class="who" id="who"></div>
+    </div>
+  </header>
+  <div class="banner" id="banner"></div>
+  <div class="h-hi"><div><h2 id="hi">Hi!</h2><p id="hiLine"></p></div></div>
+  <div class="grid stats" id="stats"></div>
+  <div class="h-two">
+    <div class="card" id="emails"></div>
+    <div class="card" id="tasks"></div>
+  </div>
+  <div class="h-two">
+    <div class="card" id="go"></div>
+    <div class="card" id="partners"></div>
+  </div>
+  <div class="card" id="pulse"></div>
+  </div>
+</div>
+<script src="common.js?v=13"></script>
+<script src="extras.js?v=3"></script>
+<script src="phone.js?v=5"></script>
+<script>
+  // Student dashboard: your own emails, Planner items and partners, plus read-only team numbers.
+  // Nothing on this page changes how Chris works (no switches or settings).
+  let DATA = null;
+  const MAX = 6;
+  function nick() {
+    const me = myEmail(), p = ((DATA && DATA.team) || []).find(t => t.email === me);
+    return p ? ((p.nick || '').trim() || String(p.name || '').split(' ')[0]) : String((ME && ME.name) || '').split(' ')[0];
+  }
+  function greet() { const h = new Date().getHours(); return h < 11 ? 'Good morning' : h < 17 ? 'Hi' : 'Good evening'; }
+  function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
+  function mine() {
+    const me = myEmail(), now = Date.now(), s = (DATA && DATA.snap) || {};
+    const isMine = x => (x.to || []).includes(me) || x.claimedBy === me;
+    const us = (s.open || []).filter(isMine), them = (s.waiting || []).filter(x => x.claimedBy ? x.claimedBy === me : (x.to || []).includes(me));
+    return {
+      us: us.filter(x => !(x.snoozeUntil > now)).sort((a, b) => a.since - b.since),
+      usSnoozed: us.filter(x => x.snoozeUntil > now).length,
+      them: them.filter(x => !(x.snoozeUntil > now)).sort((a, b) => (a.since || 0) - (b.since || 0)),
+      themLater: them.filter(x => x.snoozeUntil > now).length,
+    };
+  }
+  function keyOf(r) { return (r.tab + '|' + (r.email || r.company)).toLowerCase().slice(0, 200); }
+  function emailLink(x) { return `<a href="email.html?id=${encodeURIComponent(x.id)}" target="_self">${esc(x.subject || '(no subject)')}</a>`; }
+
+  function render(d) {
+    DATA = d;
+    const s = d.snap, m = mine(), tasks = d.tasks || [], over = tasks.filter(x => x.overdue).length, pp = d.myPartners || [];
+    document.getElementById('updated').textContent = (s ? 'Emails checked ' + when(s.at) + ' · ' : '') + 'page loaded ' + when(d.now);
+    const b = document.getElementById('banner');
+    if (!s) { b.className = 'banner warn'; b.textContent = 'Chris hasn\'t shared any email data yet. Try Refresh in a few minutes.'; } else { b.className = 'banner'; b.textContent = ''; }
+
+    document.getElementById('hi').textContent = greet() + ', ' + nick();
+    const bits = [];
+    if (m.us.length) bits.push(plural(m.us.length, 'email') + ' to answer');
+    if (over) bits.push(plural(over, 'Planner item') + ' overdue');
+    document.getElementById('hiLine').textContent = bits.length ? 'You have ' + bits.join(' and ') + '.' : 'Nothing urgent on your plate right now. Nice.';
+
+    const oldUs = m.us.filter(x => days(x.since) >= 3).length;
+    const tiles = [
+      { n: m.us.length, l: 'Emails for me to answer' + (oldUs ? ' · ' + oldUs + ' over 3 days' : ''), c: oldUs ? 'bad' : 'brand', href: 'handlers.html' },
+      { n: m.them.length, l: "Emails I'm chasing", c: 'warn', href: 'handlers.html' },
+      { n: tasks.length, l: 'My Planner items' + (over ? ' · ' + over + ' overdue' : ''), c: over ? 'bad' : 'brand', href: '#tasks' },
+      { n: d.myPartnersAll || 0, l: "Partners I'm PIC for", c: 'brand', href: '#partners' },
+    ];
+    document.getElementById('stats').innerHTML = tiles.map(t => `<a class="card stat ${t.c}" href="${t.href}" target="_self" style="text-decoration:none;color:inherit"><div class="n">${t.n}</div><div class="l">${t.l}</div></a>`).join('');
+
+    // ---- my emails ----
+    const usRows = m.us.slice(0, MAX).map(x => `<li><span class="t">${emailLink(x)}<small>From ${esc(x.from || '—')}${x.reminders ? ' · reminder ' + x.reminders + '/3' : ''}</small></span><span class="r ${ageClass(x.since, 3, 5)}">${ago(x.since)}</span></li>`).join('');
+    const themRows = m.them.slice(0, MAX).map(x => `<li><span class="t">${emailLink(x)}<small>Waiting on ${esc(x.who || '—')}</small></span><span class="r ${x.since ? ageClass(x.since, 7, 12) : ''}">${x.since ? agoText(x.since) : ''}</span></li>`).join('');
+    document.getElementById('emails').innerHTML = `<div class="h-card-h"><h3>My emails</h3><a href="handlers.html" target="_self">Open Email handlers →</a></div>
+      <div class="h-sec">To answer</div>${usRows ? '<ul class="h-list">' + usRows + '</ul>' : '<div class="h-empty">Nothing waiting on you.</div>'}
+      ${m.us.length > MAX ? `<div class="h-more">+${m.us.length - MAX} more on Email handlers</div>` : ''}${m.usSnoozed ? `<div class="h-more">${plural(m.usSnoozed, 'email')} snoozed</div>` : ''}
+      <div class="h-sec">I'm chasing</div>${themRows ? '<ul class="h-list">' + themRows + '</ul>' : '<div class="h-empty">No one to chase.</div>'}
+      ${m.them.length > MAX ? `<div class="h-more">+${m.them.length - MAX} more on Email handlers</div>` : ''}${m.themLater ? `<div class="h-more">${plural(m.themLater, 'reminder')} set for later</div>` : ''}`;
+
+    // ---- my planner items ----
+    const tRows = tasks.slice().sort((a, b) => (b.overdue - a.overdue) || (a.due - b.due)).slice(0, 10).map(x =>
+      `<li><span class="t">${esc(x.item)}<small>${esc(x.planner)}${x.status ? ' · ' + esc(x.status) : ''}</small></span><span class="r ${x.overdue ? 'bad' : ''}">${esc(x.dueText || '')}${x.overdue ? ' · overdue' : ''}</span></li>`).join('');
+    document.getElementById('tasks').innerHTML = `<div class="h-card-h"><h3>My Planner items</h3></div>
+      ${tRows ? '<ul class="h-list">' + tRows + '</ul>' : '<div class="h-empty">Nothing of yours is overdue or due in the next 2 weeks.</div>'}
+      ${tasks.length > 10 ? `<div class="h-more">+${tasks.length - 10} more</div>` : ''}
+      <div class="h-note">From the Planner, where you're named as the Owner. Overdue first, then by due date.</div>`;
+
+    // ---- shortcuts ----
+    const go = [
+      ['handlers.html', 'Emails', 'Answer, claim or pass on emails'],
+      ['partners.html', 'Partners', 'Search every sponsor and contact'],
+      ['pipeline.html', 'Pipeline', 'Sponsors by stage'],
+      ['sell.html', 'POS', 'Sell merch at the stand'],
+      ['stock.html', 'Stock', "What's left, per size"],
+    ];
+    document.getElementById('go').innerHTML = `<div class="h-card-h"><h3>Go to</h3></div><div class="h-go">` +
+      go.map(([h, t, s]) => `<a href="${h}" target="_self"><b>${t}</b><small>${s}</small></a>`).join('') +
+      `<button type="button" onclick="askChris()"><b>Ask Chris</b><small>Questions about WOAH, files and emails</small></button></div>`;
+
+    // ---- my partners ----
+    const pRows = pp.slice().sort((a, b) => a.rank - b.rank || String(a.company).localeCompare(String(b.company))).slice(0, 8).map(r =>
+      `<li><span class="t"><a href="profile.html?k=${encodeURIComponent(keyOf(r))}" target="_self">${esc(r.company || r.contact || r.email)}</a><small>${esc(r.tab)}${r.progress ? ' · ' + esc(String(r.progress).slice(0, 90)) : ''}</small></span>
+        <span class="h-st"><span class="h-dot" style="${r.color ? 'background:' + esc(r.color) : ''}"></span>${esc(r.status || 'No status yet')}</span></li>`).join('');
+    document.getElementById('partners').innerHTML = `<div class="h-card-h"><h3>My partners</h3><a href="pipeline.html" target="_self">Pipeline →</a></div>
+      ${pRows ? '<ul class="h-list">' + pRows + '</ul>' : '<div class="h-empty">You\'re not PIC for any partner yet.</div>'}
+      ${(d.myPartnersAll || 0) > 8 ? `<div class="h-more">+${d.myPartnersAll - 8} more. Tick "Only mine" on the Pipeline.</div>` : ''}`;
+
+    // ---- team pulse (read only) ----
+    const P = d.pulse || {}, pos = P.pos, pt = P.partners;
+    const cells = [
+      [P.open || 0, 'Emails waiting on WOAH'],
+      [P.waiting || 0, 'Waiting on outside people'],
+      [P.overdue || 0, 'Planner items overdue (team)'],
+    ];
+    if (pos) cells.push([pos.items, 'Items sold today' + (pos.mine ? ' · ' + pos.mine + ' by you' : '')]);
+    let bar = '';
+    if (pt && pt.total) {
+      const st = pt.stages.filter(x => x.n);
+      bar = `<div class="h-sec">Partners by stage · ${pt.total} contacts</div>
+        <div class="h-bar" role="img" aria-label="Partners by stage">${st.map(x => `<i title="${esc(x.label)}: ${x.n}" style="width:${(x.n / pt.total * 100).toFixed(2)}%;background:${x.color ? esc(x.color) : 'var(--line-2, var(--line))'}"></i>`).join('')}</div>
+        <div class="h-key">${st.map(x => `<span><span class="h-dot" style="${x.color ? 'background:' + esc(x.color) : ''}"></span>${esc(x.label)} <b>${x.n}</b></span>`).join('')}</div>`;
+    }
+    document.getElementById('pulse').innerHTML = `<div class="h-card-h"><h3>Team pulse</h3></div>
+      <div class="h-pulse">${cells.map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join('')}</div>${bar}
+      <div class="h-note">The whole team at a glance. Read only.</div>`;
+  }
+  function askChris() { const b = document.querySelector('.w-chat-btn'); if (b) b.click(); }
+
+  start({ title: 'Student Dashboard', need: 'handler', action: 'home', every: 2, onData: render });
+</script>
+</body>
+</html>

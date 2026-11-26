@@ -41,6 +41,7 @@
   // every page, who may open it, and a one-line explanation (shown in the More sheet)
   const PAGES = [
     { href: './', file: 'index.html', label: 'Home', icon: 'home', need: 'full', desc: 'Switches, numbers and the Planner' },
+    { href: 'home.html', file: 'home.html', label: 'Home', icon: 'home', need: 'handler', desc: 'Your emails, Planner items, partners and team numbers' },
     { href: 'handlers.html', file: 'handlers.html', also: ['email.html'], label: 'Emails', icon: 'mail', need: 'handler', desc: 'Emails to answer and who has them' },
     { href: 'partners.html', file: 'partners.html', also: ['profile.html'], label: 'Partners', icon: 'people', need: 'handler', desc: 'Every sponsor and contact' },
     { href: 'sell.html', file: 'sell.html', label: 'POS', icon: 'pos', need: 'handler', desc: 'Sell merch at the stand' },
@@ -52,7 +53,8 @@
   ];
   const RK = { handler: 1, full: 2 };
   const here = PAGES.find(p => p.file === path || (p.also || []).includes(path));
-  const TITLES = { 'index.html': 'Home', 'handlers.html': 'Emails', 'email.html': 'Email', 'profile.html': 'Partner', 'sell.html': 'POS', 'install.html': 'Get the app' };
+  const isHere = p => !!(here && p && here.file === p.file);
+  const TITLES = { 'index.html': 'Home', 'home.html': 'Home', 'handlers.html': 'Emails', 'email.html': 'Email', 'profile.html': 'Partner', 'sell.html': 'POS', 'install.html': 'Get the app' };
   const BACK = { 'email.html': 'handlers.html', 'profile.html': 'partners.html' };
 
   function title() {
@@ -69,7 +71,7 @@
     t.id = 'mTop'; t.className = 'm-top';
     const back = BACK[path];
     t.innerHTML =
-      (back ? `<a class="m-ib m-back" href="${back}" target="_self" aria-label="Back">${ico('back')}</a>` : `<a class="m-mark" href="${here && here.need === 'handler' && path !== 'index.html' ? 'handlers.html' : './'}" target="_self" aria-label="WOAH home"><img class="w-logo-l" src="img/logo-light.webp" alt=""><img class="w-logo-d" src="img/logo-dark.webp" alt=""></a>`) +
+      (back ? `<a class="m-ib m-back" href="${back}" target="_self" aria-label="Back">${ico('back')}</a>` : `<a class="m-mark" href="${here && here.need === 'handler' && path !== 'index.html' ? 'home.html' : './'}" target="_self" aria-label="WOAH home"><img class="w-logo-l" src="img/logo-light.webp" alt=""><img class="w-logo-d" src="img/logo-dark.webp" alt=""></a>`) +
       `<div class="m-ttl"><b>${esc(title())}</b><small id="mUpd"></small></div>` +
       `<button type="button" class="m-ib" id="mRefresh" aria-label="Refresh" target="_self">${ico('refresh')}</button>` +
       `<button type="button" class="m-me" id="mMe" aria-label="You, settings and log out" target="_self">·</button>`;
@@ -89,17 +91,18 @@
   // ---------- bottom tab bar ----------
   function tabs(me) {
     if (document.getElementById('mTabs')) return;
-    const ok = PAGES.filter(p => RK[me.role] >= RK[p.need]);
+    // admins: Home = the full Dashboard, and the Student dashboard sits under More; students: Home = the Student dashboard
+    const ok = PAGES.filter(p => RK[me.role] >= RK[p.need]).map(p => p.file === 'home.html' && me.role === 'full' ? Object.assign({}, p, { label: 'Student dashboard', desc: 'What students see as their home page' }) : p);
     if (ok.length < 2) return;
-    const main = ok.filter(p => ['index.html', 'handlers.html', 'partners.html', 'sell.html'].includes(p.file));
-    // handlers have no Home: give them Stock on the bar instead
+    const homeFile = me.role === 'full' ? 'index.html' : 'home.html';
+    const main = ok.filter(p => [homeFile, 'handlers.html', 'partners.html', 'sell.html'].includes(p.file));
     while (main.length < 4 && ok.length > main.length) { const n = ok.find(p => !main.includes(p)); if (!n) break; main.push(n); }
     const rest = ok.filter(p => !main.includes(p));
     const t = document.createElement('nav');
     t.id = 'mTabs'; t.className = 'm-tabs'; t.setAttribute('aria-label', 'Pages');
-    const moreHere = here && rest.includes(here);
-    t.innerHTML = main.map(p => `<a href="${p.href}" target="_self" class="${here === p ? 'on' : ''}" ${here === p ? 'aria-current="page"' : ''}>${ico(p.icon)}<span>${p.label}</span></a>`).join('') +
-      (rest.length ? `<button type="button" id="mMore" class="${moreHere ? 'on' : ''}" target="_self">${ico(moreHere ? here.icon : 'more')}<span>${moreHere ? here.label : 'More'}</span></button>` : '');
+    const moreHere = rest.find(isHere);
+    t.innerHTML = main.map(p => `<a href="${p.href}" target="_self" class="${isHere(p) ? 'on' : ''}" ${isHere(p) ? 'aria-current="page"' : ''}>${ico(p.icon)}<span>${p.label}</span></a>`).join('') +
+      (rest.length ? `<button type="button" id="mMore" class="${moreHere ? 'on' : ''}" target="_self">${ico(moreHere ? moreHere.icon : 'more')}<span>${moreHere ? moreHere.label : 'More'}</span></button>` : '');
     document.body.appendChild(t);
     const mb = document.getElementById('mMore'); if (mb) mb.onclick = () => openSheet('more');
     REST = rest;
@@ -126,7 +129,7 @@
       wirePhoto();
     } else if (kind === 'more') {
       b.innerHTML = `<div class="m-sh">More pages</div><div class="m-list">` + REST.map(p =>
-        `<a href="${p.href}" target="_self" class="${here === p ? 'on' : ''}"><span class="m-li">${ico(p.icon)}</span><span class="m-lt"><b>${p.label}</b><small>${p.desc}</small></span>${ico('chev', 18)}</a>`).join('') + `</div>`;
+        `<a href="${p.href}" target="_self" class="${isHere(p) ? 'on' : ''}"><span class="m-li">${ico(p.icon)}</span><span class="m-lt"><b>${p.label}</b><small>${p.desc}</small></span>${ico('chev', 18)}</a>`).join('') + `</div>`;
     } else {
       const me = ME || {};
       const extras = [...document.querySelectorAll('header button')].filter(x => !['refresh', 'wGear'].includes(x.id) && x.offsetParent === null);
