@@ -10,7 +10,7 @@
 
   function resolved() {
     return {
-      ui: P.ui === 'retro' || P.ui === 'ledger' ? P.ui : 'woah',
+      ui: P.ui === 'retro' || P.ui === 'ledger' || P.ui === 'tide' ? P.ui : 'woah',
       theme: P.theme === 'light' || P.theme === 'dark' ? P.theme : (mqDark.matches ? 'dark' : 'light'),
       motion: P.motion === 'max' || P.motion === 'full' || P.motion === 'reduced' || P.motion === 'off' ? P.motion : (mqCalm.matches ? 'reduced' : 'full'),
     };
@@ -21,7 +21,7 @@
     html.dataset.ui = r.ui; html.dataset.theme = r.theme; html.dataset.motion = r.motion;
     let m = document.querySelector('meta[name="theme-color"]');
     if (!m) { m = document.createElement('meta'); m.name = 'theme-color'; (document.head || html).appendChild(m); }
-    m.content = r.ui === 'woah' ? (r.theme === 'dark' ? '#04212F' : '#F5F1E8') : r.ui === 'ledger' ? (r.theme === 'dark' ? '#1B2F4A' : '#1F4E8C') : (r.theme === 'dark' ? '#0e171b' : '#f4f7f8');
+    m.content = r.ui === 'woah' ? (r.theme === 'dark' ? '#04212F' : '#F5F1E8') : r.ui === 'ledger' ? (r.theme === 'dark' ? '#1B2F4A' : '#1F4E8C') : r.ui === 'tide' ? (r.theme === 'dark' ? '#021A22' : '#0A4F5E') : (r.theme === 'dark' ? '#0e171b' : '#f4f7f8');
     if (document.body) decorate();
     drawPanel();
   }
@@ -129,7 +129,7 @@
   document.addEventListener('change', () => { lastAction = Date.now(); }, true);
   function animateNodes(nodes) {
     const m = html.dataset.motion;
-    if (m === 'off' || html.dataset.ui !== 'woah') return;
+    if (m === 'off' || !moves()) return;
     let n = 0;
     nodes.forEach(el => {
       if (el.dataset.wIn) return;
@@ -140,7 +140,7 @@
     });
   }
   function countUp(root) {
-    if (!/^(full|max)$/.test(html.dataset.motion) || html.dataset.ui !== 'woah') return;
+    if (!/^(full|max)$/.test(html.dataset.motion) || !moves()) return;
     (root || document).querySelectorAll('.stat .n').forEach(el => {
       if (el.dataset.wCount) return;
       el.dataset.wCount = '1';
@@ -163,7 +163,7 @@
     }));
     if (add.length) animateNodes(add);
     if (fresh) countUp();
-    if (Date.now() - lastAction < 900 && html.dataset.ui === 'woah' && html.dataset.motion !== 'off') {
+    if (Date.now() - lastAction < 900 && moves() && html.dataset.motion !== 'off') {
       const areas = new Set();
       muts.forEach(m => {
         const t = m.target;
@@ -182,13 +182,83 @@
     el.querySelectorAll(':scope > *, :scope > table > tbody > tr, :scope tbody > tr').forEach(c => { if (n > 14) return; c.style.setProperty('--wi', n++); c.classList.remove('w-row'); void c.offsetWidth; c.classList.add('w-row'); });
     setTimeout(() => el.classList.remove('w-swap'), 700);
   }
+  function moves() { return html.dataset.ui === 'woah' || html.dataset.ui === 'tide'; }
+
+  // tide: light moving on water behind the page title
+  let seaEl = null, seaRaf = 0, seaTimer = null;
+  function sea() {
+    if (html.dataset.ui !== 'tide') {
+      if (seaEl) { cancelAnimationFrame(seaRaf); clearInterval(seaTimer); seaEl.remove(); seaEl = null; }
+      return;
+    }
+    if (seaEl || !document.body) return;
+    seaEl = document.createElement('div'); seaEl.className = 't-sea'; seaEl.setAttribute('aria-hidden', 'true');
+    seaEl.innerHTML = `<div class="t-ph" style="background-image:url(${PHOTOS[Math.floor(Date.now() / 86400000) % PHOTOS.length]})"></div><div class="t-tint"></div>`;
+    const cv = document.createElement('canvas'); seaEl.appendChild(cv);
+    document.body.insertBefore(seaEl, document.body.firstChild);
+    const g = cv.getContext('webgl', { antialias: false, alpha: false, preserveDrawingBuffer: true });
+    if (!g) return;
+    const FS = `precision highp float;
+uniform float t; uniform vec2 r; uniform float k; uniform float px;
+void main() {
+  vec2 uv = vec2(gl_FragCoord.x, r.y - gl_FragCoord.y) * px;
+  vec2 p = mod(uv / 460.0 * 6.2832, 6.2832) - 250.0, i = p;
+  float c = 1.0, tm = t * 0.35 + 23.0;
+  for (int n = 0; n < 4; n++) {
+    float tt = tm * (1.0 - 3.5 / float(n + 1));
+    i = p + vec2(cos(tt - i.x) + sin(tt + i.y), sin(tt - i.y) + cos(tt + i.x));
+    c += 1.0 / length(vec2(p.x / (sin(i.x + tt) / 0.005), p.y / (cos(i.y + tt) / 0.005)));
+  }
+  c = min(pow(abs(1.17 - pow(c / 4.0, 1.4)), 8.0), 1.0);
+  gl_FragColor = vec4(vec3(0.47, 0.88, 0.84) * c * k, 1.0);
+}`;
+    const sh = (type, src) => { const o = g.createShader(type); g.shaderSource(o, src); g.compileShader(o); return o; };
+    const pr = g.createProgram();
+    g.attachShader(pr, sh(g.VERTEX_SHADER, 'attribute vec2 v; void main() { gl_Position = vec4(v, 0.0, 1.0); }'));
+    g.attachShader(pr, sh(g.FRAGMENT_SHADER, FS));
+    g.linkProgram(pr);
+    if (!g.getProgramParameter(pr, g.LINK_STATUS)) return;
+    g.useProgram(pr);
+    g.bindBuffer(g.ARRAY_BUFFER, g.createBuffer());
+    g.bufferData(g.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), g.STATIC_DRAW);
+    const vl = g.getAttribLocation(pr, 'v'); g.enableVertexAttribArray(vl); g.vertexAttribPointer(vl, 2, g.FLOAT, false, 0, 0);
+    const U = n => g.getUniformLocation(pr, n), uT = U('t'), uR = U('r'), uK = U('k'), uP = U('px');
+    const S = 2, el = seaEl;
+    let last = 0;
+    function size() {
+      const full = html.classList.contains('w-in-login');
+      const hd = document.querySelector('#app > header');
+      el.classList.toggle('full', full);
+      const H = full ? innerHeight : (hd && hd.offsetParent ? Math.ceil(hd.getBoundingClientRect().bottom + scrollY) : 0);
+      if (!full) el.style.height = H + 'px';
+      const w = Math.max(1, Math.ceil(innerWidth / S)), h = Math.max(1, Math.ceil(H / S));
+      if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; g.viewport(0, 0, w, h); }
+    }
+    function draw(t) {
+      if (cv.height < 2) return;
+      const dark = html.dataset.theme === 'dark';
+      g.uniform1f(uT, t / 1000); g.uniform2f(uR, cv.width, cv.height); g.uniform1f(uP, S);
+      g.uniform1f(uK, dark ? .5 : .65);
+      g.drawArrays(g.TRIANGLE_STRIP, 0, 4);
+    }
+    function loop(t) {
+      if (el !== seaEl) return;
+      seaRaf = requestAnimationFrame(loop);
+      if (document.hidden || !/^(full|max)$/.test(html.dataset.motion) || t - last < 33) return;
+      last = t; draw(t);
+    }
+    size(); draw(performance.now());
+    seaRaf = requestAnimationFrame(loop);
+    addEventListener('resize', () => { if (el === seaEl) { size(); draw(performance.now()); } });
+    seaTimer = setInterval(() => { size(); if (!/^(full|max)$/.test(html.dataset.motion)) draw(20000); }, 800);
+  }
 
   // settings panel
   const GEAR = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4zM13 15.5A3.5 3.5 0 1 1 13 8.5a3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>';
   function drawPanel() {
     const p = document.getElementById('wPanel'); if (!p) return;
     const opt = (k, v, label) => `<button type="button" target="_self" class="${(P[k] === v || (k === 'motion' && v === 'full' && P.motion === 'auto' && !mqCalm.matches) || (k === 'motion' && v === 'reduced' && P.motion === 'auto' && mqCalm.matches)) ? 'on' : ''}" data-k="${k}" data-v="${v}">${label}</button>`;
-    p.innerHTML = `<div class="w-ph-h">Look</div><div class="w-seg">${opt('ui', 'woah', 'WOAH')}${opt('ui', 'ledger', 'Ledger')}${opt('ui', 'retro', 'Retro')}</div>
+    p.innerHTML = `<div class="w-ph-h">Look</div><div class="w-seg">${opt('ui', 'woah', 'WOAH')}${opt('ui', 'tide', 'Tide')}${opt('ui', 'ledger', 'Ledger')}${opt('ui', 'retro', 'Retro')}</div>
       <div class="w-ph-h">Theme</div><div class="w-seg">${opt('theme', 'light', 'Light')}${opt('theme', 'dark', 'Dark')}${opt('theme', 'system', 'System')}</div>
       <div class="w-ph-h">Animations</div><div class="w-seg">${opt('motion', 'max', 'Max')}${opt('motion', 'full', 'Full')}${opt('motion', 'reduced', 'Calm')}${opt('motion', 'off', 'Off')}</div>
       <div class="w-ph-note">Max adds a loading screen and page-change animation. Saved on this device only.${mqCalm.matches ? ' Your device asks for less motion, so Calm is the default.' : ''}</div>`;
@@ -322,6 +392,7 @@
     gear();
     decorateLogos();
     if (html.dataset.ui === 'woah') { hero(); loginBg(); }
+    sea();
     if (!decorated) {
       decorated = true;
       watchLogin();
