@@ -193,6 +193,7 @@
   }
 
   start({ title: 'Dashboard', need: 'full', action: 'data', every: 5, onData: render });
+  if (KEY) hLoad();   // ask for the team data at the same time as the main data, not after it
 </script>
 </body>
 </html>
