@@ -41,6 +41,7 @@
     { href: 'sell.html', file: 'sell.html', label: 'POS', icon: 'pos', need: 'handler', desc: 'Sell merch at the stand' },
     { href: 'shop.html', file: 'shop.html', label: 'Shop', icon: 'shop', need: 'full', desc: 'Online shop orders and accounts' },
     { href: 'stock.html', file: 'stock.html', label: 'Stock', icon: 'box', need: 'handler', desc: 'What is left to sell, per size' },
+    { href: 'partners.html#mass', file: 'mass', label: 'Mass email', icon: 'mail', need: 'handler', desc: 'Email a whole group of sponsors at once' },
     { href: 'pipeline.html', file: 'pipeline.html', label: 'Pipeline', icon: 'flow', need: 'handler', desc: 'Sponsors by stage, from first email to signed' },
     { href: 'gaps.html', file: 'gaps.html', label: 'Gaps', icon: 'gaps', need: 'full', desc: 'Things still missing or unassigned' },
     { href: 'control.html', file: 'control.html', label: 'Control', icon: 'sliders', need: 'full', desc: 'Settings, switches and team for Chris' },

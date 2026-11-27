@@ -32,7 +32,7 @@ function massOpen() {
   if (!msTabs().includes(MS.tab)) MS.tab = msTabs().includes('Sponsors') ? 'Sponsors' : (msTabs()[0] || 'Sponsors');
   msDraw(); if (!MS.tpl) msLoad();
 }
-function massClose() { if (MS.busy) return; MS.open = false; const w = document.getElementById('msWrap'); if (w) w.remove(); document.removeEventListener('keydown', msEsc); }
+function massClose() { if (MS.busy) return; MS.open = false; if (location.hash === '#mass') history.replaceState(null, '', location.pathname + location.search); const w = document.getElementById('msWrap'); if (w) w.remove(); document.removeEventListener('keydown', msEsc); }
 function msEsc(e) { if (e.key === 'Escape') massClose(); }
 function msLoad() {
   MS.loading = true; MS.tplErr = ''; msDraw();
@@ -129,6 +129,7 @@ function msDraw() {
   if (keep) { const e = document.getElementById(keep); if (e && e.focus) e.focus(); }
   msCount();
 }
+window.addEventListener('hashchange', () => { if (location.hash === '#mass' && document.getElementById('massCard') && document.getElementById('massCard').innerHTML) massOpen(); });
 function massCard() {
   const c = document.getElementById('massCard'); if (!c) return;
   c.style.display = 'block';

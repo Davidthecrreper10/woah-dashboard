@@ -28,9 +28,9 @@ function gate(me) {
   if (w) w.innerHTML = `Logged in as <b>${esc(me.name)}</b> · <a href="#" onclick="logout();return false">Log out</a>${APP_MODE ? '' : ' · <a href="install.html" target="_self">Get the app</a>'}`;
   const nav = document.getElementById('nav');
   if (nav) {
-    const pages = [['./', 'Dashboard', 'full'], ['home.html', 'Student dashboard', 'handler'], ['handlers.html', 'Email handlers', 'handler'], ['partners.html', 'Partners', 'handler'], ['pipeline.html', 'Pipeline', 'handler'], ['shop.html', 'Shop', 'full'], ['sell.html', 'POS', 'handler'], ['stock.html', 'Stock', 'handler'], ['gaps.html', 'Gaps', 'full'], ['control.html', 'Control', 'full']]
+    const pages = [['./', 'Dashboard', 'full'], ['home.html', 'Student dashboard', 'handler'], ['handlers.html', 'Email handlers', 'handler'], ['partners.html', 'Partners', 'handler'], ['partners.html#mass', 'Mass email', 'handler'], ['pipeline.html', 'Pipeline', 'handler'], ['shop.html', 'Shop', 'full'], ['sell.html', 'POS', 'handler'], ['stock.html', 'Stock', 'handler'], ['gaps.html', 'Gaps', 'full'], ['control.html', 'Control', 'full']]
       .filter(p => RANK[me.role] >= RANK[p[2]] && !(p[0] === 'home.html' && me.role === 'full'));   // admins get the student blocks on their Dashboard instead
-    nav.innerHTML = pages.length > 1 ? pages.map(([href, label]) => `<a href="${href}" target="_self" class="${(location.pathname.endsWith(href) || (href === './' && /\/(index\.html)?$/.test(location.pathname))) ? 'here' : ''}">${label}</a>`).join('') : '';
+    nav.innerHTML = pages.length > 1 ? pages.map(([href, label]) => `<a href="${href}" target="_self" class="${(!href.includes('#') && location.pathname.endsWith(href) || (href === './' && /\/(index\.html)?$/.test(location.pathname))) ? 'here' : ''}">${label}</a>`).join('') : '';
   }
   if (window.woahExtras) setTimeout(() => window.woahExtras(me), 0);   // countdown bar + Ask Chris (extras.js)
 }
