@@ -4,12 +4,12 @@
 html[data-ui="retro"][data-theme="light"] {
   --bg: #f4f7f8; --card: #ffffff; --ink: #14262e; --muted: #5d7079; --line: #e3eaed;
   --brand: #0f7c8a; --brand-soft: #e2f3f5; --warn: #b85c00; --warn-soft: #fff1e0;
-  --bad: #b3261e; --bad-soft: #fde8e6; --ok: #1e7d46; --ok-soft: #e3f4ea; color-scheme: light;
+  --bad: #b3261e; --bad-soft: #fde8e6; --ok: #1e7d46; --ok-soft: #e3f4ea; --on-brand: #fff; color-scheme: light;
 }
 html[data-ui="retro"][data-theme="dark"] {
   --bg: #0e171b; --card: #152228; --ink: #e5eef1; --muted: #93a7b0; --line: #23353d;
   --brand: #4fc3d1; --brand-soft: #143238; --warn: #f0a24b; --warn-soft: #33260f;
-  --bad: #f28b82; --bad-soft: #3a1c1a; --ok: #6fd39a; --ok-soft: #12301f; color-scheme: dark;
+  --bad: #f28b82; --bad-soft: #3a1c1a; --ok: #6fd39a; --ok-soft: #12301f; --on-brand: #0e171b; color-scheme: dark;
 }
 html[data-ui="retro"] .w-logo, html[data-ui="retro"] .w-rot, html[data-ui="retro"] .w-hero, html[data-ui="retro"] .w-loginbg { display: none !important; }
 

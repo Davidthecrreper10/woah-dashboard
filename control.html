@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WOAH Control</title>
 <base target="_blank">
-<link rel="stylesheet" href="style.css?v=11">
+<link rel="stylesheet" href="style.css?v=12">
 <link rel="icon" href="img/icon.png?v=2">
 <link rel="manifest" href="app.webmanifest">
 <link rel="apple-touch-icon" href="img/app/apple-touch-icon.png">
@@ -14,11 +14,11 @@
 <meta name="apple-mobile-web-app-title" content="WOAH">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&family=Public+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="woah.css?v=6">
+<link rel="stylesheet" href="woah.css?v=7">
 <link rel="stylesheet" href="ledger.css?v=1">
-<link rel="stylesheet" href="tide.css?v=1">
+<link rel="stylesheet" href="tide.css?v=2">
 <link rel="stylesheet" href="phone.css?v=4">
-<script src="theme.js?v=10"></script>
+<script src="theme.js?v=11"></script>
 <style>
   .c-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 14px; }
   .c-nav a { font-size: 13px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); text-decoration: none; }
@@ -51,7 +51,7 @@
   .f-row textarea, .c-form textarea { min-height: 54px; resize: vertical; }
   .f-inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .c-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
-  .c-actions button.primary, button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .c-actions button.primary, button.primary { background: var(--brand); color: var(--on-brand, #fff); border-color: var(--brand); }
   .c-table { width: 100%; border-collapse: collapse; font-size: 14px; }
   .c-table th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); }
   .c-table td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }

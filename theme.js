@@ -7,6 +7,7 @@
   const mqDark = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : { matches: false, addEventListener() {} };
   const mqCalm = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false, addEventListener() {} };
   const PHOTOS = ['img/p1.webp', 'img/p2.webp', 'img/p3.webp', 'img/p4.webp', 'img/p5.webp', 'img/p6.webp'];
+  const FACES = [12, 45, 40, 15, 35, 42];   // how far down each photo the faces are, so a short header still shows them
 
   function resolved() {
     return {
@@ -79,7 +80,7 @@
     const h = document.createElement('div');
     h.className = 'w-hero'; h.setAttribute('aria-hidden', 'true');
     const start = Math.floor(Date.now() / 86400000) % PHOTOS.length;   // a different photo leads each day
-    h.innerHTML = PHOTOS.map((src, i) => `<div class="w-ph${i === 0 ? ' on' : ''}" data-src="${PHOTOS[(start + i) % PHOTOS.length]}"></div>`).join('');
+    h.innerHTML = PHOTOS.map((src, i) => { const k = (start + i) % PHOTOS.length; return `<div class="w-ph${i === 0 ? ' on' : ''}" data-src="${PHOTOS[k]}" style="background-position:center ${FACES[k]}%"></div>`; }).join('');
     app.insertBefore(h, app.firstChild);
     const ph = [...h.children];
     ph[0].style.backgroundImage = `url(${ph[0].dataset.src})`;
@@ -193,7 +194,8 @@
     }
     if (seaEl || !document.body) return;
     seaEl = document.createElement('div'); seaEl.className = 't-sea'; seaEl.setAttribute('aria-hidden', 'true');
-    seaEl.innerHTML = `<div class="t-ph" style="background-image:url(${PHOTOS[Math.floor(Date.now() / 86400000) % PHOTOS.length]})"></div><div class="t-tint"></div>`;
+    const pi = Math.floor(Date.now() / 86400000) % PHOTOS.length;
+    seaEl.innerHTML = `<div class="t-ph" style="background-image:url(${PHOTOS[pi]});background-position:center ${FACES[pi]}%"></div><div class="t-tint"></div>`;
     const cv = document.createElement('canvas'); seaEl.appendChild(cv);
     document.body.insertBefore(seaEl, document.body.firstChild);
     const g = cv.getContext('webgl', { antialias: false, alpha: false, preserveDrawingBuffer: true });
