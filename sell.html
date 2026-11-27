@@ -244,12 +244,12 @@
   const METHODS = ['CASH', 'QRIS', 'CARD (XENDIT)', 'TRANSFER', 'NOT YET PAID', 'FOC', 'XENDIT (WEBSITE)', 'QRIS (WEBSITE)', 'TRANSFER (WEBSITE)'];
   const COUNTED = ['CASH', 'QRIS', 'CARD (XENDIT)', 'TRANSFER'];
   const QRIS_IMG = 'https://shopwoahfestival.org/img/qris.png', XENDIT_IMG = 'img/xendit-qr.png', XENDIT_LINK = 'https://checkout.xendit.co/od/25-26-HS-WOAH-Merchandise';
-  let D = null, TAB = 'sell', BR = 'all', SQ = '', CART = [], PRE = [], PAY = null, DAY = null, DAYS = [], DAYSEL = '', ORD = null, OQ = '', BUSY = false, PICK = null, CK = {}, SHEET = '', RV = [];
+  let D = null, TAB = 'sell', BR = 'all', SQ = '', CART = [], PRE = [], PAY = null, DAY = null, DAYS = [], DAYSEL = '', ORD = null, OQ = '', BUSY = false, PICK = null, CK = {}, SHEET = '', RV = [], UNPAID = null;
   const pk = k => PRACTICE ? 'P.' + k : k;
   const ls = { get(k, d) { try { const v = localStorage.getItem(pk(k)); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(pk(k), JSON.stringify(v)); } catch (e) {} } };
   TAB = ls.get('woahPosTab', 'sell'); BR = ls.get('woahPosBrand', 'all'); CART = ls.get('woahPosCart', []); PRE = ls.get('woahPosPre', []);
   let QUEUE = ls.get('woahPosQueue', []);
-  { const h = location.hash.replace('#', ''); if (['sell', 'pre', 'collect', 'today'].includes(h)) TAB = h; }
+  { const h = location.hash.replace('#', ''); if (['sell', 'pre', 'collect', 'today', 'unpaid'].includes(h)) TAB = h; }
   if (TAB === 'pre') TAB = 'sell';
   if (PRE.length) { CART = CART.concat(PRE.map(l => Object.assign({}, l, { pre: true }))); PRE = []; }   /* old separate pre-order cart */
 
@@ -283,9 +283,10 @@
     CART = CART.filter(l => !l.pre || canPre(prod(l.key))); saveCarts();
     drawPractice(); drawTabs(); drawQueue(); draw();
     if (TAB === 'collect') loadOrders(); else if (TAB === 'today') loadDay(DAYSEL); else if (TAB === 'confirm') loadRevisit();
+    loadUnpaid();
     syncSoon();
   }
-  function setTab(t) { TAB = t; ls.set('woahPosTab', t); drawTabs(); draw(); window.scrollTo(0, 0); if (t === 'collect') loadOrders(); if (t === 'today') loadDay(DAYSEL); if (t === 'confirm') loadRevisit(); }
+  function setTab(t) { TAB = t; ls.set('woahPosTab', t); drawTabs(); draw(); window.scrollTo(0, 0); if (t === 'collect') loadOrders(); if (t === 'today') loadDay(DAYSEL); if (t === 'confirm') loadRevisit(); if (t === 'unpaid') loadUnpaid(); }
   function cartChanged() { if (PAY) { PAY.got = ''; PAY.photo = false; } saveCarts(); drawTabs(); drawShop(); drawSide(); if (SHEET === 'cart') drawCart(); }
 
   /* catalogue */
@@ -381,10 +382,11 @@
   function ckErr(t) { PAY.err = t; const e = document.getElementById('ckErr'); if (e) { e.textContent = t; e.scrollIntoView({ block: 'nearest' }); } return false; }
 
   function drawTabs() {
-    const tabs = [['sell', 'Sell'], ['collect', 'Collect'], ['today', 'Sales & check']];
-    if (RV.length || TAB === 'confirm') { tabs.push(['confirm', 'To confirm']); if (window.matchMedia && matchMedia('(max-width: 699px)').matches) { tabs[2][1] = 'Sales'; tabs[3][1] = 'Confirm'; } }
+    const tabs = [['sell', 'Sell'], ['collect', 'Collect'], ['unpaid', 'Not paid'], ['today', 'Sales & check']];
+    if (RV.length || TAB === 'confirm') tabs.push(['confirm', 'To confirm']);
+    if (window.matchMedia && matchMedia('(max-width: 699px)').matches) { tabs[3][1] = 'Sales'; if (tabs[4]) tabs[4][1] = 'Confirm'; }
     document.getElementById('tabs').innerHTML = tabs.map(([k, l]) => {
-      const n = k === 'sell' ? countOf(CART) : k === 'confirm' ? RV.length : 0;
+      const n = k === 'sell' ? countOf(CART) : k === 'confirm' ? RV.length : k === 'unpaid' ? (UNPAID || []).length : 0;
       return `<button target="_self" class="${TAB === k ? 'on' : ''}" onclick="setTab('${k}')">${l}${n ? `<span class="n">${n}</span>` : ''}</button>`;
     }).join('') + (PRACTICE ? '' : `<button target="_self" class="prac" onclick="setPractice(true)">Practice mode</button>`);
   }
@@ -400,6 +402,7 @@
     if (shop) { drawShop(); drawSide(); }
     else if (TAB === 'collect') drawCollect();
     else if (TAB === 'confirm') drawConfirm();
+    else if (TAB === 'unpaid') drawUnpaid();
     else drawToday();
   }
   function usedHere(item) {
@@ -590,7 +593,7 @@
     const q = QUEUE[0];
     if (PHOTO.includes(q.sale.pay) && q.sale.photo === undefined) q.sale.photo = true;
     call({ action: 'posSale', sale: q.sale }).then(r => {
-      QUEUE.shift(); ls.set('woahPosQueue', QUEUE); if (r.day) DAY = r.day; DAYSEL = DAY ? DAY.name : DAYSEL;
+      const was = QUEUE.shift(); ls.set('woahPosQueue', QUEUE); if (was && was.sale.pay === 'later') loadUnpaid(); if (r.day) DAY = r.day; DAYSEL = DAY ? DAY.name : DAYSEL;
       SYNCING = false; drawQueue(); if (TAB === 'today') drawToday();
       if (QUEUE.length) sync(); else if (manual) toast('All sales sent');
     }).catch(e => {
@@ -684,7 +687,8 @@
     if (!day) { document.getElementById('view').innerHTML = `<div class="ps-tool">${days}</div>${pend ? `<div class="ps-list" style="margin-bottom:12px">${pend}</div>` : ''}<div class="card">No sales yet ${DAYSEL && DAYSEL !== D.today ? 'that day' : 'today'}. The day's tab in the Sales Tracker is made with the first sale.</div>`; return; }
     const s = day.sum;
     document.getElementById('view').innerHTML = `
-      <div class="ps-tool">${days}<span style="flex:1"></span>${day.url ? `<a class="pill" href="${esc(day.url)}">Open in the Sales Tracker ↗</a>` : '<span class="pill warn">Practice: not in the Sales Tracker</span>'}</div>
+      <div class="ps-tool">${days}<input class="ps-in search" id="rq" type="search" placeholder="Find a receipt no." value="${esc(RQ)}" oninput="RQ=this.value;findReceipt()" style="max-width:240px"><span style="flex:1"></span>${day.url ? `<a class="pill" href="${esc(day.url)}">Open in the Sales Tracker ↗</a>` : '<span class="pill warn">Practice: not in the Sales Tracker</span>'}</div>
+      <div id="rqOut">${receiptHTML()}</div>
       <div class="ps-h">${esc(day.name)}<span class="line"></span></div>
       ${revisitLine(day)}
       <div class="stats">
@@ -772,12 +776,68 @@
     call({ action: 'posDomSend', day: p.day, confirm: true }).then(r => { DOMPREV = null; DAY = r.day; drawToday(); toast('Sent ' + r.sent + ' rows to Dom\'s sheet'); })
       .catch(e => { alert(e.message); DOMPREV = null; loadDay(DAY.name); });
   }
+  /* stall sales nobody has paid for yet, every day */
+  let ALLDAYS = [], ALLDAYS_AT = 0;
+  function loadAllDays() {
+    return call({ action: 'posDay', day: '' }).then(d => {
+      const names = (d.days || []).filter(n => !d.day || n !== d.day.name);
+      return Promise.all(names.map(n => call({ action: 'posDay', day: n }).then(x => x.day).catch(() => null))).then(rest => { ALLDAYS_AT = Date.now(); return (ALLDAYS = [d.day].concat(rest).filter(Boolean)); });
+    });
+  }
+  function loadUnpaid() {
+    return loadAllDays().then(days => {
+      UNPAID = [];
+      days.forEach(day => (day.sales || []).forEach(x => { if (x.kind === 'Sale' && x.pay === 'NOT YET PAID' && x.status !== 'Cancelled') UNPAID.push({ day, x }); }));
+      UNPAID.sort((a, b) => new Date(a.x.at) - new Date(b.x.at));
+      drawTabs(); if (TAB === 'unpaid') drawUnpaid();
+    }).catch(e => { if (TAB === 'unpaid') document.getElementById('view').innerHTML = `<div class="card bad">${esc(e.message)}</div>`; });
+  }
+  /* receipt number search across every day */
+  let RQ = '', RQBUSY = false;
+  function receiptHTML() {
+    const q = RQ.trim().toLowerCase().replace(/\s+/g, '');
+    if (q.length < 3) return '';
+    if (!ALLDAYS.length) return '<div class="card" style="margin-bottom:12px">Searching…</div>';
+    const hits = [];
+    ALLDAYS.forEach(day => (day.sales || []).forEach(x => { if (String(x.sale).toLowerCase().includes(q) || (x.pre || []).some(o => String(o).toLowerCase().includes(q)) || String(x.note || '').toLowerCase().replace(/\s+/g, '').includes(q)) hits.push({ day, x }); }));
+    const admin = ME && ME.role === 'full';
+    return `<div class="ps-h">Receipt search <b>${hits.length}</b><span class="line"></span></div>
+      <div class="ps-list" style="margin-bottom:16px">${hits.length ? hits.map(({ day, x }) => `<div><div class="sub" style="margin-bottom:4px">${esc(day.name)} · receipt <b>${esc(x.sale)}</b></div>${saleHTML(x, admin, day.name)}</div>`).join('') : '<div class="card">No receipt with that number.</div>'}</div>`;
+  }
+  function findReceipt() {
+    const out = () => { const el = document.getElementById('rqOut'); if (el) el.innerHTML = receiptHTML(); };
+    out();
+    if (RQ.trim().length >= 3 && (!ALLDAYS.length || Date.now() - ALLDAYS_AT > 60000) && !RQBUSY) { RQBUSY = true; loadAllDays().then(() => { RQBUSY = false; out(); }).catch(() => { RQBUSY = false; }); }
+  }
+  function owesOf(x) { const t = String(x.note || '').split(' · ').find(t => /^Owes: /.test(t)); return t ? t.replace(/^Owes: /, '') : ''; }
+  function drawUnpaid() {
+    const v = document.getElementById('view');
+    if (!UNPAID) { v.innerHTML = '<div class="card">Loading…</div>'; return; }
+    const admin = ME && ME.role === 'full', tot = UNPAID.reduce((a, u) => a + (Number(u.x.total) || 0), 0);
+    v.innerHTML = `<div class="ps-h">Not paid yet <b>${UNPAID.length}</b><span class="line"></span></div>
+      <div class="sub" style="margin-bottom:12px">${UNPAID.length ? `${rp(tot)} still to collect. ` : ''}When someone pays, tap "They paid" and pick how they paid. Pre-orders that aren't paid yet are in the Collect tab.</div>
+      <div class="ps-list">${UNPAID.length ? UNPAID.map(({ day, x }) => {
+        const mine = ME && x.by.split(' + ')[0] === ME.name, who = owesOf(x);
+        return `<div class="oc"><div class="h"><div><b>${esc(who || 'Not written down')}</b> <span class="sub">${esc(day.name)} · ${new Date(x.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · sold by ${esc(x.by)}</span></div><span class="pill bad">${rp(x.total)}</span></div>
+          ${x.items.filter(i => !i.cancelled).map(i => `<div class="it"><span>${i.qty} × ${esc(i.product)}</span><span>${rp(i.amount)}</span></div>`).join('')}
+          <div class="acts">${mine || admin ? `<button target="_self" class="primary" onclick="payNow('${esc(x.sale)}')">They paid…</button>` : `<span class="sub">Ask ${esc(x.by.split(' + ')[0])} or an admin to mark it paid.</span>`}</div></div>`;
+      }).join('') : '<div class="card">Nobody owes anything right now.</div>'}</div>`;
+  }
+  function payNow(saleId) {
+    const u = (UNPAID || []).find(u => u.x.sale === saleId); if (!u) return;
+    openEdit(u.day.name, saleId);
+    ED.pay = 'cash'; ED.photo = false; ED.owes = ''; ED.why = 'Paid later';
+    ED.note = ED.note ? ED.note + ' · Was owed by ' + owesOf(u.x) : 'Was owed by ' + owesOf(u.x);
+    drawEdit();
+  }
   /* edit a sale (locked once in Dom's sheet) */
   let ED = null;
   const PAY_KEY = Object.keys(PAY_LABEL).reduce((a, k) => (a[PAY_LABEL[k]] = k, a), {});
   function varOf(item) { for (const p of (D.products || [])) for (const v of p.variants) if (item && v.item === item) return { p, v }; return null; }
   function openEdit(day, saleId) {
-    const x = (DAY.sales || []).find(s => s.sale === saleId); if (!x) return;
+    const has = d => d && (d.sales || []).some(s => s.sale === saleId);
+    const src = (TAB !== 'unpaid' && has(DAY) && DAY) || ALLDAYS.find(has) || DAY;
+    const x = (src.sales || []).find(s => s.sale === saleId); if (!x) return;
     const live = x.items.filter(i => !i.cancelled);
     const parts = String(x.note || '').split(' · ').filter(t => t && !/^Payment photo on /.test(t) && !/^Edited by /.test(t) && !/^\(was: /.test(t));
     const owes = (parts.find(t => /^Owes: /.test(t)) || '').replace(/^Owes: /, '');
@@ -847,13 +907,16 @@
     const edit = { pay: ED.pay, lines, donation: don, photo: PHOTO.includes(ED.pay), note: ED.note, owes: ED.owes, reason: ED.foc, seller: ED.seller.trim() };
     BUSY = true; ED.err = ''; drawEdit();
     call({ action: 'posEdit', day: ED.day, sale: ED.sale, why: ED.why.trim(), edit }).then(r => {
-      BUSY = false; DAY = r.day; if (r.revisitDays) RV = r.revisitDays; closeSheet(); drawTabs(); drawToday();
+      BUSY = false; if (!DAY || !r.day || DAY.name === r.day.name) DAY = r.day; if (r.revisitDays) RV = r.revisitDays; closeSheet(); drawTabs();
+      if (TAB === 'unpaid') { loadUnpaid(); toast('Marked as paid'); return; }
+      if (RQ.trim()) loadAllDays().then(findReceipt);
+      drawToday();
       toast(DAY.revisit && DAY.revisit.state === 'revisit' ? 'Sale updated. The check no longer adds up: it\'s in To confirm' : 'Sale updated');
     }).catch(e => { BUSY = false; err(e.message); });
   }
   function voidSale(day, sale, undo) {
     if (!undo && !confirm('Cancel this sale? Use this for mistakes. Its stock comes back.')) return;
-    call({ action: 'posVoid', day, sale, undo }).then(r => { DAY = r.day; if (r.revisitDays) { RV = r.revisitDays; drawTabs(); } drawToday(); toast(undo ? 'Sale back' : 'Sale cancelled'); }).catch(e => alert(e.message));
+    call({ action: 'posVoid', day, sale, undo }).then(r => { if (!DAY || !r.day || DAY.name === r.day.name) DAY = r.day; if (RQ.trim()) loadAllDays().then(findReceipt); if (r.revisitDays) { RV = r.revisitDays; drawTabs(); } drawToday(); toast(undo ? 'Sale back' : 'Sale cancelled'); }).catch(e => alert(e.message));
   }
   function domSale(day, sale, on) {
     call({ action: 'posDom', day, sale, on }).then(r => { DAY = r.day; drawToday(); }).catch(e => { alert(e.message); drawToday(); });

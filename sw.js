@@ -1,4 +1,4 @@
-const CACHE = 'woah-app-v18';
+const CACHE = 'woah-app-v19';
 const SHELL = [
   './', 'index.html', 'home.html', 'handlers.html', 'email.html', 'partners.html', 'profile.html', 'pipeline.html', 'shop.html',
   'sell.html', 'stock.html', 'gaps.html', 'control.html', 'install.html',
