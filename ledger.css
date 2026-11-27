@@ -146,3 +146,14 @@ html[data-ui="ledger"].m .card, html[data-ui="ledger"].m .w-cd { border-radius: 
 html[data-ui="ledger"].m .banner, html[data-ui="ledger"].m .w-cd .late { border-radius: 4px; }
 html[data-ui="ledger"].m-pos .ps-tabs button, html[data-ui="ledger"].m-pos .ps-bar button { border-radius: 4px; }
 html[data-ui="ledger"].m-pos .ps-bar { border-radius: 0 !important; }
+
+/* full width like WOAH, header buttons the same size as the tabs */
+html[data-ui="ledger"] .wrap { max-width: min(1760px, 100%); padding-left: clamp(16px, 2.6vw, 48px); padding-right: clamp(16px, 2.6vw, 48px); }
+html[data-ui="ledger"] header button, html[data-ui="ledger"] header a.btn { font-size: 13px; line-height: normal; padding: 7px 12px; }
+html[data-ui="ledger"] header .w-gear { min-width: 0; }
+html[data-ui="ledger"] header .who { margin-top: 4px; }
+@media (max-width: 640px) {
+  html[data-ui="ledger"] header > div:last-child { align-items: stretch !important; }
+  html[data-ui="ledger"] header > div:last-child > div { justify-content: flex-start !important; }
+  html[data-ui="ledger"] header .who { text-align: left; }
+}
